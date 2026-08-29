@@ -1,13 +1,13 @@
 {
   "name": "shahanfx-backend",
   "version": "1.0.0",
-  "description": "Backend proxy for ShahanFX and Gemini API",
+  "description": "Backend proxy for ShahanFX",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "@google/genai": "^0.1.1",
+    "@google/generative-ai": "^0.21.0",
     "cors": "^2.8.5",
     "express": "^4.19.2"
   }
