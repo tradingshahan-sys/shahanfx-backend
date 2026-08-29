@@ -1,109 +1,52 @@
 export default async function handler(req, res) {
-  // CORS
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Preflight
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Only POST
-  if (req.method !== "POST") {
-    return res.status(405).json({
-      error: "Method not allowed"
-    });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ reply: 'تەنها داواکاری POST بەردەستە.' });
   }
 
   try {
-    // Check API key
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return res.status(500).json({
-        error: "GEMINI_API_KEY لە Vercel Environment Variables دانەنراوە."
-      });
-    }
-
-    // Check body
-    const message =
-      typeof req.body?.message === "string"
-        ? req.body.message.trim()
-        : "";
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const message = body?.message;
 
     if (!message) {
-      return res.status(400).json({
-        error: "هیچ message ـێک نەنێردراوە."
-      });
+      return res.status(400).json({ reply: 'تکایە پەیامێک بنووسە.' });
     }
 
-    // Gemini API
-    const url =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent";
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ reply: 'کێشە: کلیلی GEMINI_API_KEY لە Vercel نەدۆزراوەتەوە.' });
+    }
 
-    const apiRes = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
-      },
+    const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: message
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048
-        }
+        contents: [{ parts: [{ text: message }] }]
       })
     });
 
     const data = await apiRes.json();
-
-    // Gemini returned an error
-    if (!apiRes.ok) {
-      console.error("Gemini API Error:", data);
-
-      return res.status(apiRes.status).json({
-        error: "Gemini API Error",
-        details: data
-      });
+    
+    if (data.error) {
+      return res.status(500).json({ reply: `هەڵە لە لایەن جێمینییەوە: ${data.error.message}` });
     }
 
-    // Extract answer safely
-    const reply =
-      data?.candidates?.[0]?.content?.parts
-        ?.map(part => part.text || "")
-        .join("")
-        .trim();
-
-    if (!reply) {
-      console.error("Unexpected Gemini response:", data);
-
-      return res.status(502).json({
-        error: "Gemini وەڵامێکی دروستی نەگەڕاندەوە.",
-        details: data
-      });
+    let reply = "وەڵامێک لە جێمینی نەگەڕایەوە.";
+    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+      reply = data.candidates[0].content.parts[0].text;
     }
 
-    return res.status(200).json({
-      reply
-    });
+    return res.status(200).json({ reply });
 
   } catch (error) {
-    console.error("Server Error:", error);
-
-    return res.status(500).json({
-      error: "هەڵەیەک لە سێرڤەر ڕوویدا.",
-      details: error?.message || "Unknown error"
-    });
+    console.error(error);
+    return res.status(500).json({ reply: `هەڵەی سێرڤەر: ${error.message}` });
   }
 }
