@@ -3,10 +3,10 @@ const cors=require('cors');
 const app=express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
 app.post('/api/chat',async(req,res)=>{
 try{
-const{message}=req.body;
+const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
+const message=body?.message;
 if(!message){return res.status(400).json({reply:'تکایە پەیامێک بنووسە.'});}
 const apiKey=process.env.GEMINI_API_KEY;
 if(!apiKey){return res.status(500).json({reply:'کڵیدی API نەدۆزراوەتەوە.'});}
