@@ -1,5 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -15,14 +13,28 @@ export default async function handler(req, res) {
 
   try {
     const { message } = req.body;
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: message,
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ reply: "کلیلی API لە سێرڤەر نەدۆزراوەتەوە." });
+    }
+
+    // بەکارهێنانی Fetch بۆ پەیوەندیکردن بە ڕووەکی فەرمی جێمینی بێ کێشەی پاکێج
+    const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: message }] }]
+      })
     });
 
-    const reply = response.text || "وەڵامێک نەدۆزراوەتەوە.";
+    const data = await apiRes.json();
+    
+    let reply = "وەڵامێک لە جێمینی نەگەڕایەوە.";
+    if (data.candidates && data.candidates[0].content.parts[0].text) {
+      reply = data.candidates[0].content.parts[0].text;
+    }
+
     return res.status(200).json({ reply });
 
   } catch (error) {
