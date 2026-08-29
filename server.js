@@ -1,36 +1,34 @@
 const express = require('express');
 const cors = require('cors');
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// بەستنەوە بە Gemini API بە کلیلی نهێنی ناو Render
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post('/analyze-chart', async (req, res) => {
-    try {
-        const { imageBase64, prompt } = req.body;
-        
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [
-                prompt || "شیکاری ئەم چارتی XAUUSD ـە بکە و نیشانەکان و ئاراستە دەستنیشان بکە.",
-                {
-                    inlineData: {
-                        data: imageBase64.split(',')[1],
-                        mimeType: 'image/jpeg'
-                    }
-                }
-            ]
-        });
+try {
+const { imageBase64, prompt } = req.body;
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-        res.json({ success: true, analysis: response.text });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+const result = await model.generateContent([
+prompt || "شیکاری ئەم چارتی XAUUSD بکە",
+{
+inlineData: {
+data: imageBase64.split(',')[1],
+mimeType: 'image/jpeg'
+}
+}
+]);
+
+const response = await result.response;
+res.json({ success: true, analysis: response.text() });
+} catch (error) {
+console.error(error);
+res.status(500).json({ success: false, error: error.message });
+}
 });
 
 const PORT = process.env.PORT || 3000;
