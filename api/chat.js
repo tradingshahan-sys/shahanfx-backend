@@ -6,25 +6,13 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-  
-  if (req.method !== 'POST') {
-    return res.status(405).json({ reply: 'تەنها فۆڕمی POST ڕێگەپێدراوە.' });
-  }
 
   try {
-    let body = req.body;
-    if (typeof body === 'string') {
-      body = JSON.parse(body);
-    }
-    
-    const message = body?.message;
-    if (!message) {
-      return res.status(400).json({ reply: 'تکایە پەیامێک بنووسە.' });
-    }
-
+    const message = req.body?.message || "سڵاو";
     const apiKey = process.env.GEMINI_API_KEY;
+    
     if (!apiKey) {
-      return res.status(500).json({ reply: 'کڵیدی API لە سێرڤەردا نییە.' });
+      return res.status(500).json({ reply: 'کڵیدی API بوونی نییە.' });
     }
 
     const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
@@ -36,19 +24,10 @@ export default async function handler(req, res) {
     });
 
     const data = await apiRes.json();
-    
-    if (data.error) {
-      return res.status(500).json({ reply: 'هەڵە لە گووگڵ جێمینی: ' + (data.error.message || 'نەزانراو') });
-    }
-
-    let reply = "وەڵامێک نەگەڕایەوە.";
-    if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-      reply = data.candidates[0].content.parts[0].text;
-    }
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "وەڵام نەگەڕایەوە.";
 
     return res.status(200).json({ reply });
-
-  } catch (error) {
-    return res.status(500).json({ reply: 'هەڵەی ناو سێرڤەر: ' + error.message });
+  } catch (err) {
+    return res.status(500).json({ reply: 'هەڵە ڕووی دا.' });
   }
 }
