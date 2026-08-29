@@ -1,7 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 
 export default async function handler(req, res) {
-  // ڕێگەدان بە CORS بۆ ئەوەی لە Google Sites یان هەر شوێنێکی ترەوە کاربکات
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -16,8 +15,8 @@ export default async function handler(req, res) {
 
   try {
     const { message } = req.body;
-    
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: message,
