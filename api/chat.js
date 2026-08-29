@@ -19,7 +19,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ reply: "کلیلی API لە سێرڤەر نەدۆزراوەتەوە." });
     }
 
-    // بەکارهێنانی Fetch بۆ پەیوەندیکردن بە ڕووەکی فەرمی جێمینی بێ کێشەی پاکێج
     const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
