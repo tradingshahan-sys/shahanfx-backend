@@ -1,5 +1,5 @@
 {
   "name": "shahanfx-backend",
   "version": "1.0.0",
-  "dependencies": {}
+  "private": true
 }
