@@ -1,35 +1,34 @@
-const express = require('express');
-const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+async function sendChatMessage() {
+  const input = document.getElementById("userInput");
+  const chatBox = document.getElementById("chatBox");
+  const text = input.value.trim();
+  if(!text) return;
 
-const app = express();
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+  // نیشاندانی پەیامی بەکارهێنەر لە چاتەکەدا
+  chatBox.innerHTML += `<div style="margin-bottom:8px; text-align:left; color:#fff;"><b>تۆ:</b> ${text}</div>`;
+  input.value = "";
+  chatBox.scrollTop = chatBox.scrollHeight;
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  try {
+    // ناردنی داواکاری بۆ سێرڤەرەکەت لە Vercel کە کلیلی Gemini لەوێیە
+    const response = await fetch("https://shahanfx-backend-2yjs-pfad97adx-shahanfx.vercel.app/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text })
+    });
 
-app.post('/analyze-chart', async (req, res) => {
-try {
-const { imageBase64, prompt } = req.body;
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const data = await response.json();
+    const reply = data.reply || data.text || "وەڵامێک لە سێرڤەرەوە نەگەڕایەوە.";
 
-const result = await model.generateContent([
-prompt || "شیکاری ئەم چارتی XAUUSD بکە",
-{
-inlineData: {
-data: imageBase64.split(',')[1],
-mimeType: 'image/jpeg'
+    // نیشاندانی وەڵامی زیرەکی دەستکرد
+    chatBox.innerHTML += `<div style="margin-bottom:8px; text-align:right; color:#60a5fa;"><b>Brain:</b> ${reply}</div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+    
+    // خوێندنەوەی وەڵامەکە بە دەنگ
+    speakText(reply);
+
+  } catch (error) {
+    console.error(error);
+    chatBox.innerHTML += `<div style="margin-bottom:8px; text-align:right; color:#f87171;"><b>Brain:</b> هەڵە ڕوویدا لە پەیوەندیکردن بە سێرڤەر.</div>`;
+  }
 }
-}
-]);
-
-const response = await result.response;
-res.json({ success: true, analysis: response.text() });
-} catch (error) {
-console.error(error);
-res.status(500).json({ success: false, error: error.message });
-}
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
