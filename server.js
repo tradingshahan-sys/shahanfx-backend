@@ -1,34 +1,32 @@
-async function sendChatMessage() {
-  const input = document.getElementById("userInput");
-  const chatBox = document.getElementById("chatBox");
-  const text = input.value.trim();
-  if(!text) return;
+const express = require('express');
+const cors = require('cors');
+const { GoogleGenAI } = require('@google/genai'); // یان هەر کتێبخانەیەک کە بۆ جێمینی بەکاری دەهێنیت
 
-  // نیشاندانی پەیامی بەکارهێنەر لە چاتەکەدا
-  chatBox.innerHTML += `<div style="margin-bottom:8px; text-align:left; color:#fff;"><b>تۆ:</b> ${text}</div>`;
-  input.value = "";
-  chatBox.scrollTop = chatBox.scrollHeight;
+const app = express();
+app.use(cors());
+app.use(express.json());
 
+// ئامادەکردنی جێمینی بە کلیلی نهێنی کە لە Vercel Environment Variables دانراوە
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+app.post('/api/chat', async (req, res) => {
   try {
-    // ناردنی داواکاری بۆ سێرڤەرەکەت لە Vercel کە کلیلی Gemini لەوێیە
-    const response = await fetch("https://shahanfx-backend-2yjs-pfad97adx-shahanfx.vercel.app/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text })
+    const { message } = req.body;
+    
+    // ناردنی پەیام بۆ مۆدێلی جێمینی
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: message,
     });
 
-    const data = await response.json();
-    const reply = data.reply || data.text || "وەڵامێک لە سێرڤەرەوە نەگەڕایەوە.";
-
-    // نیشاندانی وەڵامی زیرەکی دەستکرد
-    chatBox.innerHTML += `<div style="margin-bottom:8px; text-align:right; color:#60a5fa;"><b>Brain:</b> ${reply}</div>`;
-    chatBox.scrollTop = chatBox.scrollHeight;
+    const reply = response.text || "وەڵامێک نەدۆزراوەتەوە.";
+    res.json({ reply });
     
-    // خوێندنەوەی وەڵامەکە بە دەنگ
-    speakText(reply);
-
   } catch (error) {
     console.error(error);
-    chatBox.innerHTML += `<div style="margin-bottom:8px; text-align:right; color:#f87171;"><b>Brain:</b> هەڵە ڕوویدا لە پەیوەندیکردن بە سێرڤەر.</div>`;
+    res.status(500).json({ reply: "هەڵەیەک لە سێرڤەر ڕوویدا." });
   }
-}
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
