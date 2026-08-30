@@ -15,122 +15,78 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const body =
+      typeof req.body === "string"
+        ? JSON.parse(req.body)
+        : req.body;
+
+    const message =
+      body?.message?.trim() || "سڵاو";
+
+    const apiKey =
+      process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       return res.status(500).json({
         success: false,
-        error: "GEMINI_API_KEY لە Vercel نەدۆزرایەوە"
+        error: "GEMINI_API_KEY لە Vercel دانەنراوە."
       });
     }
 
-    let body = req.body;
-
-    if (typeof body === "string") {
-      body = JSON.parse(body);
-    }
-
-    const message =
-      typeof body?.message === "string"
-        ? body.message.trim()
-        : "";
-
-    if (!message) {
-      return res.status(400).json({
-        success: false,
-        error: "message پێویستە"
-      });
-    }
-
-    const prompt = `
-تۆ ShahanFX AI Advisor ـیت.
-
-وەڵامەکانت بە کوردی سۆرانی بنووسە.
-
-لە Forex و Trading یارمەتی بەکارهێنەر بدە.
-
-Trend
-Market Structure
-Support / Resistance
-Liquidity
-FVG
-Candlestick
-Entry
-Stop Loss
-Take Profit
-Risk/Reward
-Confidence
-Risk Level
-
-هیچ کاتێک دڵنیایی 100% لە Buy یان Sell مەدە.
-Risk Management لەبەرچاو بگرە.
-
-پرسیاری بەکارهێنەر:
-${message}
-`;
-
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+    const apiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
+
         headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
+          "Content-Type": "application/json"
         },
+
         body: JSON.stringify({
           contents: [
             {
-              role: "user",
               parts: [
                 {
-                  text: prompt
+                  text: message
                 }
               ]
             }
-          ],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 1500
-          }
+          ]
         })
       }
     );
 
-    const data = await response.json();
+    const data = await apiRes.json();
 
-    if (!response.ok) {
-      return res.status(response.status).json({
+    if (!apiRes.ok || data.error) {
+      return res.status(apiRes.status || 500).json({
         success: false,
         error:
           data?.error?.message ||
-          "Gemini API Error"
+          "هەڵەیەک لە Gemini ڕوویدا."
       });
     }
 
-    const answer =
-      data?.candidates?.[0]?.content?.parts
-        ?.map(part => part.text || "")
-        .join("")
-        .trim();
+    const reply =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!answer) {
+    if (!reply) {
       return res.status(500).json({
         success: false,
-        error: "Gemini هیچ وەڵامێکی نەدا."
+        error: "Gemini هیچ وەڵامێکی نەگەڕاندەوە.",
+        debug: data
       });
     }
 
     return res.status(200).json({
       success: true,
-      answer: answer
+      answer: reply
     });
 
   } catch (error) {
-    console.error(error);
-
     return res.status(500).json({
       success: false,
-      error: error.message || "Server Error"
+      error: error.message
     });
   }
 }
