@@ -28,7 +28,14 @@ if (!apiKey) {
 let body = req.body;
 
 if (typeof body === "string") {
-  body = JSON.parse(body);
+  try {
+    body = JSON.parse(body);
+  } catch {
+    return res.status(400).json({
+      success: false,
+      error: "JSON ـەکە دروست نییە"
+    });
+  }
 }
 
 const message = body?.message || "";
@@ -48,9 +55,9 @@ const systemPrompt = `
 
 ئەرکت شیکردنەوەی Forex و Trading ـە.
 
-وەڵام بە کوردی سۆرانی بدە.
+هەمیشە بە کوردی سۆرانی وەڵام بدە، مەگەر بەکارهێنەر زمانی تر داوا بکات.
 
-لە شیکردنەوەدا ئەمانە بپشکنە:
+لە شیکردنەوەی Chart ئەمانە بپشکنە:
 
 1. Trend
 2. Market Structure
@@ -71,12 +78,16 @@ const systemPrompt = `
 * Symbol ئەگەر دیارە بناسە.
 * Timeframe ئەگەر دیارە بناسە.
 * Trend دیاری بکە.
-* Structure و Liquidity و FVG بپشکنە.
+* Market Structure شیکەرەوە.
+* Liquidity و FVG بپشکنە.
+* Support و Resistance دیاری بکە.
+* Candlestick ـە گرنگەکان بپشکنە.
 * ئەگەر setup ـێکی ڕوون نەبوو، Buy/Sell بە زۆر مەدەرەوە.
 * هیچ کاتێک دڵنیایی 100% مەدە.
-* شیکارییەکە ڕاوێژە، نەک دڵنیایی لە قازانج.
+* هیچ قازانجێکی دڵنیایی مەبەخشە.
+* Risk Management هەمیشە لەبەرچاو بگرە.
 
-ئەگەر setup باش بوو، ئەنجام بەو شێوەیە بنووسە:
+ئەگەر setup ـێکی باش هەبوو، ئەنجامەکە بە ئەم شێوەیە ڕێک بخە:
 
 📊 SHAHANFX ANALYSIS
 
@@ -87,8 +98,10 @@ Market Structure:
 Liquidity:
 FVG:
 Support/Resistance:
+Candlestick:
 
 🎯 SETUP
+
 Direction:
 Entry:
 Stop Loss:
@@ -99,7 +112,7 @@ Risk/Reward:
 📈 Confidence:
 ⚠️ Risk:
 
-کورت و ڕوون و پیشەیی وەڵام بدە.
+کورت، ڕوون، پیشەیی و ڕاستگۆ وەڵام بدە.
 `;
 
 ```
@@ -111,14 +124,22 @@ const parts = [
 
 if (image) {
   let imageData = image;
+  let mimeType = "image/jpeg";
 
   if (imageData.includes(",")) {
+    const header = imageData.split(",")[0];
     imageData = imageData.split(",")[1];
+
+    const match = header.match(/data:(.*?);base64/);
+
+    if (match) {
+      mimeType = match[1];
+    }
   }
 
   parts.push({
     inline_data: {
-      mime_type: "image/jpeg",
+      mime_type: mimeType,
       data: imageData
     }
   });
@@ -156,14 +177,18 @@ if (!response.ok) {
     data?.error?.message ||
     "هەڵەیەک لە Gemini API ڕوویدا.";
 
+  const lowerError = errorText.toLowerCase();
+
   if (
-    errorText.toLowerCase().includes("quota") ||
-    errorText.toLowerCase().includes("rate")
+    response.status === 429 ||
+    lowerError.includes("quota") ||
+    lowerError.includes("rate limit") ||
+    lowerError.includes("rate")
   ) {
     return res.status(429).json({
       success: false,
       error:
-        "سنووری بەکارهێنانی Gemini بۆ ئێستا پڕ بووە. تکایە کەمێک دواتر دووبارە هەوڵ بدە."
+        "⏳ سنووری بەکارهێنانی Gemini بۆ ئێستا پڕ بووە. تکایە کەمێک دواتر دووبارە هەوڵ بدە."
     });
   }
 
@@ -175,7 +200,7 @@ if (!response.ok) {
 
 const answer =
   data?.candidates?.[0]?.content?.parts
-    ?.map(part => part.text || "")
+    ?.map(part => part?.text || "")
     .join("")
     .trim();
 
