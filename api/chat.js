@@ -22,11 +22,16 @@ if (typeof body === "string") {
   body = JSON.parse(body);
 }
 
-const message =
-  body?.message?.trim() || "سڵاو";
+const message = body?.message?.trim();
 
-const apiKey =
-  process.env.GEMINI_API_KEY;
+if (!message) {
+  return res.status(400).json({
+    success: false,
+    error: "هیچ پرسیارێک نەنێردراوە."
+  });
+}
+
+const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
   return res.status(500).json({
@@ -35,43 +40,56 @@ if (!apiKey) {
   });
 }
 
-const apiRes = await fetch(
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${apiKey}`,
-  {
-    method: "POST",
+const url =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent";
 
-    headers: {
-      "Content-Type": "application/json"
-    },
+const apiRes = await fetch(url, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-goog-api-key": apiKey
+  },
+  body: JSON.stringify({
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text:
+              "تۆ ShahanFX AI Advisor ـیت. " +
+              "بە کوردیی سۆرانی وەڵامی بەکارهێنەر بدەرەوە. " +
+              "وەڵامەکەت ڕوون و بەسوود بێت.\n\n" +
+              "پرسیاری بەکارهێنەر:\n" +
+              message
+          }
+        ]
+      }
+    ]
+  })
+});
 
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                "تۆ ShahanFX AI Advisor ـیت. " +
-                "بە کوردیی سۆرانی وەڵامی بەکارهێنەر بدەرەوە. " +
-                "وەڵامەکانت ڕوون و کورت و بەسوود بن.\n\n" +
-                "پرسیاری بەکارهێنەر:\n" +
-                message
-            }
-          ]
-        }
-      ]
-    })
-  }
-);
+const raw = await apiRes.text();
 
-const data = await apiRes.json();
+let data;
+
+try {
+  data = JSON.parse(raw);
+} catch {
+  return res.status(502).json({
+    success: false,
+    error: "وەڵامی نادروست لە Gemini API.",
+    status: apiRes.status,
+    raw: raw.substring(0, 500)
+  });
+}
 
 if (!apiRes.ok) {
-  return res.status(apiRes.status || 500).json({
+  return res.status(apiRes.status).json({
     success: false,
     error:
       data?.error?.message ||
-      "هەڵەی Gemini API."
+      "Gemini API هەڵەیەکی نەناسراوی گەڕاندەوە.",
+    status: apiRes.status
   });
 }
 
@@ -98,7 +116,7 @@ return res.status(200).json({
 } catch (error) {
 return res.status(500).json({
 success: false,
-error: error.message
+error: "Backend Error: " + error.message
 });
 }
 }
