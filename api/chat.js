@@ -1,92 +1,104 @@
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+res.setHeader("Access-Control-Allow-Origin", "*");
+res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+if (req.method === "OPTIONS") {
+return res.status(200).end();
+}
 
-  if (req.method !== "POST") {
-    return res.status(405).json({
-      success: false,
-      error: "تەنها POST ڕێگەپێدراوە"
-    });
-  }
+if (req.method !== "POST") {
+return res.status(405).json({
+success: false,
+error: "تەنها POST ڕێگەپێدراوە"
+});
+}
 
-  try {
-    const body =
-      typeof req.body === "string"
-        ? JSON.parse(req.body)
-        : req.body;
+try {
+let body = req.body;
 
-    const message =
-      body?.message?.trim() || "سڵاو";
+```
+if (typeof body === "string") {
+  body = JSON.parse(body);
+}
 
-    const apiKey =
-      process.env.GEMINI_API_KEY;
+const message =
+  body?.message?.trim() || "سڵاو";
 
-    if (!apiKey) {
-      return res.status(500).json({
-        success: false,
-        error: "GEMINI_API_KEY لە Vercel دانەنراوە."
-      });
-    }
+const apiKey =
+  process.env.GEMINI_API_KEY;
 
-    const apiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
+if (!apiKey) {
+  return res.status(500).json({
+    success: false,
+    error: "GEMINI_API_KEY لە Vercel نەدۆزرایەوە."
+  });
+}
 
-        headers: {
-          "Content-Type": "application/json"
-        },
+const apiRes = await fetch(
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${apiKey}`,
+  {
+    method: "POST",
 
-        body: JSON.stringify({
-          contents: [
+    headers: {
+      "Content-Type": "application/json"
+    },
+
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
             {
-              parts: [
-                {
-                  text: message
-                }
-              ]
+              text:
+                "تۆ ShahanFX AI Advisor ـیت. " +
+                "بە کوردیی سۆرانی وەڵامی بەکارهێنەر بدەرەوە. " +
+                "وەڵامەکانت ڕوون و کورت و بەسوود بن.\n\n" +
+                "پرسیاری بەکارهێنەر:\n" +
+                message
             }
           ]
-        })
-      }
-    );
-
-    const data = await apiRes.json();
-
-    if (!apiRes.ok || data.error) {
-      return res.status(apiRes.status || 500).json({
-        success: false,
-        error:
-          data?.error?.message ||
-          "هەڵەیەک لە Gemini ڕوویدا."
-      });
-    }
-
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!reply) {
-      return res.status(500).json({
-        success: false,
-        error: "Gemini هیچ وەڵامێکی نەگەڕاندەوە.",
-        debug: data
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      answer: reply
-    });
-
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+        }
+      ]
+    })
   }
+);
+
+const data = await apiRes.json();
+
+if (!apiRes.ok) {
+  return res.status(apiRes.status || 500).json({
+    success: false,
+    error:
+      data?.error?.message ||
+      "هەڵەی Gemini API."
+  });
+}
+
+const answer =
+  data?.candidates?.[0]?.content?.parts
+    ?.map(part => part.text || "")
+    .join("")
+    .trim();
+
+if (!answer) {
+  return res.status(500).json({
+    success: false,
+    error: "Gemini هیچ وەڵامێکی نەگەڕاندەوە.",
+    debug: data
+  });
+}
+
+return res.status(200).json({
+  success: true,
+  answer: answer
+});
+```
+
+} catch (error) {
+return res.status(500).json({
+success: false,
+error: error.message
+});
+}
 }
