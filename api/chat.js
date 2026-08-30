@@ -52,22 +52,22 @@ const prompt = `
 
 وەڵامەکانت بە کوردی سۆرانی بنووسە.
 
-لە Forex و Trading یارمەتی بەکارهێنەر بدە.
+ئەرکت یارمەتیدانی بەکارهێنەر لە Forex و Trading ـە.
 
 لە شیکارییەکاندا ئەمانە بپشکنە:
 
-Trend
-Market Structure
-Support / Resistance
-Liquidity
-FVG
-Candlestick
-Entry
-Stop Loss
-Take Profit
-Risk/Reward
-Confidence
-Risk Level
+1. Trend
+2. Market Structure
+3. Support / Resistance
+4. Liquidity
+5. FVG
+6. Candlestick
+7. Entry
+8. Stop Loss
+9. Take Profit
+10. Risk/Reward
+11. Confidence
+12. Risk Level
 
 هیچ کاتێک دڵنیایی 100% لە Buy یان Sell مەدە.
 
@@ -77,10 +77,8 @@ Risk Management لەبەرچاو بگرە.
 
 ئەگەر زانیارییەکان بەس نەبوون، پرسیاری پێویست بکە.
 
-ئەگەر setup ـێکی ڕوون نەبوو، بڵێ:
-NO TRADE — setup ـەکە بەهێز نییە.
-
 پرسیاری بەکارهێنەر:
+
 ${message}
 `;
 
@@ -89,10 +87,12 @@ const response = await fetch(
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
   {
     method: "POST",
+
     headers: {
       "Content-Type": "application/json",
       "x-goog-api-key": apiKey
     },
+
     body: JSON.stringify({
       contents: [
         {
@@ -104,6 +104,7 @@ const response = await fetch(
           ]
         }
       ],
+
       generationConfig: {
         temperature: 0.3,
         maxOutputTokens: 1500
