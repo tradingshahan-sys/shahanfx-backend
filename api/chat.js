@@ -15,127 +15,36 @@ error: "تەنها POST ڕێگەپێدراوە"
 }
 
 try {
-const body =
-typeof req.body === "string"
-? JSON.parse(req.body)
-: req.body || {};
+const apiKey = process.env.GEMINI_API_KEY;
 
 ```
-const message =
-  String(body.message || "").trim();
-
-if (!message) {
-  return res.status(400).json({
-    success: false,
-    error: "نامەکە بەتاڵە."
-  });
-}
-
-const apiKey =
-  process.env.GEMINI_API_KEY;
-
 if (!apiKey) {
   return res.status(500).json({
     success: false,
-    error:
-      "GEMINI_API_KEY لە Vercel نەدۆزرایەوە."
+    error: "GEMINI_API_KEY نەدۆزرایەوە."
   });
 }
 
-const model =
-  "gemini-3.7-flash";
-
-const url =
-  "https://generativelanguage.googleapis.com/v1beta/models/" +
-  model +
-  ":generateContent?key=" +
+const googleURL =
+  "https://generativelanguage.googleapis.com/v1beta/models?key=" +
   encodeURIComponent(apiKey);
 
 const googleResponse =
-  await fetch(url, {
-    method: "POST",
+  await fetch(googleURL);
 
-    headers: {
-      "Content-Type": "application/json"
-    },
-
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text:
-                "تۆ ShahanFX AI Advisor ـیت.\n" +
-                "بە کوردیی سۆرانی وەڵام بدەرەوە.\n\n" +
-                "پرسیاری بەکارهێنەر:\n" +
-                message
-            }
-          ]
-        }
-      ]
-    })
-  });
-
-const raw =
+const text =
   await googleResponse.text();
-
-let data;
-
-try {
-  data = JSON.parse(raw);
-} catch (error) {
-  return res.status(502).json({
-    success: false,
-    error:
-      "Gemini وەڵامی JSON ـی نەدا.",
-    raw: raw.substring(0, 500)
-  });
-}
-
-if (!googleResponse.ok) {
-  return res.status(
-    googleResponse.status
-  ).json({
-    success: false,
-    error:
-      data?.error?.message ||
-      "Gemini API Error",
-    status:
-      googleResponse.status
-  });
-}
-
-const answer =
-  data?.candidates?.[0]
-    ?.content?.parts?.[0]
-    ?.text;
-
-if (
-  !answer ||
-  !String(answer).trim()
-) {
-  return res.status(500).json({
-    success: false,
-    error:
-      "Gemini وەڵامی بەتاڵی گەڕاندەوە.",
-    googleResponse: data
-  });
-}
 
 return res.status(200).json({
   success: true,
-  answer: String(answer).trim()
+  googleStatus: googleResponse.status,
+  googleResponse: text.substring(0, 3000)
 });
 ```
 
 } catch (error) {
 
 ```
-console.error(
-  "ShahanFX Gemini Error:",
-  error
-);
-
 return res.status(500).json({
   success: false,
   error:
