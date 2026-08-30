@@ -1,271 +1,144 @@
-export default async function handler(req, res) {
-  // =========================
-  // CORS
-  // =========================
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "POST, OPTIONS"
-  );
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type"
-  );
+<div style="font-family:Arial,sans-serif;max-width:450px;margin:auto;background:#0b1329;color:#fff;padding:15px;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,.3);">
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  <div style="font-size:16px;font-weight:bold;margin-bottom:10px;color:#38bdf8;text-align:center;">
+    ShahanFX AI Advisor
+  </div>
 
-  if (req.method !== "POST") {
-    return res.status(405).json({
-      success: false,
-      error: "تەنها POST ڕێگەپێدراوە"
-    });
-  }
+  <div id="chat-box" style="height:320px;overflow-y:auto;border:1px solid #1e293b;padding:10px;margin-bottom:10px;border-radius:8px;background:#0f172a;display:flex;flex-direction:column;gap:8px;">
+
+```
+<div style="background:#1e293b;padding:8px 12px;border-radius:8px;max-width:80%;align-self:flex-start;color:#e2e8f0;font-size:14px;">
+  سڵاو! من ڕاوێژکاری فۆرێکسەکەتەم. چۆن یارمەتیت بدەم؟
+</div>
+```
+
+  </div>
+
+  <div style="display:flex;gap:8px;">
+
+```
+<input
+  type="text"
+  id="user-input"
+  placeholder="پرسیارەکەت لێرە بنووسە..."
+  style="flex:1;padding:10px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#fff;outline:none;font-size:14px;"
+  onkeydown="if(event.key==='Enter') sendMessage()"
+>
+
+<button
+  id="send-button"
+  onclick="sendMessage()"
+  style="padding:10px 18px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;"
+>
+  ناردن
+</button>
+```
+
+  </div>
+
+</div>
+
+<script>
+
+async function sendMessage() {
+
+  const input = document.getElementById('user-input');
+  const chatBox = document.getElementById('chat-box');
+  const button = document.getElementById('send-button');
+
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  // پەیامی بەکارهێنەر
+  const userMessage = document.createElement('div');
+
+  userMessage.style.cssText =
+    'background:#2563eb;padding:8px 12px;border-radius:8px;max-width:80%;align-self:flex-end;color:#fff;font-size:14px;';
+
+  userMessage.textContent = text;
+
+  chatBox.appendChild(userMessage);
+
+  input.value = '';
+
+  button.disabled = true;
+  button.textContent = 'چاوەڕێ بکە...';
+
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  // Loading
+  const loading = document.createElement('div');
+
+  loading.style.cssText =
+    'background:#1e293b;padding:8px 12px;border-radius:8px;max-width:80%;align-self:flex-start;color:#94a3b8;font-size:14px;';
+
+  loading.textContent = 'زیرەکی دەخەریکە...';
+
+  chatBox.appendChild(loading);
+
+  chatBox.scrollTop = chatBox.scrollHeight;
 
   try {
-    // =========================
-    // GEMINI KEY
-    // =========================
-    const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) {
-      return res.status(500).json({
-        success: false,
-        error: "GEMINI_API_KEY لە Vercel دانەنراوە"
-      });
-    }
-
-    // =========================
-    // BODY
-    // =========================
-    let body = req.body;
-
-    if (typeof body === "string") {
-      try {
-        body = JSON.parse(body);
-      } catch {
-        return res.status(400).json({
-          success: false,
-          error: "JSON ـەکە دروست نییە"
-        });
-      }
-    }
-
-    const message =
-      typeof body?.message === "string"
-        ? body.message.trim()
-        : "";
-
-    const image =
-      typeof body?.image === "string"
-        ? body.image
-        : null;
-
-    if (!message && !image) {
-      return res.status(400).json({
-        success: false,
-        error: "پەیام یان وێنە پێویستە"
-      });
-    }
-
-    // =========================
-    // SHAHANFX AI
-    // =========================
-    const systemInstruction = `
-تۆ ShahanFX AI Advisor ـیت.
-
-وەڵامەکانت بە کوردی سۆرانی بنووسە.
-
-ئەرکی تۆ:
-- یارمەتیدانی بەکارهێنەر لە Forex و Trading
-- شیکردنەوەی Chart
-- ڕوونکردنەوەی Market Structure
-- Trend
-- Support / Resistance
-- Liquidity
-- FVG
-- Candlestick
-- Entry
-- Stop Loss
-- Take Profit
-- Risk/Reward
-- Confidence
-- Risk Level
-
-ئەگەر وێنەی Chart نێردرا:
-1. Symbol ئەگەر دیارە بناسە.
-2. Timeframe ئەگەر دیارە بناسە.
-3. Trend دیاری بکە.
-4. Market Structure شیکەرەوە.
-5. Liquidity بپشکنە.
-6. FVG بپشکنە.
-7. Support و Resistance بپشکنە.
-8. Candlestick ـە گرنگەکان بپشکنە.
-9. Setup ـی هەبوو دیاری بکە.
-10. Entry / SL / TP پێشنیار بکە ئەگەر زانیارییەکان بەس بوون.
-
-ئەگەر setup ـێکی ڕوون نییە:
-Buy یان Sell بە زۆر مەدەرەوە.
-
-هیچ کاتێک دڵنیایی 100% مەدە.
-قازانجی دڵنیایی بەڵێن مەدە.
-Risk Management هەمیشە لەبەرچاو بگرە.
-
-ئەگەر setup ـەکە ڕوون بوو، ئەم شێوەیە بەکاربهێنە:
-
-📊 SHAHANFX ANALYSIS
-
-Market:
-Timeframe:
-Trend:
-Market Structure:
-Liquidity:
-FVG:
-Support/Resistance:
-Candlestick:
-
-🎯 SETUP
-
-Direction:
-Entry:
-Stop Loss:
-Take Profit 1:
-Take Profit 2:
-Risk/Reward:
-
-📈 Confidence:
-⚠️ Risk:
-
-کورت، ڕوون و پیشەیی وەڵام بدە.
-`;
-
-    // =========================
-    // INPUT
-    // =========================
-    let input = message;
-
-    // =========================
-    // IMAGE
-    // =========================
-    if (image) {
-      input += `
-
-وێنەی Chart لەگەڵ ئەم پرسیارە نێردراوە.
-تکایە وێنەکە بە وردی شیکەرەوە.
-`;
-    }
-
-    // =========================
-    // GEMINI REQUEST
-    // =========================
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/interactions",
+    const res = await fetch(
+      'https://shahanfx-backend-9576.vercel.app/api/chat',
       {
-        method: "POST",
+        method: 'POST',
 
         headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
+          'Content-Type': 'application/json'
         },
 
         body: JSON.stringify({
-          model: "gemini-3.7-flash",
-
-          system_instruction:
-            systemInstruction,
-
-          input: input
+          message: text
         })
       }
     );
 
-    const data = await response.json();
+    const data = await res.json();
 
-    // =========================
-    // GEMINI ERROR
-    // =========================
-    if (!response.ok) {
-      console.error(
-        "Gemini Error:",
-        data
+    loading.remove();
+
+    if (!res.ok || !data.success) {
+
+      throw new Error(
+        data.error || 'هەڵەیەک لە سێرڤەر ڕوویدا'
       );
 
-      const errorMessage =
-        data?.error?.message ||
-        "Gemini API Error";
-
-      if (
-        response.status === 429 ||
-        errorMessage
-          .toLowerCase()
-          .includes("quota") ||
-        errorMessage
-          .toLowerCase()
-          .includes("rate")
-      ) {
-        return res.status(429).json({
-          success: false,
-          error:
-            "⏳ سنووری Gemini بۆ ئێستا پڕ بووە. تکایە کەمێک دواتر دووبارە هەوڵ بدە."
-        });
-      }
-
-      return res.status(response.status).json({
-        success: false,
-        error: errorMessage
-      });
     }
 
-    // =========================
-    // ANSWER
-    // =========================
-    const answer =
-      data?.output_text ||
-      data?.output
-        ?.map(item => {
-          if (typeof item === "string") {
-            return item;
-          }
+    // وەڵامی AI
+    const brainMessage = document.createElement('div');
 
-          if (Array.isArray(item?.content)) {
-            return item.content
-              .map(x => x?.text || "")
-              .join("");
-          }
+    brainMessage.style.cssText =
+      'background:#1e293b;padding:8px 12px;border-radius:8px;max-width:80%;align-self:flex-start;color:#e2e8f0;font-size:14px;white-space:pre-wrap;';
 
-          return item?.text || "";
-        })
-        .join("\n")
-        .trim();
+    brainMessage.textContent =
+      data.answer || 'وەڵامێک نەگەڕایەوە.';
 
-    if (!answer) {
-      return res.status(500).json({
-        success: false,
-        error:
-          "Gemini هیچ وەڵامێکی نەدا."
-      });
-    }
+    chatBox.appendChild(brainMessage);
 
-    // =========================
-    // SUCCESS
-    // =========================
-    return res.status(200).json({
-      success: true,
-      answer: answer
-    });
+  } catch (err) {
 
-  } catch (error) {
-    console.error(
-      "ShahanFX Server Error:",
-      error
-    );
+    loading.remove();
 
-    return res.status(500).json({
-      success: false,
-      error:
-        error?.message ||
-        "هەڵەیەکی ناوخۆیی ڕوویدا."
-    });
+    const errorMessage = document.createElement('div');
+
+    errorMessage.style.cssText =
+      'background:#7f1d1d;padding:8px 12px;border-radius:8px;max-width:80%;align-self:flex-start;color:#fca5a5;font-size:14px;';
+
+    errorMessage.textContent =
+      'هەڵە: ' + err.message;
+
+    chatBox.appendChild(errorMessage);
+
   }
+
+  button.disabled = false;
+  button.textContent = 'ناردن';
+
+  chatBox.scrollTop = chatBox.scrollHeight;
 }
+
+</script>
