@@ -1,9 +1,19 @@
 export default async function handler(req, res) {
-res.setHeader("Access-Control-Allow-Origin", "*");
+
+// ==============================
+// CORS
+// ==============================
+
+res.setHeader(
+"Access-Control-Allow-Origin",
+"*"
+);
+
 res.setHeader(
 "Access-Control-Allow-Methods",
-"GET, POST, OPTIONS"
+"POST, OPTIONS"
 );
+
 res.setHeader(
 "Access-Control-Allow-Headers",
 "Content-Type, Authorization"
@@ -21,25 +31,39 @@ error: "تەنها POST ڕێگەپێدراوە"
 }
 
 try {
-const apiKey = process.env.GEMINI_API_KEY;
 
 ```
+// ==============================
+// GEMINI API KEY
+// ==============================
+
+const apiKey =
+  process.env.GEMINI_API_KEY;
+
 if (!apiKey) {
   return res.status(500).json({
     success: false,
-    error: "GEMINI_API_KEY لە Vercel دانەنراوە"
+    error:
+      "GEMINI_API_KEY لە Vercel دانەنراوە"
   });
 }
+
+// ==============================
+// REQUEST BODY
+// ==============================
 
 let body = req.body;
 
 if (typeof body === "string") {
+
   try {
     body = JSON.parse(body);
   } catch {
+
     return res.status(400).json({
       success: false,
-      error: "JSON ـەکە دروست نییە"
+      error:
+        "JSON ـەکە دروست نییە"
     });
   }
 }
@@ -55,49 +79,58 @@ const image =
     : null;
 
 if (!message && !image) {
+
   return res.status(400).json({
     success: false,
-    error: "پەیام یان وێنە پێویستە"
+    error:
+      "پەیام یان وێنە پێویستە"
   });
 }
+
+// ==============================
+// SHAHANFX AI PROMPT
+// ==============================
 
 const systemPrompt = `
 ```
 
 تۆ ShahanFX AI Advisor ـیت.
 
-بە کوردی سۆرانی وەڵام بدە.
+ئەرکی تۆ یارمەتیدانی بەکارهێنەر لە Forex و Trading ـە.
 
-ئەرکت یارمەتیدانی بەکارهێنەر لە Forex و Trading ـە.
+هەمیشە بە کوردی سۆرانی وەڵام بدە، مەگەر بەکارهێنەر زمانی تر داوا بکات.
 
-لە شیکردنەوەدا ئەمانە بپشکنە:
+لە شیکردنەوەی Trading ئەمانە بپشکنە:
 
-Trend
-Market Structure
-Support / Resistance
-Liquidity
-FVG
-Candlestick
-Entry
-Stop Loss
-Take Profit
-Risk/Reward
-Confidence
-Risk Level
+1. Trend
+2. Market Structure
+3. Support / Resistance
+4. Liquidity
+5. FVG
+6. Candlestick
+7. Entry Zone
+8. Stop Loss
+9. Take Profit
+10. Risk/Reward
+11. Confidence
+12. Risk Level
 
-ئەگەر Chart ـێک بۆت نێردرا:
+ئەگەر Chart ـێکی وێنەیی هەیە:
 
-* وێنەکە بە وردی بخوێنەوە.
-* Symbol و Timeframe ئەگەر دیار بوو بناسە.
-* Trend و Market Structure دیاری بکە.
+* Chart ـەکە بە وردی بخوێنەوە.
+* Symbol ئەگەر دیارە بناسە.
+* Timeframe ئەگەر دیارە بناسە.
+* Trend دیاری بکە.
+* Market Structure شیکەرەوە.
 * Liquidity و FVG بپشکنە.
-* Support/Resistance بپشکنە.
-* setup ـی ڕوون نەبوو، Buy/Sell بە زۆر مەدەرەوە.
+* Support و Resistance دیاری بکە.
+* Candlestick ـە گرنگەکان بپشکنە.
+* ئەگەر setup ـێکی ڕوون نییە، Buy/Sell بە زۆر مەدەرەوە.
 * هیچ کاتێک دڵنیایی 100% مەدە.
-* قازانجی دڵنیایی مەبەخشە.
-* Risk Management لەبەرچاو بگرە.
+* قازانجی دڵنیایی بەڵێن مەدە.
+* Risk Management هەمیشە لەبەرچاو بگرە.
 
-ئەنجام بە شێوەی ڕوون و کورت بنووسە:
+ئەگەر setup ـێکی باش هەبوو، ئەنجام بە ئەم شێوەیە ڕێک بخە:
 
 📊 SHAHANFX ANALYSIS
 
@@ -121,27 +154,40 @@ Risk/Reward:
 
 📈 Confidence:
 ⚠️ Risk:
+
+کورت، ڕوون، پیشەیی و ڕاستگۆ وەڵام بدە.
 `;
 
 ```
+// ==============================
+// GEMINI CONTENT
+// ==============================
+
 const parts = [
   {
     text:
       systemPrompt +
-      "\n\nUser Message:\n" +
+      "\n\nپرسیاری بەکارهێنەر:\n" +
       message
   }
 ];
 
+// ==============================
+// IMAGE
+// ==============================
+
 if (image) {
+
   let imageData = image;
   let mimeType = "image/jpeg";
 
   if (imageData.startsWith("data:")) {
+
     const commaIndex =
       imageData.indexOf(",");
 
     if (commaIndex !== -1) {
+
       const header =
         imageData.substring(
           0,
@@ -172,6 +218,10 @@ if (image) {
   });
 }
 
+// ==============================
+// GEMINI REQUEST
+// ==============================
+
 const geminiResponse =
   await fetch(
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
@@ -181,11 +231,13 @@ const geminiResponse =
       headers: {
         "Content-Type":
           "application/json",
+
         "x-goog-api-key":
           apiKey
       },
 
       body: JSON.stringify({
+
         contents: [
           {
             role: "user",
@@ -197,12 +249,17 @@ const geminiResponse =
           temperature: 0.3,
           maxOutputTokens: 1500
         }
+
       })
     }
   );
 
 const data =
   await geminiResponse.json();
+
+// ==============================
+// GEMINI ERROR
+// ==============================
 
 if (!geminiResponse.ok) {
 
@@ -213,16 +270,15 @@ if (!geminiResponse.ok) {
 
   const errorText =
     data?.error?.message ||
-    "Gemini API Error";
+    "هەڵەیەک لە Gemini API ڕوویدا.";
+
+  const lowerError =
+    errorText.toLowerCase();
 
   if (
     geminiResponse.status === 429 ||
-    errorText
-      .toLowerCase()
-      .includes("quota") ||
-    errorText
-      .toLowerCase()
-      .includes("rate")
+    lowerError.includes("quota") ||
+    lowerError.includes("rate")
   ) {
 
     return res.status(429).json({
@@ -240,6 +296,10 @@ if (!geminiResponse.ok) {
     });
 }
 
+// ==============================
+// ANSWER
+// ==============================
+
 const answer =
   data?.candidates?.[0]
     ?.content?.parts
@@ -250,12 +310,17 @@ const answer =
     .trim();
 
 if (!answer) {
+
   return res.status(500).json({
     success: false,
     error:
       "Gemini هیچ وەڵامێکی نەدا."
   });
 }
+
+// ==============================
+// SUCCESS
+// ==============================
 
 return res.status(200).json({
   success: true,
@@ -267,7 +332,7 @@ return res.status(200).json({
 
 ```
 console.error(
-  "Backend Error:",
+  "Server Error:",
   error
 );
 
