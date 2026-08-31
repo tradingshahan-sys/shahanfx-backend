@@ -1,5 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -19,34 +17,53 @@ export default async function handler(req, res) {
   }
 
   try {
-    const user_message = req.body.message || '';
+    let body = req.body;
+    if (typeof body === 'string') {
+      body = JSON.parse(body);
+    }
+    const user_message = body && body.message ? body.message : '';
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(500).json({ success: false, answer: "کلیلەی API لە Vercel نەدۆزراوەتەوە." });
+      return res.status(200).json({ success: false, answer: "کلیلەی GEMINI_API_KEY لە Vercel نەدۆزراوەتەوە." });
     }
-
-    const ai = new GoogleGenAI({ apiKey: apiKey });
 
     const SYSTEM_PERSONA = 
       "تو ShahanFx یان ڕاوێژکارێکی تایبەتی فۆڕێکس و گۆڵدی. شارەزا لە SMC, FVG, Order Block. " +
       "بە زمانی کوردی شیرین و وەک هاوڕێیەکی تریدەر وەڵام بدەرەوە.";
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: `${SYSTEM_PERSONA}\n\nپرسیاری تریدەر: ${user_message}`,
+    const apiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: `${SYSTEM_PERSONA}\n\nپرسیاری تریدەر: ${user_message}` }
+            ]
+          }
+        ]
+      })
     });
 
-    return res.status(200).json({
-      success: true,
-      answer: response.text
-    });
+    const data = await apiResponse.json();
+
+    if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
+      return res.status(200).json({
+        success: true,
+        answer: data.candidates[0].content.parts[0].text
+      });
+    } else {
+      return res.status(200).json({ 
+        success: false, 
+        answer: "وەڵام لەلایەن گووگڵەوە گەڕایەوە بەڵام هەڵەی تێدابوو: " + JSON.stringify(data) 
+      });
+    }
 
   } catch (error) {
-    console.error("API Error:", error);
-    return res.status(500).json({
+    return res.status(200).json({
       success: false,
-      answer: "برام، هەڵەیەک ڕوویدا لە مێشکی زیرەکەوە."
+      answer: "هەڵەی سێرڤەر: " + error.message
     });
   }
 }
