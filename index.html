@@ -131,8 +131,9 @@
   </div>
 
   <script>
-    // بەستەری سێرڤەرەکەت کە سەرکەوتووانە بڵاوت کردووەتەوە
-    const BACKEND_URL = "https://shahanfx-backend.vercel.app/api/chat";
+    // کلیلی جێמיני کە ڕاستەوخۆ بەستراوەتەوە
+    const GEMINI_API_KEY = "AQ.Ab8RN6LJwZC3HNdeOqybTvxyyXLLXW_vQsWw12UlheC9i_3h2g";
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     function updateClocks() {
       const now = new Date();
@@ -168,23 +169,28 @@
       const loadingMsg = addMessage("خەریکی بیرکردنەوە و شیکارکردنم...", "ai");
 
       try {
-        const response = await fetch(BACKEND_URL, {
+        const response = await fetch(GEMINI_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text })
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: "تو وەک ڕاوێژکارێکی پرۆفیشناڵی فۆڕێکس و زێڕ کار دەکەیت (به زمانی کوردی وەڵام بدەرەوە و گرنگی بە Smart Money، FVG و ئۆردەر بڵۆک بدە). پرسیاری بەکارهێنەر: " + text }]
+            }]
+          })
         });
 
         const data = await response.json();
         loadingMsg.remove();
 
-        if (data.success) {
-          addMessage(data.answer, "ai");
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+          const reply = data.candidates[0].content.parts[0].text;
+          addMessage(reply, "ai");
         } else {
-          addMessage("هەڵەیەک ڕوویدا لە وەرگرتنی وەڵام.", "ai");
+          addMessage("هەڵەیەک ڕوویدا لە وەرگرتنی وەڵام لە جێמיני.", "ai");
         }
       } catch (error) {
         loadingMsg.remove();
-        addMessage("برام، کێشەیەک هەیە لە پەیوەندیکردن بە سێرڤەرەوە.", "ai");
+        addMessage("برام، کێشەیەک هەیە لە پەیوەندیکردن بە ئینتەرنێت یان APIیەوە.", "ai");
       }
 
       button.disabled = false;
