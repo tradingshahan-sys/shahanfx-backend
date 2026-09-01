@@ -1,21 +1,22 @@
 export default async function handler(req, res) {
 
+  /*
+   * =========================================================
+   * SHAHANFX AI PRO
+   * Forex • ICT • SMC • Chart Vision
+   * LIVE MARKET + NEWS + AI
+   * =========================================================
+   */
+
   // =========================================================
-  // SHAHANFX AI PRO
-  // Forex • ICT • SMC • Chart Vision
-  // LIVE MARKET + NEWS + AI
+  // CORS
   // =========================================================
 
-  res.setHeader(
-    "Access-Control-Allow-Origin",
-    "*"
-  );
-
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Methods",
     "POST, OPTIONS"
   );
-
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type"
@@ -35,43 +36,39 @@ export default async function handler(req, res) {
   try {
 
     // =======================================================
-    // API KEYS
+    // GEMINI KEY
     // =======================================================
 
-    const geminiKey =
-      process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    const twelveKey =
-      process.env.TWELVE_DATA_API_KEY;
-
-    const fmpKey =
-      process.env.FMP_API_KEY;
-
-
-    if (!geminiKey) {
+    if (!apiKey) {
       return res.status(500).json({
         success: false,
         error:
-          "GEMINI_API_KEY لە Vercel دانەنراوە."
+          "GEMINI_API_KEY لە Vercel Environment Variables دانەنراوە."
       });
     }
-
 
     // =======================================================
     // USER REQUEST
     // =======================================================
 
-    const body =
-      req.body || {};
+    const body = req.body || {};
 
     const message =
       typeof body.message === "string"
         ? body.message.trim()
         : "";
 
-    const image =
-      body.image || null;
+    const image = body.image || null;
 
+    const symbol =
+      body.symbol ||
+      "XAU/USD";
+
+    const interval =
+      body.interval ||
+      "5min";
 
     if (!message && !image) {
       return res.status(400).json({
@@ -81,551 +78,150 @@ export default async function handler(req, res) {
       });
     }
 
-
     // =======================================================
-    // MARKET SETTINGS
-    // =======================================================
-
-    let symbol =
-      body.symbol ||
-      "XAU/USD";
-
-    const interval =
-      body.interval ||
-      "5min";
-
-
-    const symbolMap = {
-      XAUUSD: "XAU/USD",
-      GOLD: "XAU/USD",
-      "XAU/USD": "XAU/USD",
-
-      EURUSD: "EUR/USD",
-      "EUR/USD": "EUR/USD",
-
-      GBPUSD: "GBP/USD",
-      "GBP/USD": "GBP/USD",
-
-      USDJPY: "USD/JPY",
-      "USD/JPY": "USD/JPY",
-
-      USDCHF: "USD/CHF",
-      "USD/CHF": "USD/CHF",
-
-      AUDUSD: "AUD/USD",
-      "AUD/USD": "AUD/USD",
-
-      USDCAD: "USD/CAD",
-      "USD/CAD": "USD/CAD",
-
-      NZDUSD: "NZD/USD",
-      "NZD/USD": "NZD/USD"
-    };
-
-
-    const mapped =
-      symbolMap[
-        String(symbol).toUpperCase()
-      ];
-
-    if (mapped) {
-      symbol = mapped;
-    }
-
-
-    // =======================================================
-    // SAFE INTERVAL
+    // BACKEND URL
     // =======================================================
 
-    const allowedIntervals = [
-      "1min",
-      "5min",
-      "15min",
-      "30min",
-      "45min",
-      "1h",
-      "2h",
-      "4h",
-      "8h",
-      "1day"
-    ];
-
-    const safeInterval =
-      allowedIntervals.includes(interval)
-        ? interval
-        : "5min";
-
+    const baseUrl =
+      process.env.SHAHANFX_BACKEND_URL ||
+      "https://shahanfx-backend-9576.vercel.app";
 
     // =======================================================
     // LIVE MARKET DATA
     // =======================================================
 
     let marketData = null;
-    let marketError = null;
 
+    try {
 
-    if (twelveKey) {
+      const marketUrl =
+        `${baseUrl}/api/market` +
+        `?symbol=${encodeURIComponent(symbol)}` +
+        `&interval=${encodeURIComponent(interval)}` +
+        `&outputsize=100`;
 
-      try {
+      const marketResponse =
+        await fetch(marketUrl);
 
-        const marketURL =
-          new URL(
-            "https://api.twelvedata.com/time_series"
-          );
+      const marketJson =
+        await marketResponse.json();
 
-        marketURL.searchParams.set(
-          "symbol",
-          symbol
-        );
-
-        marketURL.searchParams.set(
-          "interval",
-          safeInterval
-        );
-
-        marketURL.searchParams.set(
-          "outputsize",
-          "100"
-        );
-
-        marketURL.searchParams.set(
-          "order",
-          "desc"
-        );
-
-        marketURL.searchParams.set(
-          "apikey",
-          twelveKey
-        );
-
-
-        const marketResponse =
-          await fetch(
-            marketURL.toString()
-          );
-
-
-        const rawMarket =
-          await marketResponse.json();
-
-
-        if (
-          !marketResponse.ok ||
-          rawMarket?.status === "error"
-        ) {
-
-          marketError =
-            rawMarket?.message ||
-            "Market API error";
-
-        } else {
-
-          const values =
-            Array.isArray(
-              rawMarket?.values
-            )
-              ? rawMarket.values
-              : [];
-
-
-          const candles =
-            values.map(c => ({
-              datetime:
-                c.datetime || null,
-
-              open:
-                Number(c.open),
-
-              high:
-                Number(c.high),
-
-              low:
-                Number(c.low),
-
-              close:
-                Number(c.close),
-
-              volume:
-                c.volume !== undefined
-                  ? Number(c.volume)
-                  : null
-            }));
-
-
-          const current =
-            candles[0] || null;
-
-          const previous =
-            candles[1] || null;
-
-
-          let direction =
-            "neutral";
-
-
-          if (
-            current &&
-            previous
-          ) {
-
-            if (
-              current.close >
-              previous.close
-            ) {
-
-              direction =
-                "bullish";
-
-            } else if (
-              current.close <
-              previous.close
-            ) {
-
-              direction =
-                "bearish";
-            }
-          }
-
-
-          marketData = {
-
-            source:
-              "Twelve Data",
-
-            symbol,
-
-            interval:
-              safeInterval,
-
-            currentPrice:
-              current?.close ??
-              null,
-
-            direction,
-
-            currentCandle:
-              current,
-
-            previousCandle:
-              previous,
-
-            candles
-
-          };
-
-        }
-
-      } catch (error) {
-
-        console.error(
-          "Market fetch error:",
-          error
-        );
-
-        marketError =
-          error.message;
-
+      if (marketResponse.ok && marketJson?.success) {
+        marketData = marketJson;
       }
 
-    } else {
+    } catch (marketError) {
 
-      marketError =
-        "TWELVE_DATA_API_KEY نەدۆزرایەوە.";
+      console.error(
+        "Market API Error:",
+        marketError
+      );
 
     }
 
-
     // =======================================================
-    // LIVE ECONOMIC NEWS
+    // LIVE NEWS DATA
     // =======================================================
 
     let newsData = null;
-    let newsError = null;
 
+    try {
 
-    if (fmpKey) {
+      const newsUrl =
+        `${baseUrl}/api/news`;
 
-      try {
+      const newsResponse =
+        await fetch(newsUrl);
 
-        const today =
-          new Date();
+      const newsJson =
+        await newsResponse.json();
 
-        const from =
-          today
-            .toISOString()
-            .slice(0, 10);
-
-
-        const future =
-          new Date(today);
-
-        future.setDate(
-          future.getDate() + 7
-        );
-
-
-        const to =
-          future
-            .toISOString()
-            .slice(0, 10);
-
-
-        const newsURL =
-          new URL(
-            "https://financialmodelingprep.com/stable/economic-calendar"
-          );
-
-
-        newsURL.searchParams.set(
-          "from",
-          from
-        );
-
-        newsURL.searchParams.set(
-          "to",
-          to
-        );
-
-        newsURL.searchParams.set(
-          "apikey",
-          fmpKey
-        );
-
-
-        const newsResponse =
-          await fetch(
-            newsURL.toString()
-          );
-
-
-        const rawNews =
-          await newsResponse.json();
-
-
-        if (
-          !newsResponse.ok ||
-          (
-            rawNews &&
-            !Array.isArray(rawNews) &&
-            (
-              rawNews.error ||
-              rawNews.message
-            )
-          )
-        ) {
-
-          newsError =
-            rawNews?.message ||
-            rawNews?.error ||
-            "News API error";
-
-        } else {
-
-          const events =
-            Array.isArray(rawNews)
-              ? rawNews
-              : [];
-
-
-          const importantWords = [
-
-            "CPI",
-            "CONSUMER PRICE",
-            "INFLATION",
-
-            "NFP",
-            "NON FARM",
-            "NONFARM",
-            "PAYROLL",
-
-            "UNEMPLOYMENT",
-            "EMPLOYMENT",
-
-            "FOMC",
-            "FEDERAL FUNDS",
-            "INTEREST RATE",
-            "FEDERAL RESERVE",
-
-            "GDP",
-            "GROSS DOMESTIC",
-
-            "PPI",
-            "PRODUCER PRICE",
-
-            "PCE",
-            "CORE PCE",
-
-            "RETAIL SALES",
-
-            "PMI",
-            "ISM",
-
-            "CONSUMER CONFIDENCE",
-
-            "CONSUMER SENTIMENT"
-          ];
-
-
-          const usdEvents =
-            events
-              .map(event => {
-
-                const text =
-                  JSON.stringify(
-                    event
-                  ).toUpperCase();
-
-
-                const important =
-                  importantWords.some(
-                    word =>
-                      text.includes(word)
-                  );
-
-
-                const country =
-                  String(
-                    event.country ||
-                    event.currency ||
-                    ""
-                  ).toUpperCase();
-
-
-                const usdRelated =
-                  country.includes("US") ||
-                  country.includes("USA") ||
-                  country.includes("UNITED STATES") ||
-                  country.includes("USD") ||
-                  text.includes('"USD"');
-
-
-                if (
-                  !important ||
-                  !usdRelated
-                ) {
-                  return null;
-                }
-
-
-                return {
-
-                  date:
-                    event.date ||
-                    event.datetime ||
-                    null,
-
-                  event:
-                    event.event ||
-                    event.name ||
-                    event.title ||
-                    null,
-
-                  country:
-                    event.country ||
-                    null,
-
-                  currency:
-                    event.currency ||
-                    "USD",
-
-                  importance:
-                    event.importance ||
-                    event.impact ||
-                    event.priority ||
-                    null,
-
-                  actual:
-                    event.actual ??
-                    event.value ??
-                    event.current ??
-                    null,
-
-                  forecast:
-                    event.forecast ??
-                    event.estimate ??
-                    event.consensus ??
-                    null,
-
-                  previous:
-                    event.previous ??
-                    event.prev ??
-                    null
-
-                };
-
-              })
-              .filter(Boolean);
-
-
-          newsData = {
-
-            source:
-              "Financial Modeling Prep",
-
-            from,
-
-            to,
-
-            totalEvents:
-              events.length,
-
-            importantEvents:
-              usdEvents.length,
-
-            events:
-              usdEvents
-
-          };
-
-        }
-
-      } catch (error) {
-
-        console.error(
-          "News fetch error:",
-          error
-        );
-
-        newsError =
-          error.message;
-
+      if (newsResponse.ok && newsJson?.success) {
+        newsData = newsJson;
       }
 
-    } else {
+    } catch (newsError) {
 
-      newsError =
-        "FMP_API_KEY نەدۆزرایەوە.";
+      console.error(
+        "News API Error:",
+        newsError
+      );
 
     }
 
+    // =======================================================
+    // MARKET CONTEXT
+    // =======================================================
+
+    let marketContext =
+      "LIVE MARKET DATA بەردەست نییە.";
+
+    if (marketData) {
+
+      const market =
+        marketData.market || {};
+
+      const candles =
+        Array.isArray(marketData.candles)
+          ? marketData.candles
+          : [];
+
+      marketContext = `
+LIVE MARKET DATA
+
+Source:
+${marketData.source || "Unknown"}
+
+Symbol:
+${marketData.symbol || symbol}
+
+Interval:
+${marketData.interval || interval}
+
+Current Price:
+${market.currentPrice ?? "N/A"}
+
+Direction:
+${market.direction || "neutral"}
+
+Current Candle:
+${JSON.stringify(
+  market.currentCandle || null
+)}
+
+Previous Candle:
+${JSON.stringify(
+  market.previousCandle || null
+)}
+
+Recent Candles:
+${JSON.stringify(
+  candles.slice(0, 50)
+)}
+`;
+
+    }
 
     // =======================================================
-    // DATA CONTEXT FOR AI
+    // NEWS CONTEXT
     // =======================================================
 
-    const liveContext = {
+    let newsContext =
+      "LIVE NEWS DATA بەردەست نییە.";
 
-      MARKET_DATA:
+    if (newsData) {
 
-        marketData
-          ? marketData
-          : {
-              unavailable: true,
-              error: marketError
-            },
+      newsContext = `
+LIVE NEWS / ECONOMIC DATA
 
+${JSON.stringify(
+  newsData,
+  null,
+  2
+)}
+`;
 
-      ECONOMIC_NEWS:
-
-        newsData
-          ? newsData
-          : {
-              unavailable: true,
-              error: newsError
-            }
-
-    };
-
+    }
 
     // =======================================================
     // SHAHANFX SYSTEM PROMPT
@@ -635,7 +231,7 @@ export default async function handler(req, res) {
 
 تۆ ShahanFX AI Pro ـیت.
 
-تۆ ڕاوێژکاری پیشەیی بۆ:
+تۆ ڕاوێژکاری زیرەکی پیشەیی بۆ:
 
 Forex
 ICT
@@ -643,62 +239,244 @@ SMC
 Price Action
 Market Structure
 Technical Analysis
-Chart Vision
+Fundamental Analysis
 Economic News
+Chart Analysis
 Risk Management
 
-زمانی وەڵام:
-کوردی سۆرانی.
+=========================================================
+LANGUAGE
+=========================================================
+
+بە زمانی کوردی سۆرانی وەڵام بدە.
+
+وەڵامەکان:
+
+ڕوون
+کورت بەڵام پڕ لە زانیاری
+پیشەیی
+ڕێکخراو
+ئاسان بۆ تێگەیشتن
 
 =========================================================
 LIVE DATA RULE
 =========================================================
 
-داتای MARKET_DATA و ECONOMIC_NEWS کە لە خوارەوە دراوە
-داتای سێرڤەرە.
+ئەگەر LIVE MARKET DATA بەردەستە:
 
-تەنها ئەو داتایە بەکاربهێنە کە بە ڕوونی لە context ـەکەدا هەیە.
+لە شیکردنەوەکەتدا بەکاری بهێنە.
 
-هیچ current price ـێک مەخەڵقە.
+ئەگەر LIVE NEWS DATA بەردەستە:
 
-هیچ news ـێک مەخەڵقە.
-
-هیچ CPI/NFP/FOMC ـێک مەخەڵقە.
-
-ئەگەر news data بەردەست نییە:
-
-بڵێ:
-"داتای هەواڵ لە ئێستادا بەردەست نییە."
-
-ئەگەر market data بەردەست نییە:
-
-بڵێ:
-"داتای زیندووی بازاڕ بەردەست نییە."
-
-=========================================================
-NEWS + MARKET COMBINATION
-=========================================================
-
-کاتێک news data هەیە:
-
-1. Event ـەکە بناسەوە.
-2. Actual / Forecast / Previous بەراورد بکە.
-3. گرنگیی event دیاری بکە.
-4. کاریگەریی ئەگەری لەسەر USD ڕوون بکەوە.
-5. کاریگەریی ئەگەری لەسەر XAUUSD یان symbol ـی داواکراو ڕوون بکەوە.
-6. پاشان Candle Reaction لە market data بپشکنە.
-7. News و Price Action بە یەکەوە هەڵبسەنگێنە.
+هەواڵەکان لەگەڵ market reaction پەیوەندیدار بکە.
 
 بەڵام:
 
-News Impact = پێشبینییە،
-نەک دڵنیایی.
+هیچ price ـێکی ساختە دروست مەکە.
+
+هیچ news ـێکی ساختە دروست مەکە.
+
+هیچ current market condition ـێکی خۆت مەخەڵقە.
+
+ئەگەر data بەردەست نییە:
+
+بە ڕوونی بڵێ.
 
 =========================================================
-ICT / SMC
+FOREX
 =========================================================
 
-Market Structure:
+شارەزایی لە:
+
+XAUUSD
+EURUSD
+GBPUSD
+USDJPY
+USDCHF
+AUDUSD
+USDCAD
+NZDUSD
+
+Pips
+Spread
+Leverage
+Lot Size
+Position Size
+Risk
+Stop Loss
+Take Profit
+Risk Reward
+Volatility
+Momentum
+
+=========================================================
+ICT
+=========================================================
+
+Liquidity
+BSL
+SSL
+Liquidity Sweep
+Liquidity Grab
+
+FVG
+IFVG
+
+Order Block
+Breaker Block
+Mitigation Block
+
+Premium
+Discount
+Equilibrium
+
+BOS
+CHOCH
+
+Displacement
+Imbalance
+
+OTE
+Fibonacci
+
+Asian Session
+London Session
+New York Session
+Kill Zones
+
+Power Of Three
+Accumulation
+Manipulation
+Distribution
+
+=========================================================
+SMC
+=========================================================
+
+HH
+HL
+LH
+LL
+
+BOS
+CHOCH
+
+Liquidity
+FVG
+Order Block
+Breaker
+Mitigation
+
+Supply
+Demand
+
+Premium
+Discount
+
+=========================================================
+CANDLE ANALYSIS
+=========================================================
+
+لە market data ـی candle ـەکاندا:
+
+Open
+High
+Low
+Close
+
+بپشکنە.
+
+لەوانەیە:
+
+Bullish candle
+Bearish candle
+Engulfing
+Pin Bar
+Doji
+Rejection
+Displacement
+
+دیاری بکە.
+
+بەڵام هیچ pattern ـێک مەڵێ ئەگەر داتا پشتگیری نەکات.
+
+=========================================================
+NEWS ANALYSIS
+=========================================================
+
+ئەگەر هەواڵی گرنگ هەیە:
+
+CPI
+NFP
+FOMC
+Interest Rate
+PPI
+GDP
+Unemployment
+Retail Sales
+PMI
+Powell Speech
+
+ئەم شتانە هەڵسەنگێنە:
+
+1. News
+2. Expected
+3. Actual
+4. Previous
+5. Potential impact
+6. Market reaction
+
+بەتایبەتی بۆ:
+
+XAUUSD
+USD pairs
+
+پەیوەندی هەواڵ و جووڵەی market ڕوون بکەوە.
+
+=========================================================
+NEWS + CANDLE
+=========================================================
+
+ئەگەر هەواڵی گرنگ لە هەمان کاتدا market move ـێکی توند دروست کردووە:
+
+هەردووکیان پێکەوە شیکاربکە:
+
+NEWS
++
+CANDLE
++
+LIQUIDITY
++
+MARKET STRUCTURE
+
+نموونە:
+
+CPI دەرچوو.
+
+Market displacement کرد.
+
+Liquidity sweep ڕوویدا.
+
+دواتر BOS/CHOCH ڕوویدا.
+
+ئەم chain ـە شیکاربکە.
+
+بەڵام هەموو شتێک تەنها ئەگەر داتا پشتگیری بکات.
+
+=========================================================
+CHART IMAGE
+=========================================================
+
+ئەگەر بەکارهێنەر image نارد:
+
+وێنەکە شیکاربکە.
+
+هەوڵ بدە دیاری بکەیت:
+
+Symbol
+Timeframe
+Price
+Trend
 
 HH
 HL
@@ -716,111 +494,47 @@ Liquidity Sweep
 FVG
 Order Block
 Breaker Block
-Mitigation Block
 
 Premium
 Discount
-Equilibrium
 
-Displacement
-Imbalance
-
-OTE
-Fibonacci
-
-Asian Session
-London Session
-New York Session
-Kill Zones
-
-=========================================================
-CHART VISION
-=========================================================
-
-ئەگەر image هەیە:
-
-Symbol
-Timeframe
-Price
-Trend
-Structure
-HH
-HL
-LH
-LL
-BOS
-CHOCH
-Liquidity
-Sweep
-FVG
-Order Block
 Support
 Resistance
-Premium
-Discount
-Candlestick Confirmation
 
-تەنها ئەو شتانە بڵێ کە لە image ـەکەدا دەبینرێن.
+Candlestick confirmation
 
-ئەگەر شتێک ڕوون نییە:
-مەخەڵقە.
+هیچ شتێک مەخەڵقە.
 
-=========================================================
-MARKET ANALYSIS
-=========================================================
+ئەگەر دیار نییە:
 
-کاتێک candles هەیە:
-
-دوایین candles بخوێنەوە.
-
-Trend دیاری بکە.
-
-Momentum دیاری بکە.
-
-Bullish/Bearish displacement بپشکنە.
-
-Structure breaks بپشکنە.
-
-Liquidity levels هەڵسەنگێنە.
-
-FVG و OB تەنها ئەگەر evidence هەبێت باس بکە.
+"ئەم زانیارییە لە وێنەکەدا بە دڵنیایی دیار نییە."
 
 =========================================================
-CPI / NFP / FOMC
+ANALYSIS ORDER
 =========================================================
 
-بۆ CPI:
+هەمیشە ئەم ڕیزبەندییە بەکاربهێنە:
 
-Actual
-Forecast
-Previous
-
-ئەگەر:
-
-Actual > Forecast
-
-ئەمە دەتوانێت فشار لەسەر USD زیاد بکات،
-بەڵام reaction ـی بازاڕ هەمیشە پێویستە پشتڕاست بکرێتەوە.
-
-ئەگەر:
-
-Actual < Forecast
-
-ئەمە دەتوانێت فشار لەسەر USD کەم بکات،
-بەڵام هیچ guarantee ـێک نییە.
-
-بۆ Gold:
-
-USD و yields و market expectations
-دەتوانن کاریگەرییان هەبێت.
-
-بەڵام تەنها لەسەر ئەو data ـەی بەردەستە قسە بکە.
+1. Market Context
+2. News
+3. Price
+4. Trend
+5. Market Structure
+6. Liquidity
+7. BOS / CHOCH
+8. FVG
+9. Order Block
+10. Candle Reaction
+11. Setup
+12. Invalidation
+13. Risk/Reward
+14. Final Decision
 
 =========================================================
 TRADE SETUP
 =========================================================
 
-ئەگەر setup ـێک هەیە:
+ئەگەر داتا بەسە:
 
 📊 SHAHANFX AI PRO
 
@@ -830,8 +544,8 @@ TRADE SETUP
 ⏱ Timeframe:
 ...
 
-📈 Market Bias:
-Bullish / Bearish / Neutral
+💰 Current Price:
+...
 
 📰 News:
 ...
@@ -839,8 +553,8 @@ Bullish / Bearish / Neutral
 ⚡ News Impact:
 ...
 
-💰 Current Price:
-...
+📈 Market Bias:
+Bullish / Bearish / Neutral
 
 🏗 Market Structure:
 ...
@@ -879,88 +593,116 @@ BUY / SELL / WAIT
 Low / Medium / High
 
 ⚠️ Risk:
-هیچ trade ـێک 100% دڵنیایی نییە.
+...
 
 =========================================================
-RISK MANAGEMENT
+CONFIDENCE
 =========================================================
 
-Balance و Risk % ئەگەر نەدراوە:
+هیچ کاتێک:
 
-Lot Size مەخەڵقە.
+100% Guaranteed
+100% Win
+Guaranteed Profit
+
+مەڵێ.
+
+Confidence تەنها هەڵسەنگاندنی AI ـە.
+
+=========================================================
+RISK
+=========================================================
+
+ئەگەر Balance و Risk % نەدراوە:
+
+Lot Size ـی ورد مەدەرە.
 
 بڵێ:
 
 "بۆ Lot Size ـی ورد Balance و Risk % پێویستە."
 
 =========================================================
-FINAL RULE
+WAIT RULE
 =========================================================
 
-Evidence > Guess
+ئەگەر confirmation لاوازە:
 
-Live Data > Assumption
+WAIT
 
-Confirmation > Prediction
+ئەگەر market ناڕوونە:
 
-Risk Management > Profit
+WAIT
 
-ئەگەر confirmation نییە:
+ئەگەر news volatility زۆرە:
 
-WAIT.
+WAIT FOR CONFIRMATION
+
+ئەگەر data نییە:
+
+REQUEST LIVE DATA
+
+=========================================================
+IMPORTANT
+=========================================================
+
+Forex و CFD مەترسیدارن.
+
+هیچ trade ـێک 100% دڵنیایی نییە.
+
+ئامانج:
+
+Analysis
+Education
+Risk Management
+
+نەک Guaranteed Profit.
 
 `;
 
-
     // =======================================================
-    // BUILD USER CONTEXT
+    // USER CONTEXT
     // =======================================================
 
-    const contextText = `
+    const userText = `
 
 =========================================================
-LIVE MARKET DATA
+USER QUESTION
 =========================================================
 
-${JSON.stringify(
-  liveContext.MARKET_DATA,
-  null,
-  2
-)}
+${message || "تکایە Chart ـەکە شیکاربکە."}
 
 =========================================================
-LIVE ECONOMIC NEWS
-=========================================================
-
-${JSON.stringify(
-  liveContext.ECONOMIC_NEWS,
-  null,
-  2
-)}
+${marketContext}
 
 =========================================================
-USER REQUEST
+${newsContext}
+
 =========================================================
+FINAL TASK
 
-${message || "ئەم Chart ـە شیکاربکە."}
+لەسەر هەموو ئەو data ـانەی بەردەستە
+وەڵامی بەکارهێنەر بدە.
 
+NEWS + MARKET + CANDLE + ICT + SMC
+
+پێکەوە هەڵسەنگێنە.
+
+ئەگەر data کەمە،
+داتای ساختە دروست مەکە.
 `;
-
 
     // =======================================================
     // GEMINI PARTS
     // =======================================================
 
     const parts = [
-
       {
         text:
           systemPrompt +
-          contextText
+          "\n\n" +
+          userText
       }
-
     ];
-
 
     // =======================================================
     // IMAGE
@@ -973,235 +715,252 @@ ${message || "ئەم Chart ـە شیکاربکە."}
     ) {
 
       parts.push({
-
         inlineData: {
-
-          mimeType:
-            image.mimeType,
-
-          data:
-            image.data
-
+          mimeType: image.mimeType,
+          data: image.data
         }
-
       });
 
     }
 
-
     // =======================================================
-    // GEMINI MODELS
+    // MODELS
     // =======================================================
 
     const models = [
-
       "gemini-3.7-flash",
       "gemini-3.6-flash",
       "gemini-3.5-flash"
-
     ];
 
+    // =======================================================
+    // RETRY
+    // =======================================================
 
-    let response = null;
-    let data = null;
+    const MAX_RETRIES = 2;
+
+    const BASE_DELAY = 1500;
+
+    let finalResponse = null;
+    let finalData = null;
     let usedModel = null;
 
-
     // =======================================================
-    // GEMINI REQUEST
+    // GEMINI LOOP
     // =======================================================
 
-    for (
-      const model of models
-    ) {
+    outerLoop:
 
-      try {
+    for (const model of models) {
 
-        const endpoint =
-          "https://generativelanguage.googleapis.com/v1beta/models/" +
-          model +
-          ":generateContent?key=" +
-          encodeURIComponent(
-            geminiKey
-          );
+      for (
+        let attempt = 0;
+        attempt < MAX_RETRIES;
+        attempt++
+      ) {
 
+        try {
 
-        response =
-          await fetch(
-            endpoint,
-            {
+          const endpoint =
+            "https://generativelanguage.googleapis.com/v1beta/models/" +
+            model +
+            ":generateContent?key=" +
+            encodeURIComponent(apiKey);
 
-              method:
-                "POST",
+          const response =
+            await fetch(
+              endpoint,
+              {
+                method: "POST",
 
-              headers: {
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
 
-                "Content-Type":
-                  "application/json"
-
-              },
-
-              body:
-                JSON.stringify({
+                body: JSON.stringify({
 
                   contents: [
-
                     {
-
-                      role:
-                        "user",
-
-                      parts:
-                        parts
-
+                      role: "user",
+                      parts
                     }
-
                   ],
 
                   generationConfig: {
 
-                    maxOutputTokens:
-                      5000
+                    maxOutputTokens: 5000,
 
-                  },
-
-                  thinkingConfig: {
-
-                    thinkingLevel:
-                      "medium"
+                    thinkingConfig: {
+                      thinkingLevel: "medium"
+                    }
 
                   }
 
                 })
+              }
+            );
 
-            }
+          const data =
+            await response.json();
+
+          finalResponse = response;
+          finalData = data;
+
+          // =================================================
+          // SUCCESS
+          // =================================================
+
+          if (response.ok) {
+
+            usedModel = model;
+
+            break outerLoop;
+
+          }
+
+          // =================================================
+          // ERROR
+          // =================================================
+
+          const errorMessage =
+            String(
+              data?.error?.message ||
+              ""
+            );
+
+          const lowerError =
+            errorMessage.toLowerCase();
+
+          console.error(
+            `Gemini ${model} error:`,
+            data
           );
 
+          // =================================================
+          // RETRYABLE
+          // =================================================
 
-        data =
-          await response.json();
+          const retryable =
+            response.status === 429 ||
+            response.status === 500 ||
+            response.status === 502 ||
+            response.status === 503 ||
+            response.status === 504 ||
+            lowerError.includes("high demand") ||
+            lowerError.includes("overloaded") ||
+            lowerError.includes("temporarily unavailable") ||
+            lowerError.includes("resource exhausted");
 
+          if (!retryable) {
 
-        if (
-          response.ok
-        ) {
+            break outerLoop;
 
-          usedModel =
-            model;
+          }
 
-          break;
+          // =================================================
+          // WAIT
+          // =================================================
 
-        }
+          if (
+            attempt <
+            MAX_RETRIES - 1
+          ) {
 
+            const delay =
+              BASE_DELAY *
+              Math.pow(2, attempt);
 
-        const errorText =
-          String(
-            data?.error?.message ||
-            ""
-          ).toLowerCase();
+            await new Promise(
+              resolve =>
+                setTimeout(
+                  resolve,
+                  delay
+                )
+            );
 
+          }
 
-        const retryable =
+        } catch (error) {
 
-          response.status === 429 ||
-
-          response.status === 500 ||
-
-          response.status === 502 ||
-
-          response.status === 503 ||
-
-          response.status === 504 ||
-
-          errorText.includes(
-            "high demand"
-          ) ||
-
-          errorText.includes(
-            "overloaded"
-          ) ||
-
-          errorText.includes(
-            "temporarily unavailable"
-          ) ||
-
-          errorText.includes(
-            "resource exhausted"
+          console.error(
+            `Network error ${model}:`,
+            error
           );
 
+          if (
+            attempt <
+            MAX_RETRIES - 1
+          ) {
 
-        if (!retryable) {
-          break;
+            const delay =
+              BASE_DELAY *
+              Math.pow(2, attempt);
+
+            await new Promise(
+              resolve =>
+                setTimeout(
+                  resolve,
+                  delay
+                )
+            );
+
+          }
+
         }
-
-
-        await new Promise(
-          resolve =>
-            setTimeout(
-              resolve,
-              1000
-            )
-        );
-
-      } catch (error) {
-
-        console.error(
-          `Gemini ${model} error:`,
-          error
-        );
 
       }
 
     }
 
-
     // =======================================================
-    // GEMINI FAILED
+    // FAILED
     // =======================================================
 
     if (
-      !response ||
-      !response.ok ||
+      !finalResponse ||
+      !finalResponse.ok ||
       !usedModel
     ) {
 
-      console.error(
-        "Gemini failed:",
-        data
-      );
+      const errorMessage =
+        finalData?.error?.message ||
+        "Unknown Gemini error";
 
+      console.error(
+        "SHAHANFX GEMINI FINAL ERROR:",
+        finalData
+      );
 
       return res.status(503).json({
 
-        success:
-          false,
+        success: false,
 
         error:
-          "⚠️ ShahanFX AI لە ئێستادا بەردەست نییە. تکایە دووبارە هەوڵ بدە.",
+          "⚠️ ShahanFX AI لە ئێستادا وەڵام ناداتەوە.",
+
+        details:
+          errorMessage,
 
         marketAvailable:
-          Boolean(
-            marketData
-          ),
+          Boolean(marketData),
 
         newsAvailable:
-          Boolean(
-            newsData
-          )
+          Boolean(newsData)
 
       });
 
     }
 
-
     // =======================================================
-    // ANSWER
+    // EXTRACT ANSWER
     // =======================================================
 
     const answer =
-      data
+      finalData
         ?.candidates?.[0]
-        ?.content?.parts
+        ?.content
+        ?.parts
         ?.map(
           part =>
             part.text || ""
@@ -1209,21 +968,22 @@ ${message || "ئەم Chart ـە شیکاربکە."}
         .join("")
         .trim();
 
+    // =======================================================
+    // EMPTY
+    // =======================================================
 
     if (!answer) {
 
       return res.status(502).json({
 
-        success:
-          false,
+        success: false,
 
         error:
-          "Gemini هیچ وەڵامێکی دروستی نەگەڕاندەوە."
+          "Gemini هیچ وەڵامێکی دەق نەگەڕاندەوە."
 
       });
 
     }
-
 
     // =======================================================
     // FINAL RESPONSE
@@ -1231,18 +991,12 @@ ${message || "ئەم Chart ـە شیکاربکە."}
 
     return res.status(200).json({
 
-      success:
-        true,
+      success: true,
 
       answer,
 
       model:
         usedModel,
-
-      symbol,
-
-      interval:
-        safeInterval,
 
       hasImage:
         Boolean(
@@ -1253,35 +1007,31 @@ ${message || "ئەم Chart ـە شیکاربکە."}
       liveData: {
 
         market:
-          Boolean(
-            marketData
-          ),
+          Boolean(marketData),
 
         news:
-          Boolean(
-            newsData
-          )
+          Boolean(newsData)
 
       }
 
     });
 
-
   } catch (error) {
 
     console.error(
-      "SHAHANFX CHAT ERROR:",
+      "SHAHANFX SERVER ERROR:",
       error
     );
 
-
     return res.status(500).json({
 
-      success:
-        false,
+      success: false,
 
       error:
-        "هەڵەی ناوخۆی ShahanFX AI ڕوویدا."
+        "هەڵەی ناوخۆی ShahanFX Backend ڕوویدا.",
+
+      details:
+        error?.message || null
 
     });
 
