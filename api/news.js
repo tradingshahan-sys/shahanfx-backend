@@ -1,10 +1,4 @@
-// api/news.js
-// ShahanFX AI - Economic News API
-
 export default async function handler(req, res) {
-  // ================================
-  // CORS
-  // ================================
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -12,20 +6,14 @@ export default async function handler(req, res) {
   );
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
+    "Content-Type"
   );
   res.setHeader("Cache-Control", "no-store");
 
-  // ================================
-  // OPTIONS
-  // ================================
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
 
-  // ================================
-  // ONLY GET
-  // ================================
   if (req.method !== "GET") {
     return res.status(405).json({
       ok: false,
@@ -33,126 +21,112 @@ export default async function handler(req, res) {
     });
   }
 
-  // ================================
-  // API KEY
-  // ================================
-  const FMP_API_KEY = process.env.FMP_API_KEY;
-
-  if (!FMP_API_KEY) {
-    return res.status(500).json({
-      ok: false,
-      error: "FMP_API_KEY لە Environment Variables ـدا نییە."
-    });
-  }
-
-  // ================================
-  // DATE
-  // ================================
-  const today = new Date();
-
-  const defaultDate =
-    today.toISOString().slice(0, 10);
-
-  const from =
-    typeof req.query?.from === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(req.query.from)
-      ? req.query.from
-      : defaultDate;
-
-  const to =
-    typeof req.query?.to === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(req.query.to)
-      ? req.query.to
-      : from;
-
-  // ================================
-  // FMP REQUEST
-  // ================================
   try {
+    const from =
+      req.query && req.query.from
+        ? String(req.query.from)
+        : new Date().toISOString().slice(0, 10);
+
+    const to =
+      req.query && req.query.to
+        ? String(req.query.to)
+        : from;
+
+    const apiKey = process.env.FMP_API_KEY;
+
+    // ئەگەر API Key نەبوو، هەر Function ـەکە نەکوژێنەوە
+    if (!apiKey) {
+      return res.status(200).json({
+        ok: true,
+        success: false,
+        source: "FMP",
+        from,
+        to,
+        count: 0,
+        events: [],
+        warning: "FMP_API_KEY دانەنراوە."
+      });
+    }
+
     const url =
       "https://financialmodelingprep.com/stable/economic-calendar" +
-      `?from=${encodeURIComponent(from)}` +
-      `&to=${encodeURIComponent(to)}` +
-      `&apikey=${encodeURIComponent(FMP_API_KEY)}`;
+      "?from=" +
+      encodeURIComponent(from) +
+      "&to=" +
+      encodeURIComponent(to) +
+      "&apikey=" +
+      encodeURIComponent(apiKey);
 
-    const controller = new AbortController();
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json"
+      }
+    });
 
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, 8000);
+    const text = await response.text();
 
-    let response;
+    let data;
 
     try {
-      response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json"
-        },
-        signal: controller.signal
-      });
-    } finally {
-      clearTimeout(timeout);
+      data = JSON.parse(text);
+    } catch {
+      data = [];
     }
 
-    // ================================
-    // FMP HTTP ERROR
-    // ================================
     if (!response.ok) {
-      const errorText =
-        await response.text().catch(() => "");
-
-      return res.status(502).json({
-        ok: false,
-        error: "FMP API وەڵامی دروستی نەدا.",
-        status: response.status,
-        details: errorText.slice(0, 500)
+      return res.status(200).json({
+        ok: true,
+        success: false,
+        source: "FMP",
+        from,
+        to,
+        count: 0,
+        events: [],
+        warning: "FMP API وەڵامی دروستی نەدا.",
+        status: response.status
       });
     }
-
-    // ================================
-    // PARSE JSON
-    // ================================
-    const data = await response.json();
 
     if (!Array.isArray(data)) {
-      return res.status(502).json({
-        ok: false,
-        error: "داتای Economic Calendar دروست نییە.",
-        data
+      return res.status(200).json({
+        ok: true,
+        success: false,
+        source: "FMP",
+        from,
+        to,
+        count: 0,
+        events: [],
+        warning: "FMP داتای Economic Calendar ـی نەگەڕاندەوە."
       });
     }
 
-    // ================================
-    // IMPORTANT EVENTS
-    // ================================
     const keywords = [
-      "CPI",
-      "NFP",
-      "FOMC",
-      "FED",
-      "PPI",
-      "GDP",
-      "interest rate",
+      "cpi",
+      "nfp",
+      "fomc",
+      "fed",
+      "ppi",
+      "gdp",
       "interest",
       "nonfarm",
       "inflation",
       "unemployment",
       "retail sales",
-      "ISM",
+      "ism",
       "employment",
       "jobs"
     ];
 
     const events = data
-      .filter((item) => {
+      .filter(function (item) {
         const country = String(
           item.country ||
           item.countryName ||
           ""
         ).toLowerCase();
 
-        const event = String(
+        const name = String(
           item.event ||
           item.name ||
           item.title ||
@@ -170,57 +144,62 @@ export default async function handler(req, res) {
           country === "us" ||
           country === "usa";
 
-        const isImportant =
+        const important =
           impact.includes("high") ||
           impact.includes("medium") ||
-          keywords.some((keyword) =>
-            event.includes(keyword.toLowerCase())
-          );
+          keywords.some(function (word) {
+            return name.includes(word);
+          });
 
-        return isUS && isImportant;
+        return isUS && important;
       })
-      .map((item) => ({
-        date:
-          item.date ||
-          item.datetime ||
-          null,
+      .slice(0, 50)
+      .map(function (item) {
+        return {
+          date:
+            item.date ||
+            item.datetime ||
+            null,
 
-        country:
-          item.country ||
-          item.countryName ||
-          "United States",
+          country:
+            item.country ||
+            item.countryName ||
+            "United States",
 
-        event:
-          item.event ||
-          item.name ||
-          item.title ||
-          "",
+          event:
+            item.event ||
+            item.name ||
+            item.title ||
+            "",
 
-        impact:
-          item.impact ||
-          item.importance ||
-          "",
+          impact:
+            item.impact ||
+            item.importance ||
+            "",
 
-        actual:
-          item.actual ?? null,
+          actual:
+            item.actual !== undefined
+              ? item.actual
+              : null,
 
-        estimate:
-          item.estimate ??
-          item.forecast ??
-          null,
+          estimate:
+            item.estimate !== undefined
+              ? item.estimate
+              : item.forecast !== undefined
+                ? item.forecast
+                : null,
 
-        previous:
-          item.previous ?? null
-      }))
-      .slice(0, 50);
+          previous:
+            item.previous !== undefined
+              ? item.previous
+              : null
+        };
+      });
 
-    // ================================
-    // SUCCESS
-    // ================================
     return res.status(200).json({
       ok: true,
       success: true,
-      source: "Financial Modeling Prep",
+      source: "FMP",
       from,
       to,
       count: events.length,
@@ -228,26 +207,15 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    // ================================
-    // TIMEOUT
-    // ================================
-    if (error?.name === "AbortError") {
-      return res.status(504).json({
-        ok: false,
-        error:
-          "FMP API زۆر خاو بوو و کاتی داواکاری تەواو بوو."
-      });
-    }
-
-    // ================================
-    // UNKNOWN ERROR
-    // ================================
-    return res.status(500).json({
-      ok: false,
-      error:
-        "هەڵەیەکی نەخوازراو لە News API ڕوویدا.",
-      details:
-        error?.message || "Unknown error"
+    return res.status(200).json({
+      ok: true,
+      success: false,
+      count: 0,
+      events: [],
+      warning:
+        error && error.message
+          ? error.message
+          : "هەڵەیەکی نەناسراو ڕوویدا."
     });
   }
 }
