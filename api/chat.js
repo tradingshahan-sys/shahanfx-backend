@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -31,50 +30,32 @@ export default async function handler(req, res) {
       });
     }
 
-    const prompt = `
-تۆ ShahanFX AI ـیت.
-
-زمانی سەرەکی:
-کوردی سۆرانی
-
-بواری شارەزایی:
-- Forex
-- ICT
-- SMC
-- Liquidity
-- Market Structure
-- BOS
-- CHOCH
-- FVG
-- Order Block
-- Breaker Block
-- Liquidity Sweep
-- Premium / Discount
-- Fibonacci
-- Risk Management
-- Trading Psychology
-
-ڕێنمایی گرنگ:
-1. بە کوردی سۆرانی وەڵام بدە.
-2. وەڵامەکان ڕوون و کورت و بەسوود بن.
-3. ئەگەر chart ـێک نێردرا، تەنها لەسەر ئەو شتانە قسە بکە کە لە وێنەکەدا بە ڕوونی دەبینرێن.
-4. هیچ دڵنیاییەکی 100% بۆ بردن یان direction مەدە.
-5. ئەگەر زانیارییەکان تەواو نەبن، بە ڕوونی بڵێ کە پێویستی بە زانیاری زیاترە.
-6. Risk Management هەمیشە گرنگە.
-7. ئەمە ڕاوێژی دارایی تایبەتی نییە.
-
-پرسیاری بەکارهێنەر:
-${message || "تکایە ئەم chart ـە شیکاربکە."}
-`;
-
     const parts = [
       {
-        text: prompt
+        text: `
+تۆ ShahanFX AI ـیت.
+
+بە کوردی سۆرانی وەڵام بدە.
+
+بواری شارەزاییت:
+Forex، ICT، SMC، Market Structure، BOS، CHOCH،
+FVG، Order Block، Liquidity، Liquidity Sweep،
+Premium، Discount، Fibonacci، Risk Management.
+
+ڕێنمایی:
+- وەڵامەکان ڕوون و بەسوود بن.
+- بۆ هیچ trade ـێک دڵنیایی 100% مەدە.
+- ئەگەر chart هەیە، تەنها ئەو شتانە شیکاربکە کە لە chart ـەکەدا دەبینرێن.
+- Risk Management لەبەرچاو بگرە.
+- ئەگەر زانیاری کەمە، بڵێ زانیاری زیاتر پێویستە.
+
+پرسیاری بەکارهێنەر:
+${message || "ئەم chart ـە شیکاربکە."}
+`
       }
     ];
 
-    // ئەگەر وێنە هەبێت
-    if (image && image.data && image.mimeType) {
+    if (image?.data && image?.mimeType) {
       parts.push({
         inlineData: {
           mimeType: image.mimeType,
@@ -84,7 +65,7 @@ ${message || "تکایە ئەم chart ـە شیکاربکە."}
     }
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=" +
         encodeURIComponent(apiKey),
       {
         method: "POST",
@@ -94,7 +75,7 @@ ${message || "تکایە ئەم chart ـە شیکاربکە."}
         body: JSON.stringify({
           contents: [
             {
-              parts
+              parts: parts
             }
           ],
           generationConfig: {
@@ -108,7 +89,7 @@ ${message || "تکایە ئەم chart ـە شیکاربکە."}
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Gemini Error:", data);
+      console.error("Gemini API Error:", data);
 
       return res.status(response.status).json({
         error:
@@ -119,16 +100,17 @@ ${message || "تکایە ئەم chart ـە شیکاربکە."}
 
     const answer =
       data?.candidates?.[0]?.content?.parts
-        ?.map((p) => p.text || "")
-        .join("") || "وەڵامێک نەدۆزرایەوە.";
+        ?.map(part => part.text || "")
+        .join("") ||
+      "وەڵامێک نەدۆزرایەوە.";
 
     return res.status(200).json({
       success: true,
-      answer
+      answer: answer
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("Server Error:", error);
 
     return res.status(500).json({
       error: "هەڵەی ناوخۆی Backend ڕوویدا."
