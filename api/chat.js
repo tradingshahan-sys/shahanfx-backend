@@ -2,18 +2,12 @@ export default async function handler(req, res) {
 
   /*
    * =========================================================
-   * SHAHANFX AI PRO
-   * Live Market + Economic News + Chart Vision
+   * SHAHANFX AI PRO — LIVE MARKET + NEWS ENGINE
    *
-   * Flow:
-   *
-   * Frontend
-   *    ↓
-   * chat.js
-   *    ├── market.js → Live Candles
-   *    ├── news.js   → CPI / NFP / FOMC / PPI
-   *    └── Gemini    → AI Analysis
-   *
+   * market.js  → Live Candles
+   * news.js    → CPI / NFP / FOMC / PPI / GDP...
+   * Gemini     → AI Analysis
+   * Image      → Chart Vision
    * =========================================================
    */
 
@@ -22,28 +16,18 @@ export default async function handler(req, res) {
   // =========================================================
 
   res.setHeader("Access-Control-Allow-Origin", "*");
-
   res.setHeader(
     "Access-Control-Allow-Methods",
     "POST, OPTIONS"
   );
-
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type"
   );
 
-  // =========================================================
-  // OPTIONS
-  // =========================================================
-
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
-
-  // =========================================================
-  // ONLY POST
-  // =========================================================
 
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -55,12 +39,19 @@ export default async function handler(req, res) {
   try {
 
     // =======================================================
-    // GEMINI KEY
+    // ENVIRONMENT VARIABLES
     // =======================================================
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const geminiKey =
+      process.env.GEMINI_API_KEY;
 
-    if (!apiKey) {
+    const twelveKey =
+      process.env.TWELVE_DATA_API_KEY;
+
+    const fmpKey =
+      process.env.FMP_API_KEY;
+
+    if (!geminiKey) {
       return res.status(500).json({
         success: false,
         error:
@@ -79,19 +70,14 @@ export default async function handler(req, res) {
         ? body.message.trim()
         : "";
 
-    const image = body.image || null;
+    const image =
+      body.image || null;
 
     const symbol =
-      body.symbol ||
-      "XAU/USD";
+      body.symbol || "XAU/USD";
 
     const interval =
-      body.interval ||
-      "5min";
-
-    // =======================================================
-    // VALIDATION
-    // =======================================================
+      body.interval || "5min";
 
     if (!message && !image) {
       return res.status(400).json({
@@ -102,261 +88,201 @@ export default async function handler(req, res) {
     }
 
     // =======================================================
-    // INTERNAL API BASE
+    // API BASE URL
     // =======================================================
 
-    /*
-     * Vercel:
-     *
-     * /api/chat.js
-     * /api/market.js
-     * /api/news.js
-     *
-     * لەبەر ئەوەی chat.js خۆی لە هەمان domain ـە،
-     * URL ـی domain ـەکە لە request ـەکە وەردەگیرێت.
-     */
+    const host =
+      req.headers.host;
 
     const protocol =
-      req.headers["x-forwarded-proto"] ||
-      "https";
-
-    const host =
-      req.headers["x-forwarded-host"] ||
-      req.headers.host;
+      req.headers["x-forwarded-proto"] || "https";
 
     const baseUrl =
       `${protocol}://${host}`;
 
     // =======================================================
-    // GET LIVE MARKET DATA
+    // LIVE MARKET DATA
     // =======================================================
 
     let marketData = null;
 
-    try {
+    if (twelveKey) {
 
-      const marketUrl =
-        new URL(
-          "/api/market",
-          baseUrl
+      try {
+
+        const marketUrl =
+          new URL(
+            `${baseUrl}/api/market`
+          );
+
+        marketUrl.searchParams.set(
+          "symbol",
+          symbol
         );
 
-      marketUrl.searchParams.set(
-        "symbol",
-        symbol
-      );
-
-      marketUrl.searchParams.set(
-        "interval",
-        interval
-      );
-
-      marketUrl.searchParams.set(
-        "outputsize",
-        "100"
-      );
-
-      const marketResponse =
-        await fetch(
-          marketUrl.toString(),
-          {
-            method: "GET",
-            headers: {
-              "Accept":
-                "application/json"
-            }
-          }
+        marketUrl.searchParams.set(
+          "interval",
+          interval
         );
 
-      if (marketResponse.ok) {
+        marketUrl.searchParams.set(
+          "outputsize",
+          "100"
+        );
+
+        const marketResponse =
+          await fetch(
+            marketUrl.toString()
+          );
 
         marketData =
           await marketResponse.json();
 
-      } else {
+      } catch (error) {
 
         console.error(
-          "Market API failed:",
-          marketResponse.status
+          "Market Engine Error:",
+          error
         );
+
+        marketData = {
+          success: false,
+          error:
+            "Live Market Data بەردەست نییە."
+        };
 
       }
 
-    } catch (error) {
+    } else {
 
-      console.error(
-        "Market connection error:",
-        error
-      );
+      marketData = {
+        success: false,
+        error:
+          "TWELVE_DATA_API_KEY دانەنراوە."
+      };
 
     }
 
     // =======================================================
-    // GET NEWS DATA
+    // LIVE NEWS DATA
     // =======================================================
 
     let newsData = null;
 
-    try {
+    if (fmpKey) {
 
-      const now =
-        new Date();
+      try {
 
-      const today =
-        now.toISOString()
-          .slice(0, 10);
+        const newsUrl =
+          new URL(
+            `${baseUrl}/api/news`
+          );
 
-      const newsUrl =
-        new URL(
-          "/api/news",
-          baseUrl
+        const today =
+          new Date()
+            .toISOString()
+            .slice(0, 10);
+
+        newsUrl.searchParams.set(
+          "startDate",
+          today
         );
 
-      newsUrl.searchParams.set(
-        "startDate",
-        today
-      );
-
-      newsUrl.searchParams.set(
-        "endDate",
-        today
-      );
-
-      const newsResponse =
-        await fetch(
-          newsUrl.toString(),
-          {
-            method: "GET",
-            headers: {
-              "Accept":
-                "application/json"
-            }
-          }
+        newsUrl.searchParams.set(
+          "endDate",
+          today
         );
 
-      if (newsResponse.ok) {
+        const newsResponse =
+          await fetch(
+            newsUrl.toString()
+          );
 
         newsData =
           await newsResponse.json();
 
-      } else {
+      } catch (error) {
 
         console.error(
-          "News API failed:",
-          newsResponse.status
+          "News Engine Error:",
+          error
         );
+
+        newsData = {
+          success: false,
+          error:
+            "News Data بەردەست نییە."
+        };
 
       }
 
-    } catch (error) {
+    } else {
 
-      console.error(
-        "News connection error:",
-        error
-      );
+      newsData = {
+        success: false,
+        error:
+          "FMP_API_KEY دانەنراوە."
+      };
 
     }
 
     // =======================================================
-    // MARKET SUMMARY
+    // MARKET CANDLES
     // =======================================================
 
-    const marketSummary =
-      marketData
-        ? {
-            source:
-              marketData.source || null,
+    const candles =
+      Array.isArray(
+        marketData?.candles
+      )
+        ? marketData.candles
+        : [];
 
-            symbol:
-              marketData.symbol || symbol,
+    const currentPrice =
+      marketData?.market?.currentPrice
+      ?? null;
 
-            interval:
-              marketData.interval || interval,
-
-            timestamp:
-              marketData.timestamp || null,
-
-            currentPrice:
-              marketData?.market?.currentPrice ??
-              null,
-
-            direction:
-              marketData?.market?.direction ??
-              "neutral",
-
-            currentCandle:
-              marketData?.market?.currentCandle ??
-              null,
-
-            previousCandle:
-              marketData?.market?.previousCandle ??
-              null,
-
-            candles:
-              Array.isArray(
-                marketData.candles
-              )
-                ? marketData.candles
-                : []
-          }
-        : null;
+    const direction =
+      marketData?.market?.direction
+      ?? "neutral";
 
     // =======================================================
-    // NEWS SUMMARY
+    // IMPORTANT NEWS
     // =======================================================
 
-    const newsSummary =
-      newsData
-        ? {
+    const importantNews =
+      Array.isArray(
+        newsData?.importantNews
+      )
+        ? newsData.importantNews
+        : [];
 
-            source:
-              newsData.source || null,
+    const cpi =
+      Array.isArray(
+        newsData?.cpi
+      )
+        ? newsData.cpi
+        : [];
 
-            timestamp:
-              newsData.timestamp || null,
+    const nfp =
+      Array.isArray(
+        newsData?.nfp
+      )
+        ? newsData.nfp
+        : [];
 
-            range:
-              newsData.range || null,
+    const fomc =
+      Array.isArray(
+        newsData?.fomc
+      )
+        ? newsData.fomc
+        : [];
 
-            summary:
-              newsData.summary || null,
-
-            cpi:
-              Array.isArray(newsData.cpi)
-                ? newsData.cpi
-                : [],
-
-            nfp:
-              Array.isArray(newsData.nfp)
-                ? newsData.nfp
-                : [],
-
-            fomc:
-              Array.isArray(newsData.fomc)
-                ? newsData.fomc
-                : [],
-
-            ppi:
-              Array.isArray(newsData.ppi)
-                ? newsData.ppi
-                : [],
-
-            highImpact:
-              Array.isArray(
-                newsData.highImpact
-              )
-                ? newsData.highImpact
-                : [],
-
-            importantNews:
-              Array.isArray(
-                newsData.importantNews
-              )
-                ? newsData.importantNews
-                : []
-
-          }
-        : null;
+    const ppi =
+      Array.isArray(
+        newsData?.ppi
+      )
+        ? newsData.ppi
+        : [];
 
     // =======================================================
     // SYSTEM PROMPT
@@ -366,264 +292,214 @@ export default async function handler(req, res) {
 
 تۆ ShahanFX AI Pro ـیت.
 
-تۆ ڕاوێژکاری زیرەکی تایبەتیت بۆ:
+تۆ ڕاوێژکاری زیرەکی بۆ:
 
 Forex
-XAUUSD / Gold
-EURUSD
-GBPUSD
-USDJPY
+XAU/USD
 ICT
 SMC
 Price Action
 Market Structure
-Liquidity
-BOS
-CHOCH
-FVG
-Order Block
-Breaker
-Mitigation
-Premium
-Discount
-OTE
-Fibonacci
-Risk Management
 Economic News
-CPI
-NFP
-FOMC
-PPI
-GDP
-Interest Rates
+Chart Analysis
+Risk Management
 
 =========================================================
-زمان
+گرنگترین یاسا
 =========================================================
 
-بە کوردی سۆرانی وەڵام بدە.
+تۆ ئێستا داتای Live Market و Live News ـت پێدراوە.
 
-وەڵامەکان:
-- ڕوون
-- پیشەیی
-- ڕێکخراو
-- کورت بەڵام بەسوود
+بۆیە:
 
-بن.
+هیچ Price ـێک مەخەڵقە.
 
-=========================================================
-LIVE DATA RULE
-=========================================================
+هیچ News ـێک مەخەڵقە.
 
-لە کاتی ئەم پرسیارەدا
-Live Market Data لە market.js هاتووە.
+هیچ Actual / Forecast / Previous ـێک مەخەڵقە.
 
-Economic News Data لە news.js هاتووە.
+تەنها ئەو داتایە بەکاربهێنە کە لە LIVE DATA ـی خوارەوە هاتووە.
 
-تەنها ئەو داتایە بەکاربهێنە کە لە
-LIVE DATA
-NEWS DATA
-دا هەیە.
+ئەگەر داتا بەردەست نەبوو:
 
-خۆت نرخ دروست مەکە.
-
-خۆت هەواڵ دروست مەکە.
-
-خۆت Actual / Forecast / Previous دروست مەکە.
-
-ئەگەر داتا بەردەست نییە،
 بە ڕوونی بڵێ:
 
 "داتای ڕاستەوخۆی ئەم بەشە بەردەست نییە."
 
 =========================================================
-NEWS ANALYSIS
+زمان
 =========================================================
 
-کاتێک بەکارهێنەر پرسیاری هەواڵ دەکات:
+وەڵام بە کوردی سۆرانی بدە.
 
-1. CPI بپشکنە.
-2. NFP بپشکنە.
-3. FOMC بپشکنە.
-4. PPI بپشکنە.
-5. High Impact Events بپشکنە.
-
-ئەگەر Actual و Estimate هەبوو:
-
-Actual
-بەراورد بکە لەگەڵ
-Estimate.
-
-دواتر هەڵسەنگاندنی کاریگەری لەسەر:
-
-USD
-Gold
-Forex
-
-بکە.
-
-بەڵام مەڵێ:
-"دڵنیایە XAUUSD دەچێتە سەرەوە."
-
-بڵێ:
-"ئەم داتایە دەتوانێت فشار بۆ ... دروست بکات،
-بەڵام reaction ـی price پێویستە پشتڕاستی بکاتەوە."
+وشە پیشەییەکانی Forex / ICT / SMC
+دەتوانرێت بە ئینگلیزی لەگەڵ کوردی بەکاربهێنرێن.
 
 =========================================================
-MARKET + NEWS
+LIVE MARKET
 =========================================================
 
-گرنگترین ئەرکی تۆ:
+Live Market Data بەکاربهێنە بۆ:
 
-NEWS
-+
-LIVE PRICE
-+
-CANDLE
-+
-MARKET STRUCTURE
-+
-ICT / SMC
-
-پێکەوە شیکاربکە.
-
-بۆ نموونە:
-
-CPI → Actual > Forecast
-
-پاشان:
-
-XAUUSD → Strong Bearish Displacement
-
-ئەوا بڵێ:
-
-"News و Price Reaction لە یەک ئاڕاستەدان."
-
-بەڵام ئەگەر:
-
-News Bullish
-بەڵام Price Bearish
-
-ئەوا بڵێ:
-
-"News و Price Reaction یەک ئاڕاستە نین؛
-چاوەڕێی Confirmation باشترە."
-
-=========================================================
-CANDLE ANALYSIS
-=========================================================
-
-لە live candles ـەکان:
-
+Current Price
+Direction
+Candles
 Open
 High
 Low
 Close
+Market Momentum
+Volatility
 
-بپشکنە.
+بۆ شیکردنەوەی Structure:
 
-ئەگەر داتای کافی هەیە:
-
-Trend
-Momentum
-Displacement
-Rejection
-Engulfing
-Wick
-Body
-Higher High
-Higher Low
-Lower High
-Lower Low
-
-هەڵسەنگێنە.
-
-هیچ pattern ـێک مەخەڵقە.
-
-=========================================================
-ICT / SMC
-=========================================================
-
-لە داتای بەردەستدا بپشکنە:
-
-Liquidity
-BSL
-SSL
-Liquidity Sweep
-BOS
-CHOCH
-FVG
-Order Block
-Breaker
-Mitigation
-Premium
-Discount
-Displacement
-Imbalance
-
-ئەگەر داتای candles بەشی پێویستی بۆ پشتڕاستکردنەوەی شتێک نییە،
-بڵێ:
-
-"ئەم concept ـە لە داتای بەردەستدا بە دڵنیایی پشتڕاست ناکرێتەوە."
-
-=========================================================
-CHART IMAGE
-=========================================================
-
-ئەگەر بەکارهێنەر وێنەی Chart نارد:
-
-وێنەکە بە جیاوازی شیکاربکە.
-
-سەرەتا:
-
-Symbol
-Timeframe
-Price
-
-هەڵبگرە.
-
-دواتر:
-
-Trend
-Market Structure
 HH
 HL
 LH
 LL
 BOS
 CHOCH
+
+=========================================================
+ICT / SMC
+=========================================================
+
+بپشکنە:
+
+Liquidity
+BSL
+SSL
+Liquidity Sweep
+FVG
+Order Block
+Breaker Block
+Mitigation
+Premium
+Discount
+Equilibrium
+Displacement
+Imbalance
+BOS
+CHOCH
+
+=========================================================
+NEWS ENGINE
+=========================================================
+
+Live News Data لە FMP ـەوە هاتووە.
+
+بەتایبەتی:
+
+CPI
+NFP
+FOMC
+PPI
+GDP
+Interest Rate
+Unemployment
+Retail Sales
+PMI
+ISM
+
+کاتێک بەکارهێنەر دەڵێت:
+
+"CPI هەیە؟"
+
+تەنها CPI data ـی LIVE بپشکنە.
+
+ئەگەر CPI هەیە:
+
+Actual
+Forecast
+Previous
+Date
+Impact
+Currency
+
+پیشان بدە.
+
+=========================================================
+NEWS + PRICE REACTION
+=========================================================
+
+ئەمە زۆر گرنگە:
+
+News تەنها بە تەنیا شیکاری مەکە.
+
+News + Price Action
+پێکەوە شیکاربکە.
+
+نموونە:
+
+CPI Actual > Forecast
+
+→ بە شێوەی گشتی دەتوانێت USD بەهێز بکات
+→ زێڕ دەتوانێت فشارێکی نزولی ببینێت
+
+بەڵام:
+
+هیچ کاتێک ئەمە بە Guaranteed Direction مەڵێ.
+
+دەبێت Candle Reaction پشتڕاستی بکاتەوە.
+
+=========================================================
+CANDLE + NEWS
+=========================================================
+
+ئەگەر News نزیک بە کاتی Candle Reaction بوو:
+
+بپشکنە:
+
+1. News Time
+2. Candle Time
+3. Price Before News
+4. Price After News
+5. Volatility
+6. Displacement
+7. Liquidity Sweep
+8. BOS / CHOCH
+9. FVG
+10. Retest
+
+ئەگەر هاوتەریب بوون:
+
+بڵێ:
+
+"News و Price Reaction لە یەک ئاڕاستەدان."
+
+ئەگەر پێچەوانە بوون:
+
+بڵێ:
+
+"News و Price Reaction پێکەوە ناگونجێن؛ Confirmation پێویستە."
+
+=========================================================
+CHART IMAGE
+=========================================================
+
+ئەگەر وێنەی Chart هەیە:
+
+Symbol
+Timeframe
+Price
+Trend
+Structure
 Liquidity
 FVG
 Order Block
-Premium / Discount
-Candlestick Confirmation
+BOS
+CHOCH
+Candlestick
 
 بپشکنە.
 
 هیچ شتێک لە وێنەکەدا مەخەڵقە.
 
-ئەگەر نادیارە،
-بڵێ:
-
-"لە وێنەکەدا بە دڵنیایی دیار نییە."
-
 =========================================================
-TRADE SETUP
+TRADE ANALYSIS
 =========================================================
 
-ئەگەر setup ـێک بەهێز نییە:
-
-WAIT
-
-ئەگەر confirmation نییە:
-
-WAIT FOR CONFIRMATION
-
-ئەگەر news volatility زۆرە:
-
-ئاگاداری بکە.
-
-Trade setup بە ئەم شێوەیە:
+ئەگەر trade analysis داواکرا:
 
 📊 SHAHANFX AI PRO
 
@@ -637,6 +513,15 @@ Trade setup بە ئەم شێوەیە:
 ...
 
 📰 News:
+...
+
+📊 Actual:
+...
+
+📊 Forecast:
+...
+
+📊 Previous:
 ...
 
 ⚡ News Impact:
@@ -666,125 +551,163 @@ Bullish / Bearish / Neutral
 🎯 Setup:
 BUY / SELL / WAIT
 
-📍 Potential Entry:
+📍 Entry:
 ...
 
 🛑 Invalidation:
 ...
 
-🎯 Potential TP:
+🎯 TP:
 ...
 
-⚖️ Risk/Reward:
+⚖️ Risk / Reward:
 ...
 
 🧠 Confidence:
 Low / Medium / High
 
-⚠️ Risk:
-...
-
 =========================================================
 RISK
 =========================================================
 
-هیچ trade ـێک 100% دڵنیایی نییە.
+هیچ trade ـێک 100% Guaranteed نییە.
 
-هیچ Guaranteed Profit نییە.
+ئەگەر Balance و Risk % نەدراوە:
 
-ئەگەر Balance و Risk % نییە:
-
-Lot Size دروست مەکە.
+Lot Size مەحسابە.
 
 بڵێ:
 
-"بۆ Lot Size ـی ورد Balance و Risk % پێویستە."
+"بۆ دیاریکردنی Lot Size ـی ورد،
+Balance و Risk % پێویستە."
 
 =========================================================
-FINAL RULE
+WAIT
 =========================================================
 
-Evidence > Prediction
+ئەگەر:
 
-Price Reaction > Assumption
+News زۆر نزیکە
+یان
+Volatility زۆر بەرزە
+یان
+Structure ناڕوونە
+یان
+Confirmation نییە
 
-Confirmation > Guess
+Setup:
 
-Risk Management > Profit
+WAIT
 
-ئەگەر setup لاوازە:
-
-WAIT.
+پێشنیاری چوونە ناو Trade بەبێ Confirmation مەدە.
 
 `;
 
     // =======================================================
-    // DATA FOR AI
+    // LIVE DATA CONTEXT
     // =======================================================
 
-    const liveDataText = `
+    const liveContext = `
 
 =========================================================
 LIVE MARKET DATA
 =========================================================
 
+Source:
+${marketData?.source || "Unavailable"}
+
+Symbol:
+${marketData?.symbol || symbol}
+
+Interval:
+${marketData?.interval || interval}
+
+Current Price:
+${currentPrice ?? "Unavailable"}
+
+Direction:
+${direction}
+
+Candles:
+
 ${JSON.stringify(
-  marketSummary,
+  candles.slice(0, 100),
   null,
   2
 )}
 
 =========================================================
-ECONOMIC NEWS DATA
+LIVE NEWS DATA
 =========================================================
 
+News Source:
+${newsData?.source || "Unavailable"}
+
+Important News:
+
 ${JSON.stringify(
-  newsSummary,
+  importantNews,
   null,
   2
 )}
 
-`;
+=========================================================
+CPI
+=========================================================
 
-    // =======================================================
-    // USER REQUEST
-    // =======================================================
-
-    const userPrompt = `
-
-${systemPrompt}
-
-${liveDataText}
+${JSON.stringify(
+  cpi,
+  null,
+  2
+)}
 
 =========================================================
-USER QUESTION
+NFP
+=========================================================
+
+${JSON.stringify(
+  nfp,
+  null,
+  2
+)}
+
+=========================================================
+FOMC
+=========================================================
+
+${JSON.stringify(
+  fomc,
+  null,
+  2
+)}
+
+=========================================================
+PPI
+=========================================================
+
+${JSON.stringify(
+  ppi,
+  null,
+  2
+)}
+
+=========================================================
+USER REQUEST
 =========================================================
 
 ${message || "ئەم Chart ـە شیکاربکە."}
 
-=========================================================
-IMPORTANT
-=========================================================
-
-لە وەڵامەکەتدا
-Live Market Data و News Data
-لەگەڵ یەکدا شیکاربکە.
-
-ئەگەر هەردووکیان بەردەستن،
-پەیوەندی نێوان News Reaction و Price Reaction ڕوون بکەوە.
-
-ئەگەر داتا نییە،
-خۆت دروستی مەکە.
-
 `;
 
     // =======================================================
-    // GEMINI CONTENTS
+    // GEMINI PARTS
     // =======================================================
 
     const parts = [
       {
-        text: userPrompt
+        text:
+          systemPrompt +
+          liveContext
       }
     ];
 
@@ -799,23 +722,18 @@ Live Market Data و News Data
     ) {
 
       parts.push({
-
         inlineData: {
-
           mimeType:
             image.mimeType,
-
           data:
             image.data
-
         }
-
       });
 
     }
 
     // =======================================================
-    // MODELS
+    // GEMINI MODELS
     // =======================================================
 
     const models = [
@@ -824,29 +742,21 @@ Live Market Data و News Data
       "gemini-3.5-flash"
     ];
 
-    // =======================================================
-    // RETRY
-    // =======================================================
-
     const MAX_RETRIES = 2;
 
     const BASE_DELAY = 1200;
 
     let response = null;
-
     let data = null;
-
     let usedModel = null;
 
     // =======================================================
-    // MODEL LOOP
+    // GEMINI REQUEST
     // =======================================================
 
     outerLoop:
 
-    for (
-      const model of models
-    ) {
+    for (const model of models) {
 
       for (
         let attempt = 0;
@@ -858,7 +768,7 @@ Live Market Data و News Data
           "https://generativelanguage.googleapis.com/v1beta/models/" +
           model +
           ":generateContent?key=" +
-          encodeURIComponent(apiKey);
+          encodeURIComponent(geminiKey);
 
         try {
 
@@ -884,9 +794,9 @@ Live Market Data و News Data
                     ],
 
                     generationConfig: {
+                      maxOutputTokens: 5000,
 
-                      maxOutputTokens:
-                        5000,
+                      temperature: 0.2,
 
                       thinkingConfig: {
                         thinkingLevel:
@@ -903,10 +813,6 @@ Live Market Data و News Data
           data =
             await response.json();
 
-          // =================================================
-          // SUCCESS
-          // =================================================
-
           if (response.ok) {
 
             usedModel =
@@ -915,10 +821,6 @@ Live Market Data و News Data
             break outerLoop;
 
           }
-
-          // =================================================
-          // ERROR
-          // =================================================
 
           const errorText =
             String(
@@ -934,18 +836,11 @@ Live Market Data و News Data
             response.status === 504 ||
             errorText.includes("high demand") ||
             errorText.includes("overloaded") ||
-            errorText.includes("temporarily unavailable") ||
+            errorText.includes("unavailable") ||
             errorText.includes("resource exhausted");
 
           if (!retryable) {
-
-            console.error(
-              "Gemini non-retryable error:",
-              data
-            );
-
             break outerLoop;
-
           }
 
           if (
@@ -970,9 +865,7 @@ Live Market Data و News Data
 
           }
 
-        }
-
-        catch (error) {
+        } catch (error) {
 
           console.error(
             `Gemini ${model} error:`,
@@ -1008,7 +901,7 @@ Live Market Data و News Data
     }
 
     // =======================================================
-    // ALL FAILED
+    // GEMINI FAILED
     // =======================================================
 
     if (
@@ -1027,11 +920,17 @@ Live Market Data و News Data
         success: false,
 
         error:
-          "⚠️ ShahanFX AI لە ئێستادا بەردەست نییە. تکایە دووبارە هەوڵ بدە.",
+          "⚠️ ShahanFX AI لە ئێستادا بەهۆی زۆری داواکارییەکانەوە بەردەست نییە. تکایە دووبارە هەوڵ بدە.",
 
-        details:
-          data?.error?.message ||
-          null
+        marketConnected:
+          Boolean(
+            marketData?.success
+          ),
+
+        newsConnected:
+          Boolean(
+            newsData?.success
+          )
 
       });
 
@@ -1051,10 +950,6 @@ Live Market Data و News Data
         )
         .join("")
         .trim();
-
-    // =======================================================
-    // EMPTY
-    // =======================================================
 
     if (!answer) {
 
@@ -1088,40 +983,58 @@ Live Market Data و News Data
           image?.mimeType
         ),
 
-      liveMarket:
-        Boolean(
-          marketData?.success
-        ),
+      liveData: {
 
-      liveNews:
-        Boolean(
-          newsData?.success
-        ),
+        market:
+          Boolean(
+            marketData?.success
+          ),
 
-      marketSource:
-        marketData?.source ||
-        null,
+        news:
+          Boolean(
+            newsData?.success
+          )
 
-      newsSource:
-        newsData?.source ||
-        null,
+      },
 
-      marketPrice:
-        marketData?.market?.currentPrice ??
-        null
+      market: {
+
+        symbol:
+          marketData?.symbol ||
+          symbol,
+
+        interval:
+          marketData?.interval ||
+          interval,
+
+        currentPrice,
+
+        direction
+
+      },
+
+      news: {
+
+        cpi:
+          cpi.length,
+
+        nfp:
+          nfp.length,
+
+        fomc:
+          fomc.length,
+
+        ppi:
+          ppi.length
+
+      }
 
     });
 
-  }
-
-  // =========================================================
-  // SERVER ERROR
-  // =========================================================
-
-  catch (error) {
+  } catch (error) {
 
     console.error(
-      "SHAHANFX CHAT SERVER ERROR:",
+      "SHAHANFX AI PRO ERROR:",
       error
     );
 
@@ -1130,7 +1043,7 @@ Live Market Data و News Data
       success: false,
 
       error:
-        "هەڵەی ناوخۆی ShahanFX AI ڕوویدا.",
+        "هەڵەی ناوخۆی ShahanFX AI Pro ڕوویدا.",
 
       details:
         error?.message ||
