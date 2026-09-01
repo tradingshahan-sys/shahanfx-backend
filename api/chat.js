@@ -1,10 +1,10 @@
 // api/chat.js
-// ShahanFX AI Pro — Kurdish Sorani + Live Market + Live News
-// Stable Serverless Version
+// ShahanFX AI Pro — Live Market + Live News + Gemini + OpenRouter
+// Vercel Node.js Serverless — Stable Version
 
 export default async function handler(req, res) {
   // =====================================================
-  // BASIC HEADERS
+  // CORS / HEADERS
   // =====================================================
 
   try {
@@ -19,17 +19,17 @@ export default async function handler(req, res) {
     );
     res.setHeader("Cache-Control", "no-store");
 
-    // ===================================================
+    // =====================================================
     // OPTIONS
-    // ===================================================
+    // =====================================================
 
     if (req.method === "OPTIONS") {
       return res.status(204).end();
     }
 
-    // ===================================================
+    // =====================================================
     // HEALTH CHECK
-    // ===================================================
+    // =====================================================
 
     if (req.method === "GET") {
       return res.status(200).json({
@@ -42,9 +42,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // ===================================================
+    // =====================================================
     // METHOD CHECK
-    // ===================================================
+    // =====================================================
 
     if (req.method !== "POST") {
       return res.status(405).json({
@@ -54,9 +54,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // ===================================================
+    // =====================================================
     // ENVIRONMENT VARIABLES
-    // ===================================================
+    // =====================================================
 
     const GEMINI_API_KEY =
       process.env.GEMINI_API_KEY || "";
@@ -70,16 +70,21 @@ export default async function handler(req, res) {
     const FMP_API_KEY =
       process.env.FMP_API_KEY || "";
 
-    // ===================================================
-    // REQUEST BODY
-    // ===================================================
+    // =====================================================
+    // BODY
+    // =====================================================
 
     let body = {};
 
     try {
-      if (req.body && typeof req.body === "object") {
+      if (
+        req.body &&
+        typeof req.body === "object"
+      ) {
         body = req.body;
-      } else if (typeof req.body === "string") {
+      } else if (
+        typeof req.body === "string"
+      ) {
         body = JSON.parse(req.body);
       }
     } catch {
@@ -107,11 +112,16 @@ export default async function handler(req, res) {
       typeof body.interval === "string" &&
       body.interval.trim()
         ? body.interval.trim()
-        : "5min";
+        : (
+            typeof body.timeframe === "string" &&
+            body.timeframe.trim()
+              ? body.timeframe.trim()
+              : "5min"
+          );
 
-    // ===================================================
+    // =====================================================
     // EMPTY REQUEST
-    // ===================================================
+    // =====================================================
 
     if (!message && !image) {
       return res.status(400).json({
@@ -122,16 +132,16 @@ export default async function handler(req, res) {
       });
     }
 
-    // ===================================================
+    // =====================================================
     // TIME LIMIT
-    // ===================================================
+    // =====================================================
 
     const deadline =
       Date.now() + 23000;
 
-    // ===================================================
+    // =====================================================
     // SAFE FETCH
-    // ===================================================
+    // =====================================================
 
     async function fetchTimeout(
       url,
@@ -142,25 +152,30 @@ export default async function handler(req, res) {
         new AbortController();
 
       const timer =
-        setTimeout(() => {
-          controller.abort();
-        }, timeout);
+        setTimeout(
+          () => controller.abort(),
+          timeout
+        );
 
       try {
-        return await fetch(url, {
-          ...options,
-          signal: controller.signal
-        });
+        return await fetch(
+          url,
+          {
+            ...options,
+            signal:
+              controller.signal
+          }
+        );
       } finally {
         clearTimeout(timer);
       }
     }
 
-    // ===================================================
+    // =====================================================
     // SAFE TEXT
-    // ===================================================
+    // =====================================================
 
-    function safe(value) {
+    function clean(value) {
       if (
         value === null ||
         value === undefined
@@ -168,42 +183,7 @@ export default async function handler(req, res) {
         return "";
       }
 
-      if (typeof value === "string") {
-        return value;
-      }
-
-      if (Array.isArray(value)) {
-        return value
-          .map(item => safe(item))
-          .filter(Boolean)
-          .join("\n");
-      }
-
-      if (typeof value === "object") {
-        if (
-          typeof value.text === "string"
-        ) {
-          return value.text;
-        }
-
-        if (
-          typeof value.content === "string"
-        ) {
-          return value.content;
-        }
-
-        try {
-          return JSON.stringify(value);
-        } catch {
-          return "";
-        }
-      }
-
-      return String(value);
-    }
-
-    function clean(value) {
-      return safe(value)
+      return String(value)
         .replace(
           /User Safety:\s*safe/gi,
           ""
@@ -288,14 +268,10 @@ export default async function handler(req, res) {
           candles[1] || null;
 
         const currentClose =
-          Number(
-            current?.close
-          );
+          Number(current?.close);
 
         const previousClose =
-          Number(
-            previous?.close
-          );
+          Number(previous?.close);
 
         let direction =
           "neutral";
@@ -333,7 +309,7 @@ export default async function handler(req, res) {
           direction
         };
 
-      } catch (error) {
+      } catch {
         return {
           available: false,
           reason:
@@ -477,7 +453,8 @@ export default async function handler(req, res) {
       ]);
 
     const market =
-      results[0]?.status === "fulfilled"
+      results[0]?.status ===
+      "fulfilled"
         ? results[0].value
         : {
             available: false,
@@ -486,7 +463,8 @@ export default async function handler(req, res) {
           };
 
     const news =
-      results[1]?.status === "fulfilled"
+      results[1]?.status ===
+      "fulfilled"
         ? results[1].value
         : {
             available: false,
@@ -502,47 +480,49 @@ export default async function handler(req, res) {
       symbol,
       interval,
 
-      market: market.available
-        ? {
-            current:
-              market.current,
+      market:
+        market.available
+          ? {
+              current:
+                market.current,
 
-            previous:
-              market.previous,
+              previous:
+                market.previous,
 
-            direction:
-              market.direction,
+              direction:
+                market.direction,
 
-            recentCandles:
-              Array.isArray(
-                market.candles
-              )
-                ? market.candles.slice(
-                    0,
-                    30
-                  )
-                : []
-          }
-        : {
-            unavailable: true,
-            reason:
-              market.reason
-          },
+              recentCandles:
+                Array.isArray(
+                  market.candles
+                )
+                  ? market.candles.slice(
+                      0,
+                      30
+                    )
+                  : []
+            }
+          : {
+              unavailable: true,
+              reason:
+                market.reason
+            },
 
-      news: news.available
-        ? {
-            events:
-              Array.isArray(
-                news.events
-              )
-                ? news.events
-                : []
-          }
-        : {
-            unavailable: true,
-            reason:
-              news.reason
-          }
+      news:
+        news.available
+          ? {
+              events:
+                Array.isArray(
+                  news.events
+                )
+                  ? news.events
+                  : []
+            }
+          : {
+              unavailable: true,
+              reason:
+                news.reason
+            }
     };
 
     // =====================================================
@@ -555,16 +535,9 @@ export default async function handler(req, res) {
 ALC™ سیستەمێکی جیاوازە لە ICT و SMC.
 ALC™ و ICT و SMC بە شێوەی جیاواز لە شیکردنەوە بەکاربهێنە.
 
-━━━━━━━━━━━━━━━━━━━━━━
-یاسای زمانی
-━━━━━━━━━━━━━━━━━━━━━━
+هەموو وەڵامەکەت بە کوردی سۆرانی بنووسە.
 
-1. هەموو وەڵامەکەت تەنها بە کوردی سۆرانی بنووسە.
-
-2. ئەگەر بە English یان هەر زمانێکی تر پرسیار کرد،
-هەر وەڵامەکە بە کوردی سۆرانی بدە.
-
-3. تەنها وشە تەکنیکییە باوەکان دەتوانن بە English بمێننەوە:
+وشە تەکنیکییەکان دەتوانن بە English بمێننەوە:
 
 Forex
 Gold
@@ -585,57 +558,51 @@ SELL
 WAIT
 
 ━━━━━━━━━━━━━━━━━━━━━━
-یاسای Live Data
+LIVE DATA
 ━━━━━━━━━━━━━━━━━━━━━━
 
-1. تەنها ئەو نرخ و Candle و News ـە بەکاربهێنە
+تەنها ئەو نرخ و Candle و News ـە بەکاربهێنە
 کە لە Live Context ـدا هەیە.
 
-2. هیچ نرخێک لە خۆتەوە دروست مەکە.
+هیچ نرخێک لە خۆتەوە دروست مەکە.
 
-3. هیچ News ـێک لە خۆتەوە دروست مەکە.
+هیچ News ـێک لە خۆتەوە دروست مەکە.
 
-4. هیچ CPI / NFP / FOMC / GDP / Interest Rate
-ـێک لە خۆتەوە دروست مەکە.
-
-5. ئەگەر Live Data بەردەست نییە،
+ئەگەر Live Data بەردەست نییە،
 بە کوردی سۆرانی ڕوونی بکەوە.
 
-6. بە داتای کۆن ناڵێ Live.
-
-7. Candle و News و Structure
-لە هەمان شیکارییەکدا هەڵسەنگێنە.
+بە داتای کۆن ناڵێ Live.
 
 ━━━━━━━━━━━━━━━━━━━━━━
-Market Analysis
+MARKET ANALYSIS
 ━━━━━━━━━━━━━━━━━━━━━━
 
-هەموو جارێک ئەمانە بپشکنە:
+ئەم خاڵانە هەڵسەنگێنە:
 
-• Price
-• Candle
-• Market Structure
-• HH
-• HL
-• LH
-• LL
-• Liquidity
-• BSL
-• SSL
-• Liquidity Sweep
-• BOS
-• CHOCH
-• FVG
-• Order Block
-• Premium
-• Discount
-• ALC™
-• ICT
-• SMC
-• News Impact
+Price
+Candle
+Market Structure
+HH
+HL
+LH
+LL
+Liquidity
+BSL
+SSL
+Liquidity Sweep
+BOS
+CHOCH
+FVG
+Order Block
+Premium
+Discount
+ALC™
+ICT
+SMC
+News Impact
 
 ━━━━━━━━━━━━━━━━━━━━━━
-Trade Rules
+TRADE RULES
 ━━━━━━━━━━━━━━━━━━━━━━
 
 هیچ Trade ـێک بە دڵنیایی 100% مەدە.
@@ -644,8 +611,8 @@ Trade Rules
 
 WAIT
 
-پێشنیاری BUY/SELL مەدە تەنها بۆ ئەوەی
-بەکارهێنەر سیگناڵی دەوێت.
+BUY یان SELL تەنها کاتێک پێشنیار بکە
+کە Setup ـێکی ڕوون و پشتگیریکراو هەبێت.
 
 ئەگەر Setup ـێکی ڕوون هەبوو:
 
@@ -662,14 +629,15 @@ WAIT
 🧠 Confidence:
 ⏳ Decision:
 
-هەموو وەڵامەکان:
-کورت، ڕوون، پیشەیی و بە کوردی سۆرانی بن.
+هەموو وەڵامەکان کورت، ڕوون و پیشەیی بن.
 
 ━━━━━━━━━━━━━━━━━━━━━━
-Live Context
+LIVE CONTEXT
 ━━━━━━━━━━━━━━━━━━━━━━
 
-${JSON.stringify(liveContext)}
+${JSON.stringify(
+  liveContext
+)}
 `;
 
     // =====================================================
@@ -745,8 +713,7 @@ ${JSON.stringify(liveContext)}
 
       for (const model of models) {
         if (
-          Date.now() >=
-          deadline
+          Date.now() >= deadline
         ) {
           break;
         }
@@ -781,7 +748,6 @@ ${JSON.stringify(liveContext)}
                       {
                         role:
                           "user",
-
                         parts
                       }
                     ],
@@ -833,7 +799,7 @@ ${JSON.stringify(liveContext)}
           }
 
         } catch {
-          // Continue to next model
+          // Continue
         }
       }
 
@@ -889,15 +855,12 @@ ${JSON.stringify(liveContext)}
                     {
                       role:
                         "system",
-
                       content:
                         systemPrompt
                     },
-
                     {
                       role:
                         "user",
-
                       content:
                         message ||
                         "ئەم Chart ـە بە وردی بە کوردی سۆرانی شیکاربکە."
@@ -978,7 +941,7 @@ ${JSON.stringify(liveContext)}
         success: false,
 
         error:
-          "⚠️ ShahanFX AI نەتوانی وەڵام بدات. تکایە API ـی AI یان Quota بپشکنە.",
+          "⚠️ ShahanFX AI نەتوانی وەڵام بدات. تکایە Gemini یان OpenRouter و Quota ـەکان بپشکنە.",
 
         liveData: {
           market:
@@ -1057,9 +1020,6 @@ ${JSON.stringify(liveContext)}
     });
 
   } catch (error) {
-    // =====================================================
-    // FINAL CRASH PROTECTION
-    // =====================================================
 
     console.error(
       "ShahanFX AI Fatal Error:",
