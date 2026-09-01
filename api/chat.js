@@ -4,12 +4,12 @@
 // Kurdish Sorani Trading Assistant
 
 export default async function handler(req, res) {
-  // =========================================================
-  // CORS
-  // =========================================================
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
   res.setHeader("Cache-Control", "no-store");
 
   if (req.method === "OPTIONS") {
@@ -32,23 +32,15 @@ export default async function handler(req, res) {
     });
   }
 
-  // =========================================================
-  // ENVIRONMENT VARIABLES
-  // =========================================================
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
   const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY;
   const FMP_API_KEY = process.env.FMP_API_KEY;
 
-  // =========================================================
-  // TIMEOUT FETCH
-  // =========================================================
   async function fetchWithTimeout(url, options = {}, timeout = 15000) {
     const controller = new AbortController();
 
-    const timer = setTimeout(() => {
-      controller.abort();
-    }, timeout);
+    const timer = setTimeout(() => controller.abort(), timeout);
 
     try {
       return await fetch(url, {
@@ -60,9 +52,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // =========================================================
-  // INPUT
-  // =========================================================
   const body = req.body || {};
 
   const message =
@@ -71,17 +60,20 @@ export default async function handler(req, res) {
       : "";
 
   const image =
-    typeof body.image === "string" && body.image.startsWith("data:")
+    typeof body.image === "string" &&
+    body.image.startsWith("data:")
       ? body.image
       : null;
 
   const symbol =
-    typeof body.symbol === "string" && body.symbol.trim()
+    typeof body.symbol === "string" &&
+    body.symbol.trim()
       ? body.symbol.trim()
       : "XAU/USD";
 
   const interval =
-    typeof body.interval === "string" && body.interval.trim()
+    typeof body.interval === "string" &&
+    body.interval.trim()
       ? body.interval.trim()
       : "5min";
 
@@ -97,19 +89,14 @@ export default async function handler(req, res) {
     });
   }
 
-  // =========================================================
-  // HELPERS
-  // =========================================================
   function safeString(value) {
     if (value === null || value === undefined) return "";
 
-    if (typeof value === "string") {
-      return value;
-    }
+    if (typeof value === "string") return value;
 
     if (Array.isArray(value)) {
       return value
-        .map(item => safeString(item))
+        .map(safeString)
         .filter(Boolean)
         .join("\n");
     }
@@ -142,9 +129,10 @@ export default async function handler(req, res) {
     return text.trim();
   }
 
-  // =========================================================
+  // =====================================================
   // MARKET DATA
-  // =========================================================
+  // =====================================================
+
   async function getMarketData() {
     if (!TWELVE_DATA_API_KEY) {
       return {
@@ -175,7 +163,7 @@ export default async function handler(req, res) {
       const data = await response.json();
 
       if (!response.ok || data.status === "error" || !data.values) {
-        console.error("Twelve Data error:", data);
+        console.error("Twelve Data:", data);
 
         return {
           available: false,
@@ -225,7 +213,7 @@ export default async function handler(req, res) {
         candles
       };
     } catch (error) {
-      console.error("Market fetch error:", error);
+      console.error("Market error:", error);
 
       return {
         available: false,
@@ -234,9 +222,10 @@ export default async function handler(req, res) {
     }
   }
 
-  // =========================================================
-  // NEWS / ECONOMIC CALENDAR
-  // =========================================================
+  // =====================================================
+  // NEWS
+  // =====================================================
+
   async function getNewsData() {
     if (!FMP_API_KEY) {
       return {
@@ -264,7 +253,7 @@ export default async function handler(req, res) {
       const data = await response.json();
 
       if (!response.ok || !Array.isArray(data)) {
-        console.error("FMP error:", data);
+        console.error("FMP:", data);
 
         return {
           available: false,
@@ -272,22 +261,22 @@ export default async function handler(req, res) {
         };
       }
 
-      const importantKeywords = [
+      const keywords = [
         "CPI",
         "NFP",
         "FOMC",
         "FED",
         "PPI",
         "GDP",
-        "Interest Rate",
-        "Nonfarm",
-        "Inflation",
-        "Unemployment",
-        "Retail Sales",
+        "INTEREST RATE",
+        "NONFARM",
+        "INFLATION",
+        "UNEMPLOYMENT",
+        "RETAIL SALES",
         "ISM"
       ];
 
-      const filtered = data
+      const events = data
         .filter(item => {
           const country =
             String(item.country || "").toUpperCase();
@@ -303,9 +292,7 @@ export default async function handler(req, res) {
             ).toUpperCase();
 
           const important =
-            importantKeywords.some(keyword =>
-              event.includes(keyword.toUpperCase())
-            );
+            keywords.some(k => event.includes(k));
 
           const highImpact =
             impact.includes("HIGH") ||
@@ -322,10 +309,10 @@ export default async function handler(req, res) {
 
       return {
         available: true,
-        events: filtered
+        events
       };
     } catch (error) {
-      console.error("News fetch error:", error);
+      console.error("News error:", error);
 
       return {
         available: false,
@@ -334,36 +321,34 @@ export default async function handler(req, res) {
     }
   }
 
-  // =========================================================
-  // GET LIVE DATA
-  // =========================================================
-  const [marketData, newsData] = await Promise.all([
-    getMarketData(),
-    getNewsData()
-  ]);
+  const [marketData, newsData] =
+    await Promise.all([
+      getMarketData(),
+      getNewsData()
+    ]);
 
-  // =========================================================
+  // =====================================================
   // SYSTEM PROMPT
-  // =========================================================
+  // =====================================================
+
   const systemPrompt = `
 تۆ ShahanFX AI ـیت؛ ڕاوێژکاری زیرەکی بۆ Forex، Gold، ICT و SMC.
 
-ڕێنماییە سەرەکییەکان:
+یاساکان:
 
-1. هەموو وەڵامەکانت بە کوردی سۆرانی بنووسە.
-2. تەنها وشە و ناوی تەکنیکی باو دەتوانێت بە ئینگلیزی بمێنێتەوە؛ وەک:
-   ICT, SMC, FVG, OB, BOS, CHOCH, Liquidity, Sweep, Entry, SL, TP, RR
-3. هیچ نرخێک، News ـێک، CPI، NFP، FOMC یان Data ـێک لە خۆتەوە مەدروستکە.
-4. ئەگەر Live Data بەردەست نەبوو، بە ڕوونی بڵێ Live Data بەردەست نییە.
-5. هیچ قازانجێکی دڵنیایی یان Trade ـێکی 100% مەبەخشە.
-6. ئەگەر Confirmation نییە، پێشنیاری WAIT بکە.
-7. ئەگەر News ـێکی گرنگ نزیک بێت، ئاگاداری بکە و بە پەلە Trade مەکە.
+1. هەموو وەڵامەکان بە کوردی سۆرانی بنووسە.
+2. وشە تەکنیکییە باوەکان دەتوانن بە English بمێننەوە.
+3. هیچ نرخ، News، CPI، NFP، FOMC یان Data ـێک لە خۆتەوە دروست مەکە.
+4. ئەگەر Live Data بەردەست نەبوو، ڕوونی بکەوە.
+5. هیچ قازانجێکی دڵنیایی یان Trade ـی 100% مەبەخشە.
+6. ئەگەر Confirmation نییە، WAIT پێشنیار بکە.
+7. ئەگەر News ـی گرنگ نزیکە، ئاگاداری بکە.
 8. Risk Management گرنگە.
-9. ئەگەر Chart Image هەبوو، بە وردی Chart ـەکە بخوێنەوە.
-10. ئەگەر Image ـەکە ناتوانرێت بخوێندرێتەوە، بە ڕوونی بڵێ.
-11. هیچ شتێک مەهێنە کە لە Data ـە بەردەستەکان پشتگیری نەکرابێت.
+9. ئەگەر Chart Image هەیە، Chart ـەکە شیکاربکە.
+10. ئەگەر Image ـەکە ناتوانرێت بخوێندرێتەوە، ڕوونی بکەوە.
+11. هیچ زانیارییەکی ساختە مەدروستکە.
 
-کاتێک داواکاری Trade هەیە، ئەگەر Data و Confirmation بەردەست بوو، ئەم شێوازە بەکاربهێنە:
+بۆ Trade Setup ئەگەر Confirmation هەبوو:
 
 📊 Symbol:
 📈 Bias:
@@ -379,17 +364,18 @@ export default async function handler(req, res) {
 
 ⏳ WAIT
 
-هۆکاری WAIT بە کوردی سۆرانی ڕوون بکە.
+هۆکاری WAIT بە کوردی سۆرانی ڕوون بکەوە.
 
 ئامانج:
-شیکردنەوەی زیرەکانە و پارێزراو، نەک دروستکردنی دڵنیایی ساختە.
+شیکردنەوەی ورد و پارێزراو، نەک دڵنیایی ساختە.
 `;
 
-  // =========================================================
+  // =====================================================
   // LIVE CONTEXT
-  // =========================================================
+  // =====================================================
+
   let liveContext = `
-━━━ ShahanFX LIVE CONTEXT ━━━
+━━━ SHAHANFX LIVE CONTEXT ━━━
 
 Symbol:
 ${symbol}
@@ -401,12 +387,9 @@ Action:
 ${action}
 
 User Message:
-${message || "هیچ دەقێک نییە؛ تەنها Chart Image نێردراوە."}
+${message || "تەنها Chart Image نێردراوە."}
 `;
 
-  // =========================================================
-  // MARKET CONTEXT
-  // =========================================================
   if (marketData.available) {
     const current = marketData.current || {};
     const previous = marketData.previous || {};
@@ -432,11 +415,8 @@ High: ${safeString(previous.high)}
 Low: ${safeString(previous.low)}
 Close: ${safeString(previous.close)}
 
-Current Direction:
+Direction:
 ${marketData.direction}
-
-IMPORTANT:
-ئەم Data ـە Live Market Data ـە و تەنها ئەمە بەکاربهێنە بۆ نرخ و ئاراستە.
 `;
   } else {
     liveContext += `
@@ -448,24 +428,19 @@ Market Data بەردەست نییە.
 Reason:
 ${marketData.reason}
 
-IMPORTANT:
 هیچ نرخێکی ساختە مەدروستکە.
 `;
   }
 
-  // =========================================================
-  // NEWS CONTEXT
-  // =========================================================
   if (newsData.available) {
     liveContext += `
 
-━━━ ECONOMIC / NEWS DATA ━━━
+━━━ ECONOMIC NEWS ━━━
 `;
 
-    if (newsData.events.length === 0) {
-      liveContext += `
-هیچ ڕووداوێکی گرنگ لە Data ـی بەردەستدا نەدۆزرایەوە.
-`;
+    if (!newsData.events.length) {
+      liveContext +=
+        "\nهیچ ڕووداوێکی گرنگ نەدۆزرایەوە.\n";
     } else {
       liveContext += newsData.events
         .map((item, index) => {
@@ -474,7 +449,9 @@ ${index + 1}.
 Date: ${safeString(item.date || item.datetime)}
 Country: ${safeString(item.country)}
 Event: ${safeString(item.event)}
-Impact: ${safeString(item.impact || item.importance)}
+Impact: ${safeString(
+            item.impact || item.importance
+          )}
 Previous: ${safeString(item.previous)}
 Estimate: ${safeString(item.estimate)}
 Actual: ${safeString(item.actual)}
@@ -487,20 +464,17 @@ Actual: ${safeString(item.actual)}
 
 ━━━ NEWS DATA ━━━
 
-Economic News بەردەست نییە.
+News Data بەردەست نییە.
 
 Reason:
 ${newsData.reason}
-
-IMPORTANT:
-هیچ News ـێکی ساختە مەدروستکە.
 `;
   }
 
-  // =========================================================
-  // CANDLE CONTEXT
-  // =========================================================
-  if (marketData.available && marketData.candles?.length) {
+  if (
+    marketData.available &&
+    marketData.candles?.length
+  ) {
     liveContext += `
 
 ━━━ RECENT CANDLES ━━━
@@ -510,14 +484,23 @@ IMPORTANT:
     liveContext += marketData.candles
       .slice(0, 50)
       .map((candle, index) => {
-        return `${index + 1}. ${safeString(candle.datetime)} | O:${safeString(candle.open)} H:${safeString(candle.high)} L:${safeString(candle.low)} C:${safeString(candle.close)}`;
+        return `${index + 1}. ${safeString(
+          candle.datetime
+        )} | O:${safeString(
+          candle.open
+        )} H:${safeString(
+          candle.high
+        )} L:${safeString(
+          candle.low
+        )} C:${safeString(candle.close)}`;
       })
       .join("\n");
   }
 
-  // =========================================================
-  // IMAGE VALIDATION
-  // =========================================================
+  // =====================================================
+  // IMAGE
+  // =====================================================
+
   let imagePart = null;
 
   if (image) {
@@ -527,27 +510,27 @@ IMPORTANT:
       );
 
       if (match) {
-        const mimeType = match[1];
-        const base64Data = match[2];
-
         imagePart = {
           inlineData: {
-            mimeType,
-            data: base64Data
+            mimeType: match[1],
+            data: match[2]
           }
         };
       }
     } catch (error) {
-      console.error("Image parsing error:", error);
+      console.error("Image parsing:", error);
     }
   }
 
-  // =========================================================
+  // =====================================================
   // GEMINI
-  // =========================================================
+  // =====================================================
+
   async function callGemini() {
     if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is missing");
+      throw new Error(
+        "GEMINI_API_KEY is missing"
+      );
     }
 
     const models = [
@@ -562,7 +545,9 @@ IMPORTANT:
       try {
         const url =
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
-          `?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+          `?key=${encodeURIComponent(
+            GEMINI_API_KEY
+          )}`;
 
         const parts = [
           {
@@ -577,38 +562,42 @@ IMPORTANT:
           parts.push(imagePart);
         }
 
-        const response = await fetchWithTimeout(
-          url,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: "user",
-                  parts
+        const response =
+          await fetchWithTimeout(
+            url,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    role: "user",
+                    parts
+                  }
+                ],
+                generationConfig: {
+                  maxOutputTokens: 5000
                 }
-              ],
-              generationConfig: {
-                maxOutputTokens: 5000
-              }
-            })
-          },
-          30000
-        );
+              })
+            },
+            30000
+          );
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         if (!response.ok) {
           console.error(
-            `Gemini ${model} HTTP ${response.status}:`,
+            `Gemini ${model}:`,
+            response.status,
             data
           );
 
           lastError = new Error(
-            `Gemini ${model} failed with ${response.status}`
+            `Gemini ${model} failed`
           );
 
           continue;
@@ -621,13 +610,8 @@ IMPORTANT:
             .trim();
 
         if (!text) {
-          console.error(
-            `Gemini ${model}: empty response`,
-            data
-          );
-
           lastError = new Error(
-            `Gemini ${model} returned empty response`
+            `Gemini ${model} empty response`
           );
 
           continue;
@@ -640,7 +624,7 @@ IMPORTANT:
         };
       } catch (error) {
         console.error(
-          `Gemini ${model} exception:`,
+          `Gemini ${model} error:`,
           error
         );
 
@@ -648,15 +632,21 @@ IMPORTANT:
       }
     }
 
-    throw lastError || new Error("All Gemini models failed");
+    throw (
+      lastError ||
+      new Error("Gemini failed")
+    );
   }
 
-  // =========================================================
+  // =====================================================
   // OPENROUTER
-  // =========================================================
+  // =====================================================
+
   async function callOpenRouter() {
     if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is missing");
+      throw new Error(
+        "OPENROUTER_API_KEY is missing"
+      );
     }
 
     const userContent = [
@@ -675,60 +665,63 @@ IMPORTANT:
       });
     }
 
-    const response = await fetchWithTimeout(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://shahanfx.com",
-          "X-Title": "ShahanFX AI"
+    const response =
+      await fetchWithTimeout(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type":
+              "application/json",
+            "HTTP-Referer":
+              "https://shahanfx.com",
+            "X-Title":
+              "ShahanFX AI"
+          },
+          body: JSON.stringify({
+            model: "openrouter/free",
+            messages: [
+              {
+                role: "system",
+                content: systemPrompt
+              },
+              {
+                role: "user",
+                content: userContent
+              }
+            ],
+            max_tokens: 5000
+          })
         },
-        body: JSON.stringify({
-          model: "openrouter/free",
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt
-            },
-            {
-              role: "user",
-              content: userContent
-            }
-          ],
-          max_tokens: 5000
-        })
-      },
-      30000
-    );
+        30000
+      );
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
     if (!response.ok) {
       console.error(
-        `OpenRouter HTTP ${response.status}:`,
+        "OpenRouter:",
+        response.status,
         data
       );
 
       throw new Error(
-        `OpenRouter failed with ${response.status}`
+        `OpenRouter failed: ${response.status}`
       );
     }
 
     const content =
       data?.choices?.[0]?.message?.content;
 
-    const text = cleanAnswer(content);
+    const text =
+      cleanAnswer(content);
 
     if (!text) {
-      console.error(
-        "OpenRouter empty response:",
-        data
-      );
-
       throw new Error(
-        "OpenRouter returned empty response"
+        "OpenRouter empty response"
       );
     }
 
@@ -741,23 +734,28 @@ IMPORTANT:
     };
   }
 
-  // =========================================================
-  // AI EXECUTION
-  // =========================================================
+  // =====================================================
+  // AI FALLBACK
+  // =====================================================
+
   let aiResult = null;
 
-  let geminiStatus = "not attempted";
-  let openRouterStatus = "not attempted";
+  let geminiStatus =
+    "not attempted";
 
-  // ---------------------------------------------------------
-  // FIRST: GEMINI
-  // ---------------------------------------------------------
+  let openRouterStatus =
+    "not attempted";
+
   if (GEMINI_API_KEY) {
     try {
-      aiResult = await callGemini();
-      geminiStatus = "success";
+      aiResult =
+        await callGemini();
+
+      geminiStatus =
+        "success";
     } catch (error) {
-      geminiStatus = "failed";
+      geminiStatus =
+        "failed";
 
       console.error(
         "All Gemini models failed:",
@@ -765,18 +763,23 @@ IMPORTANT:
       );
     }
   } else {
-    geminiStatus = "missing API key";
+    geminiStatus =
+      "missing API key";
   }
 
-  // ---------------------------------------------------------
-  // SECOND: OPENROUTER FALLBACK
-  // ---------------------------------------------------------
-  if (!aiResult && OPENROUTER_API_KEY) {
+  if (
+    !aiResult &&
+    OPENROUTER_API_KEY
+  ) {
     try {
-      aiResult = await callOpenRouter();
-      openRouterStatus = "success";
+      aiResult =
+        await callOpenRouter();
+
+      openRouterStatus =
+        "success";
     } catch (error) {
-      openRouterStatus = "failed";
+      openRouterStatus =
+        "failed";
 
       console.error(
         "OpenRouter failed:",
@@ -784,17 +787,22 @@ IMPORTANT:
       );
     }
   } else if (!OPENROUTER_API_KEY) {
-    openRouterStatus = "missing API key";
+    openRouterStatus =
+      "missing API key";
   }
 
-  // =========================================================
-  // BOTH FAILED
-  // =========================================================
+  // =====================================================
+  // FAILURE
+  // =====================================================
+
   if (!aiResult) {
-    console.error("ShahanFX AI providers failed:", {
-      geminiStatus,
-      openRouterStatus
-    });
+    console.error(
+      "ShahanFX AI failed:",
+      {
+        geminiStatus,
+        openRouterStatus
+      }
+    );
 
     return res.status(503).json({
       success: false,
@@ -805,9 +813,10 @@ IMPORTANT:
     });
   }
 
-  // =========================================================
+  // =====================================================
   // SUCCESS
-  // =========================================================
+  // =====================================================
+
   return res.status(200).json({
     success: true,
     answer: aiResult.answer,
@@ -822,16 +831,21 @@ IMPORTANT:
 
     market: marketData.available
       ? {
-          symbol: marketData.symbol,
-          interval: marketData.interval,
-          direction: marketData.direction,
-          current: marketData.current
+          symbol:
+            marketData.symbol,
+          interval:
+            marketData.interval,
+          direction:
+            marketData.direction,
+          current:
+            marketData.current
         }
       : null,
 
     news: newsData.available
       ? {
-          count: newsData.events.length
+          count:
+            newsData.events.length
         }
       : null
   });
