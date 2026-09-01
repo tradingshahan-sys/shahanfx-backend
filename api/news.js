@@ -1,15 +1,24 @@
 export default async function handler(req, res) {
 
+  /*
+   * =========================================================
+   * SHAHANFX NEWS ENGINE PRO
+   * FMP Economic Calendar
+   * CPI • NFP • FOMC • PPI • GDP • Rates
+   * =========================================================
+   */
+
   // =========================================================
-  // SHAHANFX NEWS ENGINE
-  // Economic Calendar • CPI • NFP • FOMC • GDP • PPI
+  // CORS
   // =========================================================
 
   res.setHeader("Access-Control-Allow-Origin", "*");
+
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, OPTIONS"
   );
+
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type"
@@ -19,27 +28,36 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // =========================================================
+  // METHOD
+  // =========================================================
+
   if (req.method !== "GET" && req.method !== "POST") {
+
     return res.status(405).json({
       success: false,
       error: "تەنها GET یان POST ڕێگەپێدراوە."
     });
+
   }
 
   try {
 
     // =======================================================
-    // API KEY
+    // FMP API KEY
     // =======================================================
 
-    const apiKey = process.env.FMP_API_KEY;
+    const apiKey =
+      process.env.FMP_API_KEY;
 
     if (!apiKey) {
+
       return res.status(500).json({
         success: false,
         error:
           "FMP_API_KEY لە Vercel Environment Variables دانەنراوە."
       });
+
     }
 
     // =======================================================
@@ -52,422 +70,407 @@ export default async function handler(req, res) {
         : (req.body || {});
 
     // =======================================================
-    // DATE RANGE
+    // DATE
     // =======================================================
 
-    const now = new Date();
+    const today =
+      new Date();
 
-    const defaultFrom =
-      now.toISOString().slice(0, 10);
+    const startDate =
+      input.startDate ||
+      today.toISOString().slice(0, 10);
 
-    const futureDate =
-      new Date(now);
+    const endDate =
+      input.endDate ||
+      startDate;
 
-    futureDate.setDate(
-      futureDate.getDate() + 7
+    // =======================================================
+    // FMP URL
+    // =======================================================
+
+    const url =
+      new URL(
+        "https://financialmodelingprep.com/stable/economic-calendar"
+      );
+
+    url.searchParams.set(
+      "from",
+      startDate
     );
 
-    const defaultTo =
-      futureDate.toISOString().slice(0, 10);
-
-    const from =
-      typeof input.from === "string" &&
-      /^\d{4}-\d{2}-\d{2}$/.test(input.from)
-        ? input.from
-        : defaultFrom;
-
-    const to =
-      typeof input.to === "string" &&
-      /^\d{4}-\d{2}-\d{2}$/.test(input.to)
-        ? input.to
-        : defaultTo;
-
-    // =======================================================
-    // FMP STABLE ECONOMIC CALENDAR
-    // =======================================================
-
-    const url = new URL(
-      "https://financialmodelingprep.com/stable/economic-calendar"
+    url.searchParams.set(
+      "to",
+      endDate
     );
 
-    url.searchParams.set("from", from);
-    url.searchParams.set("to", to);
-    url.searchParams.set("apikey", apiKey);
+    url.searchParams.set(
+      "apikey",
+      apiKey
+    );
+
+    // =======================================================
+    // REQUEST
+    // =======================================================
 
     const response =
-      await fetch(url.toString());
+      await fetch(
+        url.toString(),
+        {
+          method: "GET",
+          headers: {
+            "Accept":
+              "application/json"
+          }
+        }
+      );
 
-    const rawData =
+    const data =
       await response.json();
 
     // =======================================================
-    // API ERROR
+    // ERROR
     // =======================================================
 
     if (!response.ok) {
 
       console.error(
         "FMP HTTP Error:",
-        response.status,
-        rawData
+        data
       );
 
-      return res.status(response.status).json({
+      return res.status(
+        response.status
+      ).json({
+
         success: false,
-        source: "FMP",
+
         error:
-          rawData?.message ||
-          rawData?.error ||
-          `FMP HTTP ${response.status}`
+          data?.message ||
+          "FMP News API هەڵەیەکی گەڕاندەوە."
+
       });
+
     }
 
     if (
-      rawData &&
-      !Array.isArray(rawData) &&
-      (
-        rawData.error ||
-        rawData.message
-      )
+      data &&
+      data.error
     ) {
 
+      console.error(
+        "FMP API Error:",
+        data
+      );
+
       return res.status(400).json({
+
         success: false,
-        source: "FMP",
+
         error:
-          rawData.message ||
-          rawData.error
+          data.error
+
       });
+
     }
 
+    // =======================================================
+    // NORMALIZE DATA
+    // =======================================================
+
     const events =
-      Array.isArray(rawData)
-        ? rawData
+      Array.isArray(data)
+        ? data
         : [];
+
+    // =======================================================
+    // IMPORTANT FOREX NEWS
+    // =======================================================
+
+    const importantKeywords = [
+
+      "CPI",
+      "Consumer Price Index",
+
+      "Non Farm Payrolls",
+      "Non-Farm Payrolls",
+      "Nonfarm Payrolls",
+      "NFP",
+
+      "Federal Funds Rate",
+      "Interest Rate",
+
+      "FOMC",
+
+      "PPI",
+      "Producer Price Index",
+
+      "GDP",
+      "Gross Domestic Product",
+
+      "Unemployment Rate",
+
+      "Initial Jobless Claims",
+
+      "Retail Sales",
+
+      "ISM Manufacturing",
+
+      "ISM Services",
+
+      "PMI",
+
+      "Powell",
+
+      "Federal Reserve",
+
+      "Fed"
+
+    ];
+
+    // =======================================================
+    // US EVENTS
+    // =======================================================
+
+    const usEvents =
+      events.filter(event => {
+
+        const country =
+          String(
+            event?.country ||
+            ""
+          ).toUpperCase();
+
+        return (
+          country === "US" ||
+          country === "USA" ||
+          country === "UNITED STATES"
+        );
+
+      });
 
     // =======================================================
     // IMPORTANT EVENTS
     // =======================================================
 
-    const importantPatterns = [
-
-      // Inflation
-      "CPI",
-      "CONSUMER PRICE",
-      "INFLATION",
-
-      // Employment
-      "NON FARM",
-      "NONFARM",
-      "NFP",
-      "PAYROLL",
-      "UNEMPLOYMENT",
-      "JOBLESS",
-      "EMPLOYMENT",
-      "ADP",
-
-      // Central Banks
-      "FOMC",
-      "FEDERAL FUNDS",
-      "FED INTEREST",
-      "INTEREST RATE",
-      "POLICY RATE",
-      "FEDERAL RESERVE",
-      "POWELL",
-
-      // Growth
-      "GDP",
-      "GROSS DOMESTIC",
-
-      // Producer prices
-      "PPI",
-      "PRODUCER PRICE",
-
-      // Spending / Consumption
-      "RETAIL SALES",
-      "CONSUMER CONFIDENCE",
-      "CONSUMER SENTIMENT",
-
-      // PMI
-      "PMI",
-      "ISM",
-
-      // Other major events
-      "DURABLE GOODS",
-      "CORE CPI",
-      "CORE PPI",
-      "PERSONAL CONSUMPTION",
-      "PCE",
-      "CORE PCE"
-    ];
-
-    // =======================================================
-    // USD COUNTRIES
-    // =======================================================
-
-    const usdCountries = [
-      "US",
-      "USA",
-      "UNITED STATES",
-      "USD"
-    ];
-
-    // =======================================================
-    // NORMALIZE EVENTS
-    // =======================================================
-
-    const normalized = events.map((event) => {
-
-      const eventName =
-        String(
-          event.event ||
-          event.name ||
-          event.title ||
-          ""
-        );
-
-      const country =
-        String(
-          event.country ||
-          event.currency ||
-          event.countryName ||
-          ""
-        );
-
-      const text =
-        JSON.stringify(event)
-          .toUpperCase();
-
-      const important =
-        importantPatterns.some(
-          pattern =>
-            text.includes(
-              pattern
-            )
-        );
-
-      const usdRelated =
-        usdCountries.some(
-          countryName =>
-            country
-              .toUpperCase()
-              .includes(countryName)
-        ) ||
-        text.includes('"USD"') ||
-        text.includes("UNITED STATES");
-
-      return {
-
-        date:
-          event.date ||
-          event.datetime ||
-          null,
-
-        event:
-          eventName,
-
-        country:
-          country,
-
-        currency:
-          event.currency ||
-          (usdRelated ? "USD" : null),
-
-        importance:
-          event.importance ||
-          event.impact ||
-          event.priority ||
-          null,
-
-        actual:
-          event.actual ??
-          event.value ??
-          event.current ??
-          null,
-
-        forecast:
-          event.forecast ??
-          event.estimate ??
-          event.consensus ??
-          null,
-
-        previous:
-          event.previous ??
-          event.prev ??
-          null,
-
-        unit:
-          event.unit ||
-          null,
-
-        source:
-          "Financial Modeling Prep",
-
-        important,
-
-        usdRelated,
-
-        raw:
-          event
-      };
-
-    });
-
-    // =======================================================
-    // FILTER
-    // =======================================================
-
     const importantEvents =
-      normalized.filter(
-        event =>
-          event.important &&
-          event.usdRelated
-      );
+      usEvents.filter(event => {
 
-    // =======================================================
-    // FALLBACK
-    // =======================================================
-
-    const finalEvents =
-      importantEvents.length > 0
-        ? importantEvents
-        : normalized.filter(
-            event =>
-              event.important
+        const name =
+          String(
+            event?.event ||
+            event?.name ||
+            ""
           );
 
-    // =======================================================
-    // SORT BY DATE
-    // =======================================================
+        return importantKeywords.some(
+          keyword =>
+            name
+              .toLowerCase()
+              .includes(
+                keyword.toLowerCase()
+              )
+        );
 
-    finalEvents.sort(
-      (a, b) => {
-
-        const dateA =
-          new Date(
-            a.date || 0
-          ).getTime();
-
-        const dateB =
-          new Date(
-            b.date || 0
-          ).getTime();
-
-        return dateA - dateB;
-
-      }
-    );
+      });
 
     // =======================================================
-    // HIGH IMPACT DETECTION
+    // HIGH IMPACT
     // =======================================================
 
     const highImpactEvents =
-      finalEvents.filter(
-        event => {
+      usEvents.filter(event => {
 
-          const text =
-            `${event.event} ${
-              event.importance || ""
-            }`.toUpperCase();
+        const impact =
+          String(
+            event?.impact ||
+            event?.importance ||
+            ""
+          ).toLowerCase();
 
-          return (
+        return (
+          impact.includes("high") ||
+          impact.includes("3")
+        );
 
-            text.includes("CPI") ||
+      });
 
-            text.includes("NFP") ||
+    // =======================================================
+    // FORMAT EVENTS
+    // =======================================================
 
-            text.includes("NON FARM") ||
+    const normalizeEvent =
+      event => ({
 
-            text.includes("FOMC") ||
+        date:
+          event?.date ||
+          null,
 
-            text.includes("INTEREST RATE") ||
+        country:
+          event?.country ||
+          null,
 
-            text.includes("GDP") ||
+        event:
+          event?.event ||
+          event?.name ||
+          null,
 
-            text.includes("PPI") ||
+        impact:
+          event?.impact ||
+          event?.importance ||
+          null,
 
-            text.includes("UNEMPLOYMENT") ||
+        actual:
+          event?.actual ??
+          null,
 
-            text.includes("PCE")
+        estimate:
+          event?.estimate ??
+          event?.forecast ??
+          null,
 
-          );
+        previous:
+          event?.previous ??
+          null,
 
-        }
+        unit:
+          event?.unit ||
+          null,
+
+        currency:
+          event?.currency ||
+          null
+
+      });
+
+    const normalizedAll =
+      usEvents.map(
+        normalizeEvent
+      );
+
+    const normalizedImportant =
+      importantEvents.map(
+        normalizeEvent
+      );
+
+    const normalizedHighImpact =
+      highImpactEvents.map(
+        normalizeEvent
       );
 
     // =======================================================
-    // CPI EVENTS
+    // FIND CPI
     // =======================================================
 
     const cpiEvents =
-      finalEvents.filter(
+      normalizedImportant.filter(
         event => {
 
-          const text =
-            event.event.toUpperCase();
+          const name =
+            String(
+              event.event ||
+              ""
+            ).toLowerCase();
 
           return (
-            text.includes("CPI") ||
-            text.includes("CONSUMER PRICE")
+            name.includes("cpi") ||
+            name.includes(
+              "consumer price index"
+            )
           );
 
         }
       );
 
     // =======================================================
-    // NFP EVENTS
+    // FIND NFP
     // =======================================================
 
     const nfpEvents =
-      finalEvents.filter(
+      normalizedImportant.filter(
         event => {
 
-          const text =
-            event.event.toUpperCase();
+          const name =
+            String(
+              event.event ||
+              ""
+            ).toLowerCase();
 
           return (
-            text.includes("NFP") ||
-            text.includes("NON FARM") ||
-            text.includes("NONFARM") ||
-            text.includes("PAYROLL")
+            name.includes(
+              "non farm"
+            ) ||
+            name.includes(
+              "non-farm"
+            ) ||
+            name.includes(
+              "nonfarm"
+            ) ||
+            name.includes(
+              "payroll"
+            ) ||
+            name === "nfp"
           );
 
         }
       );
 
     // =======================================================
-    // FOMC EVENTS
+    // FIND FOMC
     // =======================================================
 
     const fomcEvents =
-      finalEvents.filter(
+      normalizedImportant.filter(
         event => {
 
-          const text =
-            event.event.toUpperCase();
+          const name =
+            String(
+              event.event ||
+              ""
+            ).toLowerCase();
 
           return (
-            text.includes("FOMC") ||
-            text.includes("FEDERAL FUNDS") ||
-            text.includes("INTEREST RATE") ||
-            text.includes("FEDERAL RESERVE")
+            name.includes("fomc") ||
+            name.includes(
+              "federal funds"
+            ) ||
+            name.includes(
+              "interest rate"
+            )
           );
 
         }
       );
 
     // =======================================================
-    // NEWS STATUS
+    // FIND PPI
     // =======================================================
 
-    let status =
-      "no_major_news";
+    const ppiEvents =
+      normalizedImportant.filter(
+        event => {
 
-    if (highImpactEvents.length > 0) {
-      status =
-        "major_news_detected";
-    }
+          const name =
+            String(
+              event.event ||
+              ""
+            ).toLowerCase();
+
+          return (
+            name.includes("ppi") ||
+            name.includes(
+              "producer price"
+            )
+          );
+
+        }
+      );
+
+    // =======================================================
+    // CURRENT DATE
+    // =======================================================
+
+    const timestamp =
+      new Date().toISOString();
 
     // =======================================================
     // RESPONSE
@@ -480,46 +483,93 @@ export default async function handler(req, res) {
       source:
         "Financial Modeling Prep",
 
-      status,
+      timestamp,
 
-      from,
+      range: {
+        from: startDate,
+        to: endDate
+      },
 
-      to,
+      summary: {
 
-      timestamp:
-        new Date().toISOString(),
+        totalUSEvents:
+          normalizedAll.length,
 
-      totalEvents:
-        events.length,
+        importantEvents:
+          normalizedImportant.length,
 
-      importantEvents:
-        finalEvents.length,
+        highImpactEvents:
+          normalizedHighImpact.length,
 
-      highImpactEvents:
-        highImpactEvents.length,
+        cpi:
+          cpiEvents.length,
 
-      categories: {
+        nfp:
+          nfpEvents.length,
 
-        CPI:
-          cpiEvents,
+        fomc:
+          fomcEvents.length,
 
-        NFP:
-          nfpEvents,
-
-        FOMC:
-          fomcEvents
+        ppi:
+          ppiEvents.length
 
       },
 
+      // -------------------------------------------------------
+      // MOST IMPORTANT NEWS
+      // -------------------------------------------------------
+
+      importantNews:
+        normalizedImportant,
+
+      // -------------------------------------------------------
+      // CPI
+      // -------------------------------------------------------
+
+      cpi:
+        cpiEvents,
+
+      // -------------------------------------------------------
+      // NFP
+      // -------------------------------------------------------
+
+      nfp:
+        nfpEvents,
+
+      // -------------------------------------------------------
+      // FOMC
+      // -------------------------------------------------------
+
+      fomc:
+        fomcEvents,
+
+      // -------------------------------------------------------
+      // PPI
+      // -------------------------------------------------------
+
+      ppi:
+        ppiEvents,
+
+      // -------------------------------------------------------
+      // HIGH IMPACT
+      // -------------------------------------------------------
+
+      highImpact:
+        normalizedHighImpact,
+
+      // -------------------------------------------------------
+      // ALL US EVENTS
+      // -------------------------------------------------------
+
       events:
-        finalEvents
+        normalizedAll
 
     });
 
   } catch (error) {
 
     console.error(
-      "ShahanFX News Error:",
+      "SHAHANFX NEWS ENGINE ERROR:",
       error
     );
 
@@ -528,10 +578,11 @@ export default async function handler(req, res) {
       success: false,
 
       error:
-        "هەڵەی ناوخۆی News Engine ڕوویدا.",
+        "هەڵەی ناوخۆی ShahanFX News Engine ڕوویدا.",
 
       details:
-        error?.message || null
+        error?.message ||
+        null
 
     });
 
