@@ -1,33 +1,10 @@
 // =====================================================
 // SHAHANFX AI — LIVE ANALYSIS PRO
-// Frontend Controller
+// Frontend Controller — FIXED
 // =====================================================
 
 const SHAHANFX_LOGO =
   "https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg";
-
-
-// =====================================================
-// ELEMENTS
-// =====================================================
-
-const chatBox = document.getElementById("chatBox");
-const messageInput = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
-const analyzeBtn = document.getElementById("analyzeBtn");
-
-const symbolSelect = document.getElementById("symbol");
-const timeframeSelect = document.getElementById("timeframe");
-
-const livePrice = document.getElementById("livePrice");
-const liveBias = document.getElementById("liveBias");
-const newsCount = document.getElementById("newsCount");
-const lastUpdated = document.getElementById("lastUpdated");
-
-const chartImage = document.getElementById("chartImage");
-const imagePreview = document.getElementById("imagePreview");
-const previewImage = document.getElementById("previewImage");
-const removeImage = document.getElementById("removeImage");
 
 
 // =====================================================
@@ -40,16 +17,93 @@ let isSending = false;
 
 
 // =====================================================
+// ELEMENTS
+// =====================================================
+
+let chatBox;
+let messageInput;
+let sendBtn;
+let analyzeBtn;
+
+let symbolSelect;
+let timeframeSelect;
+
+let livePrice;
+let liveBias;
+let newsCount;
+let lastUpdated;
+
+let chartImage;
+let imagePreview;
+let previewImage;
+let removeImage;
+
+
+// =====================================================
 // SAFE TEXT
 // =====================================================
 
 function cleanText(value) {
 
-  if (value === null || value === undefined) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
     return "";
   }
 
   return String(value);
+}
+
+
+// =====================================================
+// GET ELEMENTS
+// =====================================================
+
+function initElements() {
+
+  chatBox =
+    document.getElementById("chatBox");
+
+  messageInput =
+    document.getElementById("messageInput");
+
+  sendBtn =
+    document.getElementById("sendBtn");
+
+  analyzeBtn =
+    document.getElementById("analyzeBtn");
+
+  symbolSelect =
+    document.getElementById("symbol");
+
+  timeframeSelect =
+    document.getElementById("timeframe");
+
+  livePrice =
+    document.getElementById("livePrice");
+
+  liveBias =
+    document.getElementById("liveBias");
+
+  newsCount =
+    document.getElementById("newsCount");
+
+  lastUpdated =
+    document.getElementById("lastUpdated");
+
+  chartImage =
+    document.getElementById("chartImage");
+
+  imagePreview =
+    document.getElementById("imagePreview");
+
+  previewImage =
+    document.getElementById("previewImage");
+
+  removeImage =
+    document.getElementById("removeImage");
+
 }
 
 
@@ -59,44 +113,72 @@ function cleanText(value) {
 
 function addMessage(type, text) {
 
-  if (!chatBox) return;
+  if (!chatBox) {
+    console.error(
+      "ShahanFX: chatBox نەدۆزرایەوە."
+    );
 
-  const message = document.createElement("div");
+    return null;
+  }
+
+
+  const message =
+    document.createElement("div");
 
   message.className =
-    `message ${type === "ai" ? "ai-message" : "user-message"}`;
+    type === "ai"
+      ? "message ai-message"
+      : "message user-message";
 
 
-  const avatar = document.createElement("div");
+  // ---------------------------------------------------
+  // AVATAR
+  // ---------------------------------------------------
 
-  avatar.className = "avatar";
+  const avatar =
+    document.createElement("div");
+
+  avatar.className =
+    "avatar";
 
 
   if (type === "ai") {
 
-    const img = document.createElement("img");
+    const img =
+      document.createElement("img");
 
-    img.src = SHAHANFX_LOGO;
+    img.src =
+      SHAHANFX_LOGO;
 
-    img.alt = "ShahanFX AI";
+    img.alt =
+      "ShahanFX AI";
 
     avatar.appendChild(img);
 
   } else {
 
-    avatar.textContent = "👤";
+    avatar.textContent =
+      "👤";
 
   }
 
 
-  const content = document.createElement("div");
+  // ---------------------------------------------------
+  // CONTENT
+  // ---------------------------------------------------
 
-  content.className = "message-content";
+  const content =
+    document.createElement("div");
+
+  content.className =
+    "message-content";
 
 
-  const name = document.createElement("div");
+  const name =
+    document.createElement("div");
 
-  name.className = "message-name";
+  name.className =
+    "message-name";
 
   name.textContent =
     type === "ai"
@@ -104,20 +186,19 @@ function addMessage(type, text) {
       : "تۆ";
 
 
-  const text = document.createElement("div");
+  const textElement =
+    document.createElement("div");
 
-  text.className = "message-text";
+  textElement.className =
+    "message-text";
 
-  text.textContent = cleanText(text);
-
-
-  // Fix because variable name above shadows function argument
-  text.textContent = cleanText(arguments[1]);
+  textElement.textContent =
+    cleanText(text);
 
 
   content.appendChild(name);
 
-  content.appendChild(text);
+  content.appendChild(textElement);
 
   message.appendChild(avatar);
 
@@ -129,6 +210,7 @@ function addMessage(type, text) {
   chatBox.scrollTop =
     chatBox.scrollHeight;
 
+
   return message;
 }
 
@@ -138,6 +220,14 @@ function addMessage(type, text) {
 // =====================================================
 
 function addTyping() {
+
+  if (!chatBox) {
+    return;
+  }
+
+
+  removeTyping();
+
 
   const message =
     document.createElement("div");
@@ -191,15 +281,13 @@ function addTyping() {
   typing.className =
     "message-text";
 
-
-  typing.innerHTML =
-    `
-      <div class="typing">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-    `;
+  typing.innerHTML = `
+    <div class="typing">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  `;
 
 
   content.appendChild(name);
@@ -215,7 +303,6 @@ function addTyping() {
 
   chatBox.scrollTop =
     chatBox.scrollHeight;
-
 }
 
 
@@ -233,12 +320,11 @@ function removeTyping() {
   if (typing) {
     typing.remove();
   }
-
 }
 
 
 // =====================================================
-// IMAGE → BASE64
+// FILE → BASE64
 // =====================================================
 
 function fileToBase64(file) {
@@ -249,17 +335,24 @@ function fileToBase64(file) {
       const reader =
         new FileReader();
 
-      reader.onload = () =>
-        resolve(reader.result);
 
-      reader.onerror =
-        reject;
+      reader.onload = () => {
+        resolve(reader.result);
+      };
+
+
+      reader.onerror = () => {
+        reject(
+          new Error(
+            "نەتوانرا فایل بخوێندرێتەوە."
+          )
+        );
+      };
+
 
       reader.readAsDataURL(file);
-
     }
   );
-
 }
 
 
@@ -267,7 +360,12 @@ function fileToBase64(file) {
 // IMAGE SELECT
 // =====================================================
 
-if (chartImage) {
+function initImageUpload() {
+
+  if (!chartImage) {
+    return;
+  }
+
 
   chartImage.addEventListener(
     "change",
@@ -275,6 +373,7 @@ if (chartImage) {
 
       const file =
         this.files?.[0];
+
 
       if (!file) {
         return;
@@ -290,12 +389,17 @@ if (chartImage) {
           "❌ تکایە تەنها فایلێکی وێنە هەڵبژێرە."
         );
 
+        this.value = "";
+
         return;
       }
 
 
-      // Limit around 8MB
-      if (file.size > 8 * 1024 * 1024) {
+      // 8MB
+      if (
+        file.size >
+        8 * 1024 * 1024
+      ) {
 
         addMessage(
           "ai",
@@ -315,29 +419,37 @@ if (chartImage) {
 
 
         if (previewImage) {
+
           previewImage.src =
             selectedImage;
         }
 
 
         if (imagePreview) {
+
           imagePreview.classList.remove(
             "hidden"
           );
         }
 
-      } catch {
+      } catch (error) {
+
+        console.error(
+          "Image Error:",
+          error
+        );
+
+        selectedImage =
+          null;
 
         addMessage(
           "ai",
           "❌ نەتوانرا وێنەکە بخوێندرێتەوە."
         );
-
       }
 
     }
   );
-
 }
 
 
@@ -345,23 +457,35 @@ if (chartImage) {
 // REMOVE IMAGE
 // =====================================================
 
-if (removeImage) {
+function initRemoveImage() {
+
+  if (!removeImage) {
+    return;
+  }
+
 
   removeImage.addEventListener(
     "click",
     () => {
 
-      selectedImage = null;
+      selectedImage =
+        null;
+
 
       if (chartImage) {
-        chartImage.value = "";
+        chartImage.value =
+          "";
       }
+
 
       if (previewImage) {
-        previewImage.src = "";
+        previewImage.src =
+          "";
       }
 
+
       if (imagePreview) {
+
         imagePreview.classList.add(
           "hidden"
         );
@@ -369,7 +493,6 @@ if (removeImage) {
 
     }
   );
-
 }
 
 
@@ -391,7 +514,11 @@ async function loadMarket() {
   try {
 
     const url =
-      `/api/market?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}`;
+      `/api/market?symbol=${encodeURIComponent(
+        symbol
+      )}&interval=${encodeURIComponent(
+        interval
+      )}`;
 
 
     const response =
@@ -418,8 +545,12 @@ async function loadMarket() {
           "—";
       }
 
-      return;
+      if (liveBias) {
+        liveBias.textContent =
+          "WAIT";
+      }
 
+      return;
     }
 
 
@@ -444,31 +575,32 @@ async function loadMarket() {
       );
 
 
+    // -------------------------------------------------
+    // PRICE
+    // -------------------------------------------------
+
     if (
-      Number.isFinite(price)
+      Number.isFinite(price) &&
+      livePrice
     ) {
 
-      if (livePrice) {
+      livePrice.textContent =
+        price.toLocaleString(
+          "en-US",
+          {
+            minimumFractionDigits:
+              price < 10 ? 5 : 2,
 
-        livePrice.textContent =
-          price.toLocaleString(
-            "en-US",
-            {
-              minimumFractionDigits:
-                price < 10 ? 5 : 2,
-              maximumFractionDigits:
-                price < 10 ? 5 : 2
-            }
-          );
-
-      }
-
+            maximumFractionDigits:
+              price < 10 ? 5 : 2
+          }
+        );
     }
 
 
-    // =================================================
-    // SIMPLE LIVE BIAS
-    // =================================================
+    // -------------------------------------------------
+    // SIMPLE BIAS
+    // -------------------------------------------------
 
     let bias =
       "WAIT";
@@ -477,10 +609,14 @@ async function loadMarket() {
     if (values.length >= 5) {
 
       const current =
-        Number(values[0].close);
+        Number(
+          values[0].close
+        );
 
       const previous =
-        Number(values[4].close);
+        Number(
+          values[4].close
+        );
 
 
       if (
@@ -488,18 +624,21 @@ async function loadMarket() {
         Number.isFinite(previous)
       ) {
 
-        if (current > previous) {
-          bias = "BULLISH";
-        }
+        if (
+          current > previous
+        ) {
 
-        else if (
+          bias =
+            "BULLISH";
+
+        } else if (
           current < previous
         ) {
-          bias = "BEARISH";
+
+          bias =
+            "BEARISH";
         }
-
       }
-
     }
 
 
@@ -508,23 +647,24 @@ async function loadMarket() {
       liveBias.textContent =
         bias;
 
+
       liveBias.style.color =
         bias === "BULLISH"
           ? "#35d28a"
           : bias === "BEARISH"
             ? "#ef5d5d"
             : "";
-
     }
 
 
+    // -------------------------------------------------
+    // UPDATED
+    // -------------------------------------------------
+
     if (lastUpdated) {
 
-      const now =
-        new Date();
-
       lastUpdated.textContent =
-        now.toLocaleTimeString(
+        new Date().toLocaleTimeString(
           "ku-IQ",
           {
             hour: "2-digit",
@@ -532,7 +672,6 @@ async function loadMarket() {
             second: "2-digit"
           }
         );
-
     }
 
   } catch (error) {
@@ -543,12 +682,11 @@ async function loadMarket() {
     );
 
   }
-
 }
 
 
 // =====================================================
-// LIVE NEWS COUNT
+// LIVE NEWS
 // =====================================================
 
 async function loadNews() {
@@ -578,18 +716,15 @@ async function loadNews() {
 
         newsCount.textContent =
           data.events.length;
-
       }
 
-    }
-
-    else {
+    } else {
 
       if (newsCount) {
+
         newsCount.textContent =
           "—";
       }
-
     }
 
   } catch (error) {
@@ -599,34 +734,31 @@ async function loadNews() {
       error
     );
 
+
     if (newsCount) {
+
       newsCount.textContent =
         "—";
     }
-
   }
-
 }
 
 
 // =====================================================
-// LOAD ALL LIVE DATA
+// LIVE DATA
 // =====================================================
 
 async function loadLiveData() {
 
-  await Promise.allSettled(
-    [
-      loadMarket(),
-      loadNews()
-    ]
-  );
-
+  await Promise.allSettled([
+    loadMarket(),
+    loadNews()
+  ]);
 }
 
 
 // =====================================================
-// START AUTO REFRESH
+// START LIVE ENGINE
 // =====================================================
 
 function startLiveEngine() {
@@ -635,24 +767,23 @@ function startLiveEngine() {
 
 
   if (marketTimer) {
+
     clearInterval(
       marketTimer
     );
   }
 
 
-  // Refresh every 10 seconds
   marketTimer =
     setInterval(
       loadLiveData,
       10000
     );
-
 }
 
 
 // =====================================================
-// SEND TO AI
+// SEND MESSAGE
 // =====================================================
 
 async function sendMessage(
@@ -666,9 +797,15 @@ async function sendMessage(
 
   const message =
     customMessage !== null
-      ? customMessage.trim()
-      : messageInput?.value.trim();
+      ? cleanText(customMessage).trim()
+      : messageInput
+        ? messageInput.value.trim()
+        : "";
 
+
+  // ---------------------------------------------------
+  // EMPTY
+  // ---------------------------------------------------
 
   if (
     !message &&
@@ -684,45 +821,64 @@ async function sendMessage(
   }
 
 
-  isSending = true;
+  isSending =
+    true;
 
+
+  // ---------------------------------------------------
+  // DISABLE BUTTONS
+  // ---------------------------------------------------
 
   if (sendBtn) {
-    sendBtn.disabled = true;
+
+    sendBtn.disabled =
+      true;
+
     sendBtn.textContent =
       "⏳ چاوەڕوانبە...";
   }
 
 
   if (analyzeBtn) {
-    analyzeBtn.disabled = true;
+
+    analyzeBtn.disabled =
+      true;
   }
 
 
+  // ---------------------------------------------------
+  // USER MESSAGE
+  // ---------------------------------------------------
+
   if (message) {
+
     addMessage(
       "user",
       message
     );
-  }
 
-  else if (selectedImage) {
+  } else if (
+    selectedImage
+  ) {
 
     addMessage(
       "user",
       "📷 ئەم Chart ـە شیکاری بکە."
     );
-
   }
 
+
+  // ---------------------------------------------------
+  // CLEAR INPUT
+  // ---------------------------------------------------
 
   if (
     customMessage === null &&
     messageInput
   ) {
 
-    messageInput.value = "";
-
+    messageInput.value =
+      "";
   }
 
 
@@ -732,22 +888,39 @@ async function sendMessage(
   try {
 
     const body = {
+
       message:
         message ||
         "ئەم Chart ـە بە شێوەی پیشەیی شیکاری بکە.",
+
       symbol:
         symbolSelect?.value ||
         "XAU/USD",
+
       timeframe:
         timeframeSelect?.value ||
         "5min"
     };
 
 
+    // -------------------------------------------------
+    // IMAGE
+    // -------------------------------------------------
+
     if (selectedImage) {
+
       body.image =
         selectedImage;
     }
+
+
+    // -------------------------------------------------
+    // API REQUEST
+    // -------------------------------------------------
+
+    console.log(
+      "ShahanFX AI → Sending request..."
+    );
 
 
     const response =
@@ -767,7 +940,8 @@ async function sendMessage(
       );
 
 
-    let data = null;
+    let data =
+      null;
 
 
     try {
@@ -775,14 +949,41 @@ async function sendMessage(
       data =
         await response.json();
 
-    } catch {
+    } catch (jsonError) {
 
-      data = null;
-
+      console.error(
+        "JSON Error:",
+        jsonError
+      );
     }
 
 
     removeTyping();
+
+
+    // -------------------------------------------------
+    // API ERROR
+    // -------------------------------------------------
+
+    if (
+      !response.ok
+    ) {
+
+      console.error(
+        "ShahanFX API Error:",
+        response.status,
+        data
+      );
+
+
+      addMessage(
+        "ai",
+        data?.error ||
+        `❌ هەڵەی Backend (${response.status}).`
+      );
+
+      return;
+    }
 
 
     const isSuccess =
@@ -793,23 +994,25 @@ async function sendMessage(
       );
 
 
-    if (
-      !response.ok ||
-      !isSuccess
-    ) {
+    if (!isSuccess) {
 
       addMessage(
         "ai",
         data?.error ||
-        "❌ ShahanFX AI لە ئێستادا بەردەست نییە. تکایە دووبارە هەوڵ بدە."
+        "❌ ShahanFX AI وەڵامێکی دروست نەدا."
       );
 
       return;
-
     }
 
 
-    if (!data.answer) {
+    // -------------------------------------------------
+    // ANSWER
+    // -------------------------------------------------
+
+    if (
+      !data.answer
+    ) {
 
       addMessage(
         "ai",
@@ -817,7 +1020,6 @@ async function sendMessage(
       );
 
       return;
-
     }
 
 
@@ -827,14 +1029,16 @@ async function sendMessage(
     );
 
 
-    // Refresh live data after analysis
-    loadLiveData();
+    // -------------------------------------------------
+    // REFRESH LIVE DATA
+    // -------------------------------------------------
 
+    loadLiveData();
 
   } catch (error) {
 
     console.error(
-      "AI Error:",
+      "ShahanFX AI Error:",
       error
     );
 
@@ -847,30 +1051,28 @@ async function sendMessage(
       "❌ پەیوەندی بە ShahanFX AI نەکرا. تکایە دووبارە هەوڵ بدە."
     );
 
-  }
+  } finally {
 
-
-  finally {
-
-    isSending = false;
+    isSending =
+      false;
 
 
     if (sendBtn) {
 
-      sendBtn.disabled = false;
+      sendBtn.disabled =
+        false;
 
       sendBtn.textContent =
         "➤ ناردن";
-
     }
 
 
     if (analyzeBtn) {
-      analyzeBtn.disabled = false;
+
+      analyzeBtn.disabled =
+        false;
     }
-
   }
-
 }
 
 
@@ -878,37 +1080,60 @@ async function sendMessage(
 // SEND BUTTON
 // =====================================================
 
-if (sendBtn) {
+function initSendButton() {
+
+  if (!sendBtn) {
+
+    console.error(
+      "ShahanFX: sendBtn نەدۆزرایەوە."
+    );
+
+    return;
+  }
+
 
   sendBtn.addEventListener(
     "click",
-    () => sendMessage()
-  );
+    function (event) {
 
+      event.preventDefault();
+
+      sendMessage();
+
+    }
+  );
 }
 
 
 // =====================================================
-// LIVE ANALYSIS BUTTON
+// ANALYZE BUTTON
 // =====================================================
 
-if (analyzeBtn) {
+function initAnalyzeButton() {
+
+  if (!analyzeBtn) {
+    return;
+  }
+
 
   analyzeBtn.addEventListener(
     "click",
-    () => {
+    function (event) {
+
+      event.preventDefault();
+
 
       const symbol =
         symbolSelect?.value ||
         "XAU/USD";
+
 
       const timeframe =
         timeframeSelect?.value ||
         "5min";
 
 
-      const question =
-        `
+      const question = `
 ${symbol} لە Timeframe ـی ${timeframe}
 بە داتای Live شیکارییەکی تەواو بکە.
 
@@ -928,6 +1153,7 @@ SMC
 News Impact
 
 لە کۆتاییدا:
+
 BUY / SELL / WAIT
 Entry
 Stop Loss
@@ -936,14 +1162,14 @@ Risk/Reward
 Confidence
 
 ئەگەر Confirmation تەواو نییە، WAIT بنووسە.
-        `.trim();
+      `.trim();
 
 
-      sendMessage(question);
-
+      sendMessage(
+        question
+      );
     }
   );
-
 }
 
 
@@ -951,19 +1177,27 @@ Confidence
 // QUICK BUTTONS
 // =====================================================
 
-document
-  .querySelectorAll(
-    ".quick-btn"
-  )
-  .forEach(
+function initQuickButtons() {
+
+  const buttons =
+    document.querySelectorAll(
+      ".quick-btn"
+    );
+
+
+  buttons.forEach(
     button => {
 
       button.addEventListener(
         "click",
-        () => {
+        function (event) {
+
+          event.preventDefault();
+
 
           const question =
             button.dataset.question;
+
 
           if (!question) {
             return;
@@ -971,6 +1205,7 @@ document
 
 
           if (messageInput) {
+
             messageInput.value =
               question;
 
@@ -979,20 +1214,25 @@ document
 
         }
       );
-
     }
   );
+}
 
 
 // =====================================================
 // ENTER TO SEND
 // =====================================================
 
-if (messageInput) {
+function initEnterKey() {
+
+  if (!messageInput) {
+    return;
+  }
+
 
   messageInput.addEventListener(
     "keydown",
-    event => {
+    function (event) {
 
       if (
         event.key === "Enter" &&
@@ -1002,56 +1242,100 @@ if (messageInput) {
         event.preventDefault();
 
         sendMessage();
-
       }
 
     }
   );
-
 }
 
 
 // =====================================================
-// SYMBOL / TIMEFRAME CHANGE
+// SYMBOL / TIMEFRAME
 // =====================================================
 
-if (symbolSelect) {
+function initSelectors() {
 
-  symbolSelect.addEventListener(
-    "change",
-    () => {
+  if (symbolSelect) {
 
-      loadMarket();
+    symbolSelect.addEventListener(
+      "change",
+      function () {
 
-    }
-  );
+        loadMarket();
 
-}
-
-
-if (timeframeSelect) {
-
-  timeframeSelect.addEventListener(
-    "change",
-    () => {
-
-      loadMarket();
-
-    }
-  );
-
-}
-
-
-// =====================================================
-// INITIAL START
-// =====================================================
-
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
-
-    startLiveEngine();
-
+      }
+    );
   }
-);
+
+
+  if (timeframeSelect) {
+
+    timeframeSelect.addEventListener(
+      "change",
+      function () {
+
+        loadMarket();
+
+      }
+    );
+  }
+}
+
+
+// =====================================================
+// INITIALIZE EVERYTHING
+// =====================================================
+
+function initializeShahanFX() {
+
+  console.log(
+    "ShahanFX AI — Initializing..."
+  );
+
+
+  initElements();
+
+
+  initImageUpload();
+
+  initRemoveImage();
+
+  initSendButton();
+
+  initAnalyzeButton();
+
+  initQuickButtons();
+
+  initEnterKey();
+
+  initSelectors();
+
+
+  startLiveEngine();
+
+
+  console.log(
+    "ShahanFX AI — Ready ✓"
+  );
+}
+
+
+// =====================================================
+// DOM READY
+// =====================================================
+
+if (
+  document.readyState ===
+  "loading"
+) {
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    initializeShahanFX
+  );
+
+} else {
+
+  initializeShahanFX();
+
+}
