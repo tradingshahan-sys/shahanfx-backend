@@ -1,14 +1,31 @@
 // api/news.js
-// ShahanFX AI — Live Economic News Diagnostic
+// ShahanFX AI - Economic News API
 
 export default async function handler(req, res) {
+  // ================================
+  // CORS
+  // ================================
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
   res.setHeader("Cache-Control", "no-store");
 
+  // ================================
+  // OPTIONS
+  // ================================
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
 
+  // ================================
+  // ONLY GET
+  // ================================
   if (req.method !== "GET") {
     return res.status(405).json({
       ok: false,
@@ -16,60 +33,99 @@ export default async function handler(req, res) {
     });
   }
 
-  const API_KEY = process.env.FMP_API_KEY;
+  // ================================
+  // API KEY
+  // ================================
+  const FMP_API_KEY = process.env.FMP_API_KEY;
 
-  if (!API_KEY) {
-    return res.status(503).json({
+  if (!FMP_API_KEY) {
+    return res.status(500).json({
       ok: false,
-      error: "FMP_API_KEY لە Environment Variables نەدۆزرایەوە."
+      error: "FMP_API_KEY لە Environment Variables ـدا نییە."
     });
   }
 
+  // ================================
+  // DATE
+  // ================================
+  const today = new Date();
+
+  const defaultDate =
+    today.toISOString().slice(0, 10);
+
+  const from =
+    typeof req.query?.from === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(req.query.from)
+      ? req.query.from
+      : defaultDate;
+
+  const to =
+    typeof req.query?.to === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(req.query.to)
+      ? req.query.to
+      : from;
+
+  // ================================
+  // FMP REQUEST
+  // ================================
   try {
     const url =
       "https://financialmodelingprep.com/stable/economic-calendar" +
-      "?from=2026-09-01" +
-      "&to=2026-09-08" +
-      `&apikey=${encodeURIComponent(API_KEY)}`;
+      `?from=${encodeURIComponent(from)}` +
+      `&to=${encodeURIComponent(to)}` +
+      `&apikey=${encodeURIComponent(FMP_API_KEY)}`;
 
-    const response = await fetch(url);
+    const controller = new AbortController();
 
-    const raw = await response.text();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 8000);
 
-    let data;
+    let response;
 
     try {
-      data = JSON.parse(raw);
-    } catch {
-      data = null;
+      response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json"
+        },
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeout);
     }
 
+    // ================================
+    // FMP HTTP ERROR
+    // ================================
     if (!response.ok) {
+      const errorText =
+        await response.text().catch(() => "");
+
       return res.status(502).json({
         ok: false,
-        source: "FMP",
+        error: "FMP API وەڵامی دروستی نەدا.",
         status: response.status,
-        error:
-          data?.Error Message ||
-          data?.message ||
-          data?.error ||
-          raw.slice(0, 500)
+        details: errorText.slice(0, 500)
       });
     }
+
+    // ================================
+    // PARSE JSON
+    // ================================
+    const data = await response.json();
 
     if (!Array.isArray(data)) {
       return res.status(502).json({
         ok: false,
-        source: "FMP",
-        status: response.status,
-        error: "FMP وەڵامێکی Array نەداوە.",
-        response:
-          typeof data === "object"
-            ? data
-            : raw.slice(0, 500)
+        error: "داتای Economic Calendar دروست نییە.",
+        data
       });
     }
 
+    // ================================
+    // IMPORTANT EVENTS
+    // ================================
     const keywords = [
       "CPI",
       "NFP",
@@ -77,63 +133,121 @@ export default async function handler(req, res) {
       "FED",
       "PPI",
       "GDP",
-      "INTEREST RATE",
-      "NONFARM",
-      "INFLATION",
-      "UNEMPLOYMENT",
-      "RETAIL SALES",
+      "interest rate",
+      "interest",
+      "nonfarm",
+      "inflation",
+      "unemployment",
+      "retail sales",
       "ISM",
-      "JOBLESS",
-      "PAYROLL",
-      "PMI"
+      "employment",
+      "jobs"
     ];
 
     const events = data
       .filter((item) => {
         const country = String(
-          item.country || ""
-        ).toUpperCase();
+          item.country ||
+          item.countryName ||
+          ""
+        ).toLowerCase();
 
         const event = String(
-          item.event || ""
-        ).toUpperCase();
+          item.event ||
+          item.name ||
+          item.title ||
+          ""
+        ).toLowerCase();
 
         const impact = String(
           item.impact ||
           item.importance ||
           ""
-        ).toUpperCase();
+        ).toLowerCase();
 
-        return (
-          country === "US" ||
-          country === "USA" ||
+        const isUS =
+          country.includes("united states") ||
+          country === "us" ||
+          country === "usa";
+
+        const isImportant =
+          impact.includes("high") ||
+          impact.includes("medium") ||
           keywords.some((keyword) =>
-            event.includes(keyword)
-          ) ||
-          impact.includes("HIGH") ||
-          impact.includes("IMPORTANT")
-        );
-      })
-      .slice(0, 40);
+            event.includes(keyword.toLowerCase())
+          );
 
+        return isUS && isImportant;
+      })
+      .map((item) => ({
+        date:
+          item.date ||
+          item.datetime ||
+          null,
+
+        country:
+          item.country ||
+          item.countryName ||
+          "United States",
+
+        event:
+          item.event ||
+          item.name ||
+          item.title ||
+          "",
+
+        impact:
+          item.impact ||
+          item.importance ||
+          "",
+
+        actual:
+          item.actual ?? null,
+
+        estimate:
+          item.estimate ??
+          item.forecast ??
+          null,
+
+        previous:
+          item.previous ?? null
+      }))
+      .slice(0, 50);
+
+    // ================================
+    // SUCCESS
+    // ================================
     return res.status(200).json({
       ok: true,
-      source: "FMP",
-      live: true,
-      total: data.length,
-      filtered: events.length,
+      success: true,
+      source: "Financial Modeling Prep",
+      from,
+      to,
+      count: events.length,
       events
     });
 
   } catch (error) {
-    console.error("FMP NEWS ERROR:", error);
+    // ================================
+    // TIMEOUT
+    // ================================
+    if (error?.name === "AbortError") {
+      return res.status(504).json({
+        ok: false,
+        error:
+          "FMP API زۆر خاو بوو و کاتی داواکاری تەواو بوو."
+      });
+    }
 
-    return res.status(502).json({
+    // ================================
+    // UNKNOWN ERROR
+    // ================================
+    return res.status(500).json({
       ok: false,
-      source: "FMP",
       error:
-        error?.message ||
-        "هەڵەی نەناسراو لە FMP."
+        "هەڵەیەکی نەخوازراو لە News API ڕوویدا.",
+      details:
+        error?.message || "Unknown error"
     });
   }
 }
