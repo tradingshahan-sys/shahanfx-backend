@@ -1,220 +1,506 @@
 <!DOCTYPE html>
 <html lang="ku" dir="rtl">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>ShahanFX AI</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-  <link rel="stylesheet" href="style.css">
+  <meta
+    name="theme-color"
+    content="#090909"
+  >
 
-  <style>
-    /* ShahanFX Logo - Hero */
-    .hero-icon {
-      width: 110px;
-      height: 110px;
-      margin: 0 auto 18px;
-      border-radius: 50%;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+  <meta
+    name="description"
+    content="ShahanFX AI - Live Forex, Gold, ALC™, ICT & SMC Analysis"
+  >
 
-    .hero-icon img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
+  <title>ShahanFX AI — Live Analysis Pro</title>
 
-    /* ShahanFX Logo - AI Avatar */
-    .avatar {
-      width: 45px;
-      height: 45px;
-      min-width: 45px;
-      border-radius: 50%;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
 
-    .avatar img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-  </style>
-
+  <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
 
-  <main class="app">
+  <!-- =========================
+       TOP BAR
+  ========================== -->
 
-    <!-- HEADER -->
-    <header class="header">
+  <header class="topbar">
 
-      <div class="logo">
+    <div class="brand">
 
-        <span>⚡</span>
+      <img
+        class="brand-logo"
+        src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
+        alt="ShahanFX"
+      >
 
-        <div>
-          <h1>ShahanFX</h1>
-          <p>AI Trading Assistant</p>
-        </div>
-
+      <div class="brand-text">
+        <strong>ShahanFX AI</strong>
+        <span>Live Analysis Pro</span>
       </div>
 
-      <div class="status">
-        <i></i>
-        Online
-      </div>
+    </div>
 
-    </header>
+    <div class="live-status">
+      <span class="live-dot"></span>
+      <span>LIVE</span>
+    </div>
 
+  </header>
+
+
+  <!-- =========================
+       MAIN
+  ========================== -->
+
+  <main class="container">
 
     <!-- HERO -->
+
     <section class="hero">
 
-      <div class="hero-icon">
-        <img
-          src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
-          alt="ShahanFX Logo"
-        >
+      <div class="hero-content">
+
+        <div class="eyebrow">
+          FOREX • GOLD • ALC™ • ICT • SMC
+        </div>
+
+        <h1>
+          شیکاریی بازاڕ
+          <span>بە داتای ڕاستەوخۆ</span>
+        </h1>
+
+        <p>
+          ShahanFX AI داتای بازاڕ، Candle، Structure،
+          Liquidity، FVG، Order Block و News
+          بە یەکەوە شیکاری دەکات.
+        </p>
+
       </div>
-
-      <h2>
-        بەخێربێیت بۆ ShahanFX AI
-      </h2>
-
-      <p>
-        یارمەتیدەری زیرەک بۆ Forex، ICT و SMC
-      </p>
 
     </section>
 
 
-    <!-- CHAT -->
-    <section class="chat-box">
+    <!-- =========================
+         CONTROLS
+    ========================== -->
 
-      <div id="messages" class="messages">
+    <section class="control-panel">
 
-        <div class="message ai">
+      <div class="control-group">
 
-          <!-- AI AVATAR -->
-          <div class="avatar">
+        <label for="symbol">
+          Symbol
+        </label>
 
-            <img
-              src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
-              alt="ShahanFX AI"
-            >
+        <select id="symbol">
 
-          </div>
+          <option value="XAU/USD">
+            XAU/USD — Gold
+          </option>
+
+          <option value="EUR/USD">
+            EUR/USD
+          </option>
+
+          <option value="GBP/USD">
+            GBP/USD
+          </option>
+
+          <option value="USD/JPY">
+            USD/JPY
+          </option>
+
+        </select>
+
+      </div>
 
 
-          <div class="bubble">
+      <div class="control-group">
 
-            سڵاو 👋<br><br>
+        <label for="timeframe">
+          Timeframe
+        </label>
 
-            من <strong>ShahanFX AI</strong> ـم.
+        <select id="timeframe">
 
-            دەتوانیت پرسیارم لەسەر Forex،
-            ICT، SMC و شیکردنەوەی Chart بکەیت.
+          <option value="1min">
+            1M
+          </option>
+
+          <option value="5min" selected>
+            5M
+          </option>
+
+          <option value="15min">
+            15M
+          </option>
+
+          <option value="30min">
+            30M
+          </option>
+
+          <option value="1h">
+            1H
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <button
+        id="analyzeBtn"
+        class="primary-btn"
+        type="button"
+      >
+        ⚡ شیکاری Live
+      </button>
+
+    </section>
+
+
+    <!-- =========================
+         LIVE DATA
+    ========================== -->
+
+    <section class="live-grid">
+
+      <article class="live-card">
+
+        <div class="card-label">
+          💰 Price
+        </div>
+
+        <div
+          id="livePrice"
+          class="card-value"
+        >
+          —
+        </div>
+
+        <div class="card-sub">
+          Live Market
+        </div>
+
+      </article>
+
+
+      <article class="live-card">
+
+        <div class="card-label">
+          📊 Bias
+        </div>
+
+        <div
+          id="liveBias"
+          class="card-value"
+        >
+          WAIT
+        </div>
+
+        <div class="card-sub">
+          Market Direction
+        </div>
+
+      </article>
+
+
+      <article class="live-card">
+
+        <div class="card-label">
+          📰 News
+        </div>
+
+        <div
+          id="newsCount"
+          class="card-value"
+        >
+          —
+        </div>
+
+        <div class="card-sub">
+          Economic Events
+        </div>
+
+      </article>
+
+
+      <article class="live-card">
+
+        <div class="card-label">
+          🕒 Updated
+        </div>
+
+        <div
+          id="lastUpdated"
+          class="card-value small-value"
+        >
+          —
+        </div>
+
+        <div class="card-sub">
+          Auto Refresh
+        </div>
+
+      </article>
+
+    </section>
+
+
+    <!-- =========================
+         MARKET STATUS
+    ========================== -->
+
+    <section class="market-status">
+
+      <div class="status-title">
+        <span class="status-pulse"></span>
+        Live Market Engine
+      </div>
+
+      <div class="status-items">
+
+        <span>
+          ✓ Price
+        </span>
+
+        <span>
+          ✓ Candle
+        </span>
+
+        <span>
+          ✓ Structure
+        </span>
+
+        <span>
+          ✓ Liquidity
+        </span>
+
+        <span>
+          ✓ News
+        </span>
+
+      </div>
+
+    </section>
+
+
+    <!-- =========================
+         AI ASSISTANT
+    ========================== -->
+
+    <section class="assistant">
+
+      <div class="assistant-header">
+
+        <div class="assistant-brand">
+
+          <img
+            src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
+            alt="ShahanFX AI"
+            class="ai-logo"
+          >
+
+          <div>
+
+            <strong>
+              ShahanFX AI
+            </strong>
+
+            <span>
+              AI Trading Assistant
+            </span>
 
           </div>
 
         </div>
+
+        <span class="online">
+          ● Online
+        </span>
+
+      </div>
+
+
+      <!-- CHAT -->
+
+      <div
+        id="chatBox"
+        class="chat-box"
+      >
+
+        <div class="message ai-message">
+
+          <div class="avatar">
+
+            <img
+              src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
+              alt="AI"
+            >
+
+          </div>
+
+          <div class="message-content">
+
+            <div class="message-name">
+              ShahanFX AI
+            </div>
+
+            <div class="message-text">
+              سڵاو 👋
+              <br><br>
+              من <strong>ShahanFX AI</strong> ـم.
+              یارمەتیدەری زیرەک بۆ Forex،
+              ALC™، ICT و SMC.
+              <br><br>
+              دەتوانیت داوای شیکاریی
+              <strong>Live</strong> بکەیت یان
+              وێنەی Chart ـەکەت بنێریت.
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- QUICK ACTIONS -->
+
+      <div class="quick-actions">
+
+        <button
+          class="quick-btn"
+          data-question="XAU/USD ئێستا بە داتای Live شیکاری بکە."
+        >
+          🥇 XAU/USD
+        </button>
+
+        <button
+          class="quick-btn"
+          data-question="Market Structure و Liquidity ـی XAU/USD شیکاری بکە."
+        >
+          📊 Structure
+        </button>
+
+        <button
+          class="quick-btn"
+          data-question="News ـە گرنگەکانی ئەمڕۆ بۆ Gold و Forex بپشکنە."
+        >
+          📰 News
+        </button>
+
+        <button
+          class="quick-btn"
+          data-question="بە ALC™ و ICT و SMC شیکاریی Live بۆ XAU/USD بکە."
+        >
+          🧠 ALC™ / ICT / SMC
+        </button>
 
       </div>
 
 
       <!-- IMAGE PREVIEW -->
+
       <div
-        class="image-preview"
-        id="imagePreview">
+        id="imagePreview"
+        class="image-preview hidden"
+      >
+
+        <img
+          id="previewImage"
+          src=""
+          alt="Chart Preview"
+        >
+
+        <button
+          id="removeImage"
+          type="button"
+        >
+          ✕
+        </button>
+
       </div>
 
 
       <!-- INPUT -->
+
       <div class="input-area">
 
-        <label class="upload">
+        <textarea
+          id="messageInput"
+          rows="2"
+          placeholder="پرسیارەکەت بنووسە... بۆ نموونە: XAU/USD شیکاری Live بکە"
+        ></textarea>
 
-          📷
+        <div class="input-tools">
+
+          <label
+            for="chartImage"
+            class="upload-btn"
+            title="ناردنی Chart"
+          >
+            📷 Chart
+          </label>
 
           <input
+            id="chartImage"
             type="file"
-            id="imageInput"
             accept="image/*"
             hidden
           >
 
-        </label>
+          <button
+            id="sendBtn"
+            class="send-btn"
+            type="button"
+          >
+            ➤ ناردن
+          </button>
 
-
-        <textarea
-          id="messageInput"
-          placeholder="پرسیارەکەت بنووسە..."
-          rows="1"
-        ></textarea>
-
-
-        <button id="sendBtn">
-          ➤
-        </button>
+        </div>
 
       </div>
 
     </section>
 
 
-    <!-- QUICK ACTIONS -->
-    <div class="quick-actions">
+    <!-- =========================
+         FOOTER
+    ========================== -->
 
-      <button
-        onclick="quickQuestion('XAUUSD ئێستا چۆن شیکاربکەم؟')"
-      >
-        🥇 XAUUSD
-      </button>
-
-
-      <button
-        onclick="quickQuestion('FVG چییە و چۆن بەکاری بهێنم؟')"
-      >
-        📊 FVG
-      </button>
-
-
-      <button
-        onclick="quickQuestion('Liquidity Sweep چۆن بناسمەوە؟')"
-      >
-        💧 Liquidity
-      </button>
-
-
-      <button
-        onclick="quickQuestion('BOS و CHOCH جیاوازییان چییە؟')"
-      >
-        🔥 BOS / CHOCH
-      </button>
-
-    </div>
-
-
-    <!-- FOOTER -->
     <footer>
-      ShahanFX AI • ICT • SMC • Forex
+
+      <div class="footer-brand">
+        ShahanFX AI
+      </div>
+
+      <div class="footer-text">
+        Forex • Gold • ALC™ • ICT • SMC
+      </div>
+
+      <div class="footer-note">
+        Live market analysis system
+      </div>
+
     </footer>
 
   </main>
 
 
-  <script src="script.js"></script>
+  <script src="/script.js"></script>
 
 </body>
-
 </html>
