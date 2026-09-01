@@ -1,7 +1,8 @@
 // api/news.js
-// ShahanFX AI - LIVE Economic News
-// تەنها ئەم فایلە بۆ News ـە.
-// chat.js پێویست نییە دەستکاری بکرێت.
+// ShahanFX AI
+// Xoomar Economic Calendar
+// No FMP required
+// No API key required
 
 export default async function handler(req, res) {
   // =========================================================
@@ -14,10 +15,12 @@ export default async function handler(req, res) {
   );
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
+    "Content-Type"
   );
 
-  // گرنگ: هیچ cache ـێک نەکات
+  // =========================================================
+  // NO CACHE
+  // =========================================================
   res.setHeader(
     "Cache-Control",
     "no-store, no-cache, must-revalidate, proxy-revalidate"
@@ -44,154 +47,134 @@ export default async function handler(req, res) {
   }
 
   // =========================================================
-  // API KEY
+  // DATE HELPERS
   // =========================================================
-  const apiKey = process.env.FMP_API_KEY;
 
-  if (!apiKey) {
-    return res.status(200).json({
-      ok: true,
-      success: false,
-      live: false,
-      source: "FMP",
-      count: 0,
-      events: [],
-      warning:
-        "FMP_API_KEY نەدۆزرایەوە. تکایە FMP_API_KEY لە Vercel Environment Variables زیاد بکە."
-    });
+  function getTodayUTC() {
+    return new Date()
+      .toISOString()
+      .slice(0, 10);
   }
 
-  // =========================================================
-  // HELPERS
-  // =========================================================
-
   function isValidDate(value) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    if (
+      typeof value !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(value)
+    ) {
       return false;
     }
 
-    const date = new Date(value + "T00:00:00Z");
+    const d = new Date(
+      value + "T00:00:00Z"
+    );
 
     return (
-      !Number.isNaN(date.getTime()) &&
-      date.toISOString().slice(0, 10) === value
+      !Number.isNaN(d.getTime()) &&
+      d.toISOString().slice(0, 10) === value
     );
   }
 
-  function todayUTC() {
-    return new Date().toISOString().slice(0, 10);
-  }
+  function getQuery(name) {
+    if (!req.query) return null;
 
-  function addDays(dateString, days) {
-    const date = new Date(
-      dateString + "T00:00:00Z"
-    );
+    const value = req.query[name];
 
-    date.setUTCDate(
-      date.getUTCDate() + days
-    );
+    if (
+      value === undefined ||
+      value === null
+    ) {
+      return null;
+    }
 
-    return date.toISOString().slice(0, 10);
-  }
+    if (Array.isArray(value)) {
+      return value[0] || null;
+    }
 
-  function cleanString(value) {
-    return value === null ||
-      value === undefined
-      ? ""
-      : String(value).trim();
-  }
-
-  function getImpact(item) {
-    return cleanString(
-      item.impact ||
-      item.importance ||
-      item.priority ||
-      ""
-    );
-  }
-
-  function getCountry(item) {
-    return cleanString(
-      item.country ||
-      item.countryName ||
-      item.country_code ||
-      ""
-    );
-  }
-
-  function getEventName(item) {
-    return cleanString(
-      item.event ||
-      item.name ||
-      item.title ||
-      item.description ||
-      ""
-    );
+    return String(value).trim();
   }
 
   // =========================================================
-  // REQUEST DATES
+  // TODAY
   // =========================================================
 
-  const today = todayUTC();
+  const today = getTodayUTC();
 
-  let from =
-    req.query && req.query.from
-      ? String(req.query.from).trim()
-      : today;
+  // بە default:
+  // ئەمڕۆ + 7 ڕۆژی داهاتوو
+  //
+  // ئەمە وای دەکات هەواڵ/ئێڤێنتی گرنگی داهاتووش
+  // لە Calendar ـدا پیشان بدرێت.
+  let from = getQuery("from");
+  let to = getQuery("to");
 
-  let to =
-    req.query && req.query.to
-      ? String(req.query.to).trim()
-      : from;
-
-  // ئەگەر date ـەکان خراپ بن، بگەڕێوە بۆ ئەمڕۆ
   if (!isValidDate(from)) {
     from = today;
   }
 
   if (!isValidDate(to)) {
-    to = from;
-  }
+    const future = new Date(
+      today + "T00:00:00Z"
+    );
 
-  // ئەگەر بە هەڵە from > to بوو
-  if (from > to) {
-    const temp = from;
-    from = to;
-    to = temp;
+    future.setUTCDate(
+      future.getUTCDate() + 7
+    );
+
+    to = future
+      .toISOString()
+      .slice(0, 10);
   }
 
   // =========================================================
-  // FMP REQUEST
+  // XOOMAR API
+  // =========================================================
+  //
+  // Official Xoomar endpoint:
+  //
+  // https://xoomar.com/api/markets/calendar
+  //
+  // importance=high
+  //
+  // No API key required.
   // =========================================================
 
   const url =
-    "https://financialmodelingprep.com/stable/economic-calendar" +
+    "https://xoomar.com/api/markets/calendar" +
     "?from=" +
     encodeURIComponent(from) +
     "&to=" +
     encodeURIComponent(to) +
-    "&apikey=" +
-    encodeURIComponent(apiKey);
+    "&importance=high";
 
-  const controller = new AbortController();
+  // =========================================================
+  // TIMEOUT
+  // =========================================================
 
-  // Timeout ـی 10 چرکە
-  const timeout = setTimeout(function () {
-    controller.abort();
-  }, 10000);
+  const controller =
+    new AbortController();
+
+  const timeout = setTimeout(
+    function () {
+      controller.abort();
+    },
+    10000
+  );
 
   let response;
 
   try {
     response = await fetch(url, {
       method: "GET",
+
       headers: {
         Accept: "application/json",
-        "User-Agent": "ShahanFX-AI-News"
+        "User-Agent":
+          "ShahanFX-AI/1.0"
       },
-      signal: controller.signal,
-      cache: "no-store"
+
+      cache: "no-store",
+
+      signal: controller.signal
     });
   } catch (error) {
     clearTimeout(timeout);
@@ -200,39 +183,49 @@ export default async function handler(req, res) {
       ok: true,
       success: false,
       live: false,
-      source: "FMP",
+
+      source: "Xoomar",
+
       from,
       to,
+
+      fetchedAt:
+        new Date().toISOString(),
+
       count: 0,
+
       events: [],
+
       warning:
         error &&
         error.name === "AbortError"
-          ? "FMP API ـەکە زۆر دواکەوت. تکایە دووبارە هەوڵ بدەوە."
-          : error && error.message
+          ? "Xoomar API timeout ـی کرد."
+          : error &&
+              error.message
             ? error.message
-            : "نەتوانرا پەیوەندی بە FMP بکرێت."
+            : "نەتوانرا پەیوەندی بە Xoomar بکرێت."
     });
   } finally {
     clearTimeout(timeout);
   }
 
   // =========================================================
-  // READ RESPONSE
+  // RESPONSE
   // =========================================================
 
-  const rawText = await response.text();
+  const rawText =
+    await response.text();
 
-  let data = null;
+  let result = null;
 
   try {
-    data = JSON.parse(rawText);
+    result = JSON.parse(rawText);
   } catch {
-    data = null;
+    result = null;
   }
 
   // =========================================================
-  // FMP ERROR
+  // XOOMAR ERROR
   // =========================================================
 
   if (!response.ok) {
@@ -240,173 +233,194 @@ export default async function handler(req, res) {
       ok: true,
       success: false,
       live: false,
-      source: "FMP",
+
+      source: "Xoomar",
+
       from,
       to,
+
+      fetchedAt:
+        new Date().toISOString(),
+
       count: 0,
+
       events: [],
-      warning:
-        "FMP API وەڵامی سەرکەوتوو نەدا.",
+
       status: response.status,
+
+      warning:
+        "Xoomar API وەڵامی سەرکەوتوو نەدا.",
+
       details:
-        typeof data === "object" && data !== null
-          ? data.message ||
-            data.error ||
+        result &&
+        typeof result === "object"
+          ? result.message ||
+            result.error ||
             null
           : null
     });
   }
 
   // =========================================================
-  // INVALID FMP RESPONSE
+  // XOOMAR RESPONSE FORMAT
+  // =========================================================
+  //
+  // {
+  //   data: [],
+  //   updatedAt: "...",
+  //   source: "...",
+  //   docs: "..."
+  // }
   // =========================================================
 
-  if (!Array.isArray(data)) {
+  if (
+    !result ||
+    !Array.isArray(result.data)
+  ) {
     return res.status(200).json({
       ok: true,
       success: false,
       live: false,
-      source: "FMP",
+
+      source: "Xoomar",
+
       from,
       to,
+
+      fetchedAt:
+        new Date().toISOString(),
+
       count: 0,
+
       events: [],
+
       warning:
-        "FMP داتای Economic Calendar ـی دروستی نەگەڕاندەوە.",
-      details:
-        typeof data === "object" && data !== null
-          ? data.message ||
-            data.error ||
-            null
-          : null
+        "Xoomar داتای Economic Calendar ـی دروستی نەگەڕاندەوە."
     });
   }
 
   // =========================================================
-  // IMPORTANT US ECONOMIC EVENTS
+  // NORMALIZE EVENTS
   // =========================================================
 
-  const keywords = [
-    "cpi",
-    "core cpi",
-    "nfp",
-    "nonfarm",
-    "non-farm",
-    "fomc",
-    "fed",
-    "federal funds",
-    "interest rate",
-    "interest",
-    "ppi",
-    "gdp",
-    "inflation",
-    "unemployment",
-    "unemployment rate",
-    "retail sales",
-    "ism",
-    "employment",
-    "jobs",
-    "jobless claims",
-    "initial jobless",
-    "consumer confidence",
-    "consumer sentiment",
-    "pce",
-    "core pce",
-    "durable goods",
-    "manufacturing",
-    "services pmi",
-    "manufacturing pmi"
-  ];
-
-  // =========================================================
-  // FILTER + NORMALIZE
-  // =========================================================
-
-  const events = data
-    .filter(function (item) {
-      const country =
-        getCountry(item).toLowerCase();
-
-      const name =
-        getEventName(item).toLowerCase();
-
-      const impact =
-        getImpact(item).toLowerCase();
-
-      const isUS =
-        country.includes("united states") ||
-        country.includes("united states of america") ||
-        country === "us" ||
-        country === "usa" ||
-        country === "u.s." ||
-        country === "u.s.a." ||
-        country.includes("america");
-
-      const isImportant =
-        impact.includes("high") ||
-        impact.includes("medium") ||
-        keywords.some(function (keyword) {
-          return name.includes(
-            keyword.toLowerCase()
-          );
-        });
-
-      return isUS && isImportant;
-    })
+  const events = result.data
     .map(function (item) {
-      const eventDate =
-        item.date ||
-        item.datetime ||
-        item.time ||
-        null;
-
       return {
-        date: eventDate,
-
-        country:
-          getCountry(item) ||
-          "United States",
+        source:
+          item.source ||
+          null,
 
         event:
-          getEventName(item),
+          item.eventName ||
+          item.event ||
+          item.name ||
+          "",
 
-        impact:
-          getImpact(item) || "Unknown",
+        importance:
+          item.importance ||
+          "high",
 
-        actual:
-          item.actual !== undefined
-            ? item.actual
-            : null,
+        scheduledAt:
+          item.scheduledAt ||
+          item.date ||
+          item.datetime ||
+          null,
 
-        estimate:
-          item.estimate !== undefined
-            ? item.estimate
-            : item.forecast !== undefined
-              ? item.forecast
-              : null,
+        periodLabel:
+          item.periodLabel ||
+          null,
 
         previous:
           item.previous !== undefined
             ? item.previous
             : null,
 
-        unit:
-          item.unit !== undefined
-            ? item.unit
-            : null
+        actual:
+          item.actual !== undefined
+            ? item.actual
+            : null,
+
+        // Xoomar forecast نادات
+        // بۆیە هیچ forecast ـێک دروست ناکەین.
+        estimate: null
       };
     })
     .filter(function (item) {
       return item.event !== "";
-    })
-    .slice(0, 100);
+    });
 
   // =========================================================
-  // LIVE TIMESTAMP
+  // SORT BY TIME
+  // =========================================================
+
+  events.sort(
+    function (a, b) {
+      const aTime =
+        a.scheduledAt
+          ? new Date(
+              a.scheduledAt
+            ).getTime()
+          : 0;
+
+      const bTime =
+        b.scheduledAt
+          ? new Date(
+              b.scheduledAt
+            ).getTime()
+          : 0;
+
+      return aTime - bTime;
+    }
+  );
+
+  // =========================================================
+  // IMPORTANT KEYWORDS
+  // =========================================================
+
+  const keywords = [
+    "CPI",
+    "Consumer Price",
+    "Nonfarm",
+    "Payroll",
+    "Employment",
+    "FOMC",
+    "Fed",
+    "Federal Reserve",
+    "GDP",
+    "PCE",
+    "Inflation",
+    "Interest Rate",
+    "Jobs"
+  ];
+
+  const importantEvents =
+    events.filter(
+      function (item) {
+        const name =
+          String(
+            item.event || ""
+          ).toLowerCase();
+
+        return keywords.some(
+          function (keyword) {
+            return name.includes(
+              keyword.toLowerCase()
+            );
+          }
+        );
+      }
+    );
+
+  // =========================================================
+  // LIVE STATUS
   // =========================================================
 
   const fetchedAt =
     new Date().toISOString();
+
+  const updatedAt =
+    result.updatedAt ||
+    null;
 
   // =========================================================
   // FINAL RESPONSE
@@ -414,24 +428,43 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     ok: true,
+
     success: true,
 
-    // ئەمە واتە داتا لە API ـەکەوە هاتووە
     live: true,
 
-    source: "FMP",
+    source: "Xoomar",
 
-    // کاتی وەرگرتنی داتا
-    fetchedAt,
-
-    // ئەمڕۆی سیستەم
-    serverDate: today,
+    provider:
+      "Xoomar Pulse",
 
     from,
+
     to,
 
-    count: events.length,
+    fetchedAt,
 
-    events
+    updatedAt,
+
+    count:
+      events.length,
+
+    importantCount:
+      importantEvents.length,
+
+    events,
+
+    // هەمان data ـەی Xoomar
+    // بۆ ئەوەی دواتر ئەگەر پێویست بوو
+    // بتوانین بە ئاسانی بەکاری بهێنین.
+    xoomar: {
+      source:
+        result.source ||
+        "xoomar.com",
+
+      docs:
+        result.docs ||
+        "https://xoomar.com/markets/api"
+    }
   });
 }
