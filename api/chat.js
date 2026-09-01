@@ -1,9 +1,9 @@
 export default async function handler(req, res) {
-
   // =========================================================
   // SHAHANFX AI PRO
-  // GEMINI + OPENROUTER AUTO FALLBACK
-  // MARKET + NEWS + CPI + NFP + FOMC + PPI
+  // GEMINI + OPENROUTER FALLBACK
+  // KURDISH SORANI ONLY
+  // MARKET + NEWS + CPI + NFP + FOMC + PPI + CHART
   // =========================================================
 
   // =========================
@@ -32,22 +32,14 @@ export default async function handler(req, res) {
   }
 
   try {
-
     // =======================================================
     // API KEYS
     // =======================================================
 
-    const geminiKey =
-      process.env.GEMINI_API_KEY;
-
-    const openRouterKey =
-      process.env.OPENROUTER_API_KEY;
-
-    const twelveKey =
-      process.env.TWELVE_DATA_API_KEY;
-
-    const fmpKey =
-      process.env.FMP_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const twelveKey = process.env.TWELVE_DATA_API_KEY;
+    const fmpKey = process.env.FMP_API_KEY;
 
     // =======================================================
     // INPUT
@@ -59,9 +51,7 @@ export default async function handler(req, res) {
         : (req.body || {});
 
     const action =
-      String(input.action || "")
-        .toLowerCase()
-        .trim();
+      String(input.action || "").toLowerCase().trim();
 
     const message =
       typeof input.message === "string"
@@ -78,11 +68,8 @@ export default async function handler(req, res) {
     // DATE
     // =======================================================
 
-    const today =
-      new Date();
-
-    const todayString =
-      today.toISOString().slice(0, 10);
+    const today = new Date();
+    const todayString = today.toISOString().slice(0, 10);
 
     const startDate =
       input.startDate || todayString;
@@ -95,19 +82,15 @@ export default async function handler(req, res) {
     // =======================================================
 
     const symbolMap = {
-
       XAUUSD: "XAU/USD",
       GOLD: "XAU/USD",
-
       EURUSD: "EUR/USD",
       GBPUSD: "GBP/USD",
       USDJPY: "USD/JPY",
       USDCHF: "USD/CHF",
-
       AUDUSD: "AUD/USD",
       USDCAD: "USD/CAD",
       NZDUSD: "NZD/USD"
-
     };
 
     const mapped =
@@ -125,7 +108,6 @@ export default async function handler(req, res) {
     // =======================================================
 
     const allowedIntervals = [
-
       "1min",
       "5min",
       "15min",
@@ -136,7 +118,6 @@ export default async function handler(req, res) {
       "4h",
       "8h",
       "1day"
-
     ];
 
     const safeInterval =
@@ -149,18 +130,12 @@ export default async function handler(req, res) {
     // =======================================================
 
     let marketData = {
-
       success: false,
-
-      error:
-        "Market API بەردەست نییە."
-
+      error: "Market API بەردەست نییە."
     };
 
     if (twelveKey) {
-
       try {
-
         const marketUrl =
           new URL(
             "https://api.twelvedata.com/time_series"
@@ -205,10 +180,8 @@ export default async function handler(req, res) {
           !data.error &&
           Array.isArray(data.values)
         ) {
-
           const candles =
             data.values.map(c => ({
-
               datetime:
                 c.datetime || null,
 
@@ -228,7 +201,6 @@ export default async function handler(req, res) {
                 c.volume !== undefined
                   ? Number(c.volume)
                   : null
-
             }));
 
           const current =
@@ -237,49 +209,32 @@ export default async function handler(req, res) {
           const previous =
             candles[1] || null;
 
-          let direction =
-            "neutral";
+          let direction = "neutral";
 
           if (current && previous) {
-
             if (
               current.close >
               previous.close
             ) {
-
-              direction =
-                "bullish";
-
+              direction = "bullish";
             } else if (
               current.close <
               previous.close
             ) {
-
-              direction =
-                "bearish";
-
+              direction = "bearish";
             }
-
           }
 
           marketData = {
-
             success: true,
-
-            source:
-              "Twelve Data",
-
-            symbol:
-              finalSymbol,
-
-            interval:
-              safeInterval,
+            source: "Twelve Data",
+            symbol: finalSymbol,
+            interval: safeInterval,
 
             timestamp:
               new Date().toISOString(),
 
             market: {
-
               currentPrice:
                 current?.close ?? null,
 
@@ -290,49 +245,34 @@ export default async function handler(req, res) {
 
               previousCandle:
                 previous
-
             },
 
             candles,
 
             meta:
               data.meta || null
-
           };
-
         } else {
-
           marketData = {
-
             success: false,
-
             error:
               data?.message ||
               data?.error ||
               "Twelve Data داتا نەهێنا."
-
           };
-
         }
-
       } catch (error) {
-
         console.error(
           "MARKET ENGINE ERROR:",
           error
         );
 
         marketData = {
-
           success: false,
-
           error:
             "هەڵە لە Market Engine."
-
         };
-
       }
-
     }
 
     // =======================================================
@@ -340,18 +280,12 @@ export default async function handler(req, res) {
     // =======================================================
 
     let newsData = {
-
       success: false,
-
-      error:
-        "News API بەردەست نییە."
-
+      error: "News API بەردەست نییە."
     };
 
     if (fmpKey) {
-
       try {
-
         const newsUrl =
           new URL(
             "https://financialmodelingprep.com/stable/economic-calendar"
@@ -376,14 +310,10 @@ export default async function handler(req, res) {
           await fetch(
             newsUrl.toString(),
             {
-
               headers: {
-
                 Accept:
                   "application/json"
-
               }
-
             }
           );
 
@@ -391,19 +321,13 @@ export default async function handler(req, res) {
           await response.json();
 
         if (!response.ok) {
-
           newsData = {
-
             success: false,
-
             error:
               data?.message ||
               "FMP API هەڵەیەکی گەڕاندەوە."
-
           };
-
         } else {
-
           const events =
             Array.isArray(data)
               ? data
@@ -411,64 +335,21 @@ export default async function handler(req, res) {
 
           const usEvents =
             events.filter(event => {
-
               const country =
                 String(
                   event?.country || ""
                 ).toUpperCase();
 
               return (
-
                 country === "US" ||
                 country === "USA" ||
                 country ===
                   "UNITED STATES"
-
               );
-
             });
-
-          const keywords = [
-
-            "CPI",
-            "Consumer Price Index",
-
-            "Non Farm Payrolls",
-            "Non-Farm Payrolls",
-            "Nonfarm Payrolls",
-            "NFP",
-
-            "Federal Funds Rate",
-            "Interest Rate",
-
-            "FOMC",
-
-            "PPI",
-            "Producer Price Index",
-
-            "GDP",
-            "Gross Domestic Product",
-
-            "Unemployment Rate",
-
-            "Initial Jobless Claims",
-
-            "Retail Sales",
-
-            "ISM Manufacturing",
-            "ISM Services",
-
-            "PMI",
-
-            "Powell",
-            "Federal Reserve",
-            "Fed"
-
-          ];
 
           const normalizeEvent =
             event => ({
-
               date:
                 event?.date || null,
 
@@ -486,8 +367,7 @@ export default async function handler(req, res) {
                 null,
 
               actual:
-                event?.actual ??
-                null,
+                event?.actual ?? null,
 
               estimate:
                 event?.estimate ??
@@ -495,17 +375,13 @@ export default async function handler(req, res) {
                 null,
 
               previous:
-                event?.previous ??
-                null,
+                event?.previous ?? null,
 
               unit:
-                event?.unit ||
-                null,
+                event?.unit || null,
 
               currency:
-                event?.currency ||
-                null
-
+                event?.currency || null
             });
 
           const normalized =
@@ -513,9 +389,33 @@ export default async function handler(req, res) {
               normalizeEvent
             );
 
+          const keywords = [
+            "CPI",
+            "Consumer Price Index",
+            "Non Farm Payrolls",
+            "Non-Farm Payrolls",
+            "Nonfarm Payrolls",
+            "NFP",
+            "Federal Funds Rate",
+            "Interest Rate",
+            "FOMC",
+            "PPI",
+            "Producer Price Index",
+            "GDP",
+            "Gross Domestic Product",
+            "Unemployment Rate",
+            "Initial Jobless Claims",
+            "Retail Sales",
+            "ISM Manufacturing",
+            "ISM Services",
+            "PMI",
+            "Powell",
+            "Federal Reserve",
+            "Fed"
+          ];
+
           const important =
             normalized.filter(event => {
-
               const name =
                 String(
                   event.event || ""
@@ -527,107 +427,84 @@ export default async function handler(req, res) {
                     keyword.toLowerCase()
                   )
               );
-
             });
 
           const highImpact =
             normalized.filter(event => {
-
               const impact =
                 String(
                   event.impact || ""
                 ).toLowerCase();
 
               return (
-
                 impact.includes("high") ||
                 impact === "3" ||
                 impact.includes("3")
-
               );
-
             });
 
           const cpi =
             normalized.filter(event => {
-
               const name =
                 String(
                   event.event || ""
                 ).toLowerCase();
 
               return (
-
                 name.includes("cpi") ||
                 name.includes(
                   "consumer price index"
                 )
-
               );
-
             });
 
           const nfp =
             normalized.filter(event => {
-
               const name =
                 String(
                   event.event || ""
                 ).toLowerCase();
 
               return (
-
                 name.includes("non farm") ||
                 name.includes("non-farm") ||
                 name.includes("nonfarm") ||
                 name.includes("payroll") ||
                 name === "nfp"
-
               );
-
             });
 
           const fomc =
             normalized.filter(event => {
-
               const name =
                 String(
                   event.event || ""
                 ).toLowerCase();
 
               return (
-
                 name.includes("fomc") ||
                 name.includes("federal funds") ||
                 name.includes("interest rate")
-
               );
-
             });
 
           const ppi =
             normalized.filter(event => {
-
               const name =
                 String(
                   event.event || ""
                 ).toLowerCase();
 
               return (
-
                 name.includes("ppi") ||
                 name.includes(
                   "producer price"
                 )
-
               );
-
             });
 
           newsData = {
-
             success: true,
-
             source:
               "Financial Modeling Prep",
 
@@ -635,17 +512,11 @@ export default async function handler(req, res) {
               new Date().toISOString(),
 
             range: {
-
-              from:
-                startDate,
-
-              to:
-                endDate
-
+              from: startDate,
+              to: endDate
             },
 
             summary: {
-
               totalUSEvents:
                 normalized.length,
 
@@ -666,47 +537,31 @@ export default async function handler(req, res) {
 
               ppi:
                 ppi.length
-
             },
 
             importantNews:
               important,
 
             cpi,
-
             nfp,
-
             fomc,
-
             ppi,
-
             highImpact,
-
-            events:
-              normalized
-
+            events: normalized
           };
-
         }
-
       } catch (error) {
-
         console.error(
           "NEWS ENGINE ERROR:",
           error
         );
 
         newsData = {
-
           success: false,
-
           error:
             "هەڵە لە News Engine."
-
         };
-
       }
-
     }
 
     // =======================================================
@@ -714,36 +569,29 @@ export default async function handler(req, res) {
     // =======================================================
 
     if (action === "cpi") {
-
       if (!newsData.success) {
-
         return res.status(503).json({
-
           success: false,
-
           type: "cpi",
-
           message:
             "داتای CPI لە ئێستادا بەردەست نییە.",
-
           error:
             newsData.error
-
         });
-
       }
 
       const cpi =
         newsData.cpi || [];
 
       return res.status(200).json({
-
         success: true,
-
         type: "cpi",
+        found: cpi.length > 0,
 
-        found:
-          cpi.length > 0,
+        message:
+          cpi.length
+            ? "داتای CPI دۆزرایەوە."
+            : "لە داتای ئەمڕۆدا هیچ CPI ـێکی US نەدۆزرایەوە.",
 
         source:
           newsData.source,
@@ -755,9 +603,7 @@ export default async function handler(req, res) {
           cpi.length,
 
         cpi
-
       });
-
     }
 
     // =======================================================
@@ -765,9 +611,7 @@ export default async function handler(req, res) {
     // =======================================================
 
     if (action === "news") {
-
       return res.status(200).json({
-
         success:
           newsData.success,
 
@@ -800,9 +644,7 @@ export default async function handler(req, res) {
 
         highImpact:
           newsData.highImpact || []
-
       });
-
     }
 
     // =======================================================
@@ -810,9 +652,7 @@ export default async function handler(req, res) {
     // =======================================================
 
     if (action === "market") {
-
       return res.status(200).json({
-
         success:
           marketData.success,
 
@@ -835,49 +675,31 @@ export default async function handler(req, res) {
 
         candles:
           marketData.candles || []
-
       });
-
     }
 
     // =======================================================
-    // AI KEY CHECK
+    // REQUEST VALIDATION
     // =======================================================
 
-    if (
-      !geminiKey &&
-      !openRouterKey
-    ) {
-
-      return res.status(500).json({
-
-        success: false,
-
-        error:
-          "هیچ AI API Key ـێک دانەنراوە. GEMINI_API_KEY یان OPENROUTER_API_KEY زیاد بکە."
-
-      });
-
-    }
-
-    // =======================================================
-    // USER REQUEST CHECK
-    // =======================================================
-
-    if (
-      !message &&
-      !input.image
-    ) {
-
+    if (!message && !input.image) {
       return res.status(400).json({
-
         success: false,
-
         error:
           "تکایە پرسیار یان وێنەی Chart بنێرە."
-
       });
+    }
 
+    // =======================================================
+    // CHECK AI PROVIDERS
+    // =======================================================
+
+    if (!geminiKey && !openRouterKey) {
+      return res.status(500).json({
+        success: false,
+        error:
+          "هیچ AI API ـیەک دانەنراوە. GEMINI_API_KEY یان OPENROUTER_API_KEY زیاد بکە."
+      });
     }
 
     // =======================================================
@@ -892,12 +714,12 @@ export default async function handler(req, res) {
         : [];
 
     const currentPrice =
-      marketData?.market?.currentPrice
-      ?? null;
+      marketData?.market?.currentPrice ??
+      null;
 
     const direction =
-      marketData?.market?.direction
-      ?? "neutral";
+      marketData?.market?.direction ??
+      "neutral";
 
     const cpi =
       Array.isArray(newsData?.cpi)
@@ -927,17 +749,50 @@ export default async function handler(req, res) {
         : [];
 
     // =======================================================
-    // SYSTEM PROMPT
+    // STRONG KURDISH SYSTEM PROMPT
     // =======================================================
 
     const systemPrompt = `
-
 تۆ ShahanFX AI Pro ـیت.
 
-زمانی وەڵام:
-کوردی سۆرانی.
+🚨 یاسای زۆر گرنگ:
 
-تۆ پسپۆڕیت لە:
+هەموو وەڵامەکەت دەبێت بە زمانی کوردی سۆرانی بێت.
+
+تەنها کوردی سۆرانی بەکاربهێنە.
+
+بە هیچ شێوەیەک وەڵامی سەرەکی بە ئینگلیزی مەنووسە.
+
+ئەگەر ناوی زانستی یان کورتکراوەی Forex پێویست بوو،
+تەنها ئەو وشەیە بە ئینگلیزی بهێڵەوە و ڕوونکردنەوەکە بە کوردی بێت.
+
+نموونە:
+
+FVG = کەلێنی نرخی دادەبڕێت
+
+BOS = شکاندنی ساختاری بازاڕ
+
+CHOCH = گۆڕانی کاراکتری بازاڕ
+
+Liquidity = شلەیی بازاڕ
+
+Order Block = ناوچەی داڕشتنی فەرمان
+
+Premium = ناوچەی بەرز
+
+Discount = ناوچەی نزم
+
+WAIT = چاوەڕوان بە
+
+BUY = کڕین
+
+SELL = فرۆشتن
+
+هەموو ئەمانە لە وەڵامدا بە شێوەی کوردی ڕوون بکەرەوە.
+
+========================================================
+
+تۆ پسپۆڕی:
 
 Forex
 XAU/USD
@@ -946,14 +801,18 @@ SMC
 Price Action
 Market Structure
 Liquidity
-Economic News
+FVG
+Order Block
+BOS
+CHOCH
 Risk Management
+Economic News
 
-=========================================================
-یاسای زۆر گرنگ
-=========================================================
+========================================================
 
-تەنها داتای LIVE ـی نێردراو بەکاربهێنە.
+داتا
+
+تەنها داتای ڕاستەوخۆی نێردراو بەکاربهێنە.
 
 هیچ نرخێک مەخەڵقە.
 
@@ -961,26 +820,44 @@ Risk Management
 
 هیچ CPI Actual/Forecast/Previous مەخەڵقە.
 
-ئەگەر داتا نییە:
-
-بڵێ:
+ئەگەر داتا بەردەست نییە:
 
 "داتای ڕاستەوخۆی ئەم بەشە بەردەست نییە."
 
-=========================================================
-ICT / SMC
-=========================================================
+بڵێ.
 
-بپشکنە:
+========================================================
 
+CPI / NFP / FOMC / PPI
+
+ئەگەر داتا هەیە:
+
+Date
+Event
+Impact
+Actual
+Forecast
+Previous
+
+پیشان بدە، بەڵام ڕوونکردنەوە بە کوردی بێت.
+
+ئەگەر داتا نییە، هیچ شتێک مەخەڵقە.
+
+========================================================
+
+XAU/USD
+
+لە شیکردنەوەی زێڕدا پشکنین بکە:
+
+Market Bias
+Market Structure
 HH
 HL
 LH
 LL
 BOS
 CHOCH
-BSL
-SSL
+Liquidity
 Liquidity Sweep
 FVG
 Order Block
@@ -990,25 +867,32 @@ Premium
 Discount
 Equilibrium
 Displacement
-Imbalance
+Candle Reaction
 
-=========================================================
-TRADE
-=========================================================
+========================================================
 
-ئەگەر trade analysis داواکرا:
+TRADE ANALYSIS
+
+کاتێک بەکارهێنەر داوای شیکردنەوەی Trade دەکات،
+ئەم شێوازە بەکاربهێنە:
 
 📊 SHAHANFX AI PRO
 
-🥇 Symbol:
-⏱ Timeframe:
-💰 Current Price:
+🥇 نیشانە:
+⏱ چوارچێوەی کات:
+💰 نرخی ئێستا:
 
-📰 News:
+📰 هەواڵ:
 
-📈 Market Bias:
+📊 Actual:
+📊 Forecast:
+📊 Previous:
 
-🏗 Market Structure:
+⚡ کاریگەری هەواڵ:
+
+📈 ئاراستەی بازاڕ:
+
+🏗 ساختاری بازاڕ:
 
 🔥 BOS / CHOCH:
 
@@ -1018,7 +902,7 @@ TRADE
 
 🧱 Order Block:
 
-🕯 Candle Reaction:
+🕯 کاردانەوەی شەمە:
 
 🎯 Setup:
 BUY / SELL / WAIT
@@ -1033,33 +917,41 @@ BUY / SELL / WAIT
 
 🧠 Confidence:
 
-=========================================================
-RISK
-=========================================================
+========================================================
 
-هیچ trade ـێک 100% Guaranteed نییە.
+یاسای Trade
 
-ئەگەر Balance و Risk % نییە:
-Lot Size مەحسابە.
+هیچ Trade ـێک 100% دڵنیایی نییە.
 
-=========================================================
+ئەگەر Confirmation نییە:
+
 WAIT
-=========================================================
 
-ئەگەر:
+پێشنیاری BUY یان SELL بەبێ Confirmation مەدە.
 
-News زۆر نزیکە
-یان
-Volatility زۆر بەرزە
-یان
-Structure ناڕوونە
-یان
-Confirmation نییە
+ئەگەر News نزیکە:
 
-→ WAIT.
+WAIT
 
-پێشنیاری trade بەبێ confirmation مەدە.
+ئەگەر Structure ناڕوونە:
 
+WAIT
+
+ئەگەر Volatility زۆر بەرزە:
+
+WAIT
+
+========================================================
+
+🔥 گرنگترین یاسای زمان:
+
+لە کۆتایی وەڵامدا هەموو ڕستەکان بە کوردی سۆرانی بن.
+
+هیچ paragraph ـێکی ئینگلیزی مەنووسە.
+
+وەڵامەکە سروشتی، ڕوون و ئاسان بێت.
+
+========================================================
 `;
 
     // =======================================================
@@ -1068,36 +960,36 @@ Confirmation نییە
 
     const liveContext = `
 
-================ LIVE MARKET ================
+================ داتای بازاڕ ================
 
-Source:
-${marketData?.source || "Unavailable"}
+سەرچاوە:
+${marketData?.source || "بەردەست نییە"}
 
-Symbol:
+نیشانە:
 ${marketData?.symbol || finalSymbol}
 
-Timeframe:
+چوارچێوەی کات:
 ${marketData?.interval || safeInterval}
 
-Current Price:
-${currentPrice ?? "Unavailable"}
+نرخی ئێستا:
+${currentPrice ?? "بەردەست نییە"}
 
-Direction:
+ئاراستە:
 ${direction}
 
-Candles:
+شەمەکان:
 ${JSON.stringify(
   candles.slice(0, 100),
   null,
   2
 )}
 
-================ LIVE NEWS ================
+================ هەواڵ ================
 
-Source:
-${newsData?.source || "Unavailable"}
+سەرچاوە:
+${newsData?.source || "بەردەست نییە"}
 
-Important News:
+هەواڵە گرنگەکان:
 ${JSON.stringify(
   importantNews,
   null,
@@ -1136,7 +1028,7 @@ ${JSON.stringify(
   2
 )}
 
-================ USER ================
+================ پرسیاری بەکارهێنەر ================
 
 ${message || "ئەم Chart ـە شیکاربکە."}
 
@@ -1150,118 +1042,50 @@ ${message || "ئەم Chart ـە شیکاربکە."}
       input.image || null;
 
     // =======================================================
-    // GEMINI PARTS
+    // GEMINI REQUEST
     // =======================================================
 
-    const geminiParts = [
-
-      {
-        text:
-          systemPrompt +
-          liveContext
-      }
-
-    ];
-
-    if (
-      image &&
-      image.data &&
-      image.mimeType
-    ) {
-
-      geminiParts.push({
-
-        inlineData: {
-
-          mimeType:
-            image.mimeType,
-
-          data:
-            image.data
-
-        }
-
-      });
-
-    }
-
-    // =======================================================
-    // OPENROUTER CONTENT
-    // =======================================================
-
-    const openRouterContent = [
-
-      {
-
-        type:
-          "text",
-
-        text:
-          systemPrompt +
-          liveContext
-
-      }
-
-    ];
-
-    if (
-      image &&
-      image.data &&
-      image.mimeType
-    ) {
-
-      openRouterContent.push({
-
-        type:
-          "image_url",
-
-        image_url: {
-
-          url:
-            `data:${image.mimeType};base64,${image.data}`
-
-        }
-
-      });
-
-    }
-
-    // =======================================================
-    // AI RESULT
-    // =======================================================
-
-    let answer = null;
-    let usedProvider = null;
-    let usedModel = null;
-
-    // =======================================================
-    // GEMINI FUNCTION
-    // =======================================================
-
-    async function callGemini() {
-
+    async function askGemini() {
       if (!geminiKey) {
-
         throw new Error(
-          "GEMINI_API_KEY نەدۆزرایەوە."
+          "Gemini API Key نییە."
         );
+      }
 
+      const parts = [
+        {
+          text:
+            systemPrompt +
+            liveContext
+        }
+      ];
+
+      if (
+        image &&
+        image.data &&
+        image.mimeType
+      ) {
+        parts.push({
+          inlineData: {
+            mimeType:
+              image.mimeType,
+
+            data:
+              image.data
+          }
+        });
       }
 
       const models = [
-
         "gemini-3.7-flash",
         "gemini-3.6-flash",
         "gemini-3.5-flash"
-
       ];
 
       let lastError = null;
 
       for (const model of models) {
-
         try {
-
           const endpoint =
             "https://generativelanguage.googleapis.com/v1beta/models/" +
             model +
@@ -1274,46 +1098,27 @@ ${message || "ئەم Chart ـە شیکاربکە."}
             await fetch(
               endpoint,
               {
-
-                method:
-                  "POST",
+                method: "POST",
 
                 headers: {
-
                   "Content-Type":
                     "application/json"
-
                 },
 
                 body:
                   JSON.stringify({
-
                     contents: [
-
                       {
-
-                        role:
-                          "user",
-
-                        parts:
-                          geminiParts
-
+                        role: "user",
+                        parts
                       }
-
                     ],
 
                     generationConfig: {
-
-                      maxOutputTokens:
-                        5000,
-
-                      temperature:
-                        0.2
-
+                      maxOutputTokens: 5000,
+                      temperature: 0.2
                     }
-
                   })
-
               }
             );
 
@@ -1321,8 +1126,7 @@ ${message || "ئەم Chart ـە شیکاربکە."}
             await response.json();
 
           if (response.ok) {
-
-            const text =
+            const answer =
               data
                 ?.candidates?.[0]
                 ?.content?.parts
@@ -1333,135 +1137,120 @@ ${message || "ئەم Chart ـە شیکاربکە."}
                 .join("")
                 .trim();
 
-            if (text) {
-
+            if (answer) {
               return {
-
-                answer:
-                  text,
-
+                answer,
+                provider: "Gemini",
                 model
-
               };
-
             }
-
           }
 
           lastError =
             data?.error?.message ||
-            `Gemini HTTP ${response.status}`;
-
-          console.error(
-            "Gemini failed:",
-            lastError
-          );
-
+            "Gemini وەڵامی نەدا.";
         } catch (error) {
-
           lastError =
             error?.message ||
-            "Gemini error";
-
-          console.error(
-            "Gemini exception:",
-            lastError
-          );
-
+            "Gemini هەڵەی هەبوو.";
         }
-
       }
 
       throw new Error(
         lastError ||
-        "Gemini failed."
+        "Gemini بەردەست نییە."
       );
-
     }
 
     // =======================================================
-    // OPENROUTER FUNCTION
+    // OPENROUTER REQUEST
     // =======================================================
 
-    async function callOpenRouter() {
-
+    async function askOpenRouter() {
       if (!openRouterKey) {
-
         throw new Error(
-          "OPENROUTER_API_KEY نەدۆزرایەوە."
+          "OpenRouter API Key نییە."
         );
-
       }
 
+      const messages = [
+        {
+          role: "system",
+          content:
+            systemPrompt
+        },
+        {
+          role: "user",
+          content:
+            liveContext
+        }
+      ];
+
       // =====================================================
-      // OpenRouter models
+      // IMAGE SUPPORT
       // =====================================================
+
+      if (
+        image &&
+        image.data &&
+        image.mimeType
+      ) {
+        messages[1].content = [
+          {
+            type: "text",
+            text:
+              liveContext
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url:
+                `data:${image.mimeType};base64,${image.data}`
+            }
+          }
+        ];
+      }
 
       const models = [
-
-        "google/gemini-2.5-flash",
-        "meta-llama/llama-4-maverick",
-        "qwen/qwen3-30b-a3b"
-
+        "openai/gpt-oss-120b:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "qwen/qwen3-30b-a3b:free"
       ];
 
       let lastError = null;
 
       for (const model of models) {
-
         try {
-
           const response =
             await fetch(
               "https://openrouter.ai/api/v1/chat/completions",
               {
-
-                method:
-                  "POST",
+                method: "POST",
 
                 headers: {
+                  "Authorization":
+                    `Bearer ${openRouterKey}`,
 
                   "Content-Type":
                     "application/json",
 
-                  Authorization:
-                    `Bearer ${openRouterKey}`,
-
                   "HTTP-Referer":
-                    "https://shahanfx.com",
+                    "https://shahanfx.vercel.app",
 
                   "X-Title":
                     "ShahanFX AI"
-
                 },
 
                 body:
                   JSON.stringify({
-
                     model,
 
-                    messages: [
+                    messages,
 
-                      {
+                    temperature: 0.2,
 
-                        role:
-                          "user",
-
-                        content:
-                          openRouterContent
-
-                      }
-
-                    ],
-
-                    temperature:
-                      0.2,
-
-                    max_tokens:
-                      5000
-
+                    max_tokens: 5000
                   })
-
               }
             );
 
@@ -1469,171 +1258,93 @@ ${message || "ئەم Chart ـە شیکاربکە."}
             await response.json();
 
           if (response.ok) {
-
-            const text =
+            const answer =
               data
                 ?.choices?.[0]
                 ?.message?.content
                 ?.trim();
 
-            if (text) {
-
+            if (answer) {
               return {
-
-                answer:
-                  text,
+                answer,
+                provider:
+                  "OpenRouter",
 
                 model
-
               };
-
             }
-
           }
 
           lastError =
             data?.error?.message ||
-            `OpenRouter HTTP ${response.status}`;
-
-          console.error(
-            "OpenRouter failed:",
-            lastError
-          );
-
+            "OpenRouter وەڵامی نەدا.";
         } catch (error) {
-
           lastError =
             error?.message ||
-            "OpenRouter error";
-
-          console.error(
-            "OpenRouter exception:",
-            lastError
-          );
-
+            "OpenRouter هەڵەی هەبوو.";
         }
-
       }
 
       throw new Error(
         lastError ||
-        "OpenRouter failed."
+        "OpenRouter بەردەست نییە."
       );
-
     }
 
     // =======================================================
-    // AUTOMATIC FALLBACK
+    // AI FAILOVER
     // =======================================================
 
+    let result = null;
+
     // -------------------------------------------------------
-    // 1. Gemini
+    // FIRST: GEMINI
     // -------------------------------------------------------
 
     if (geminiKey) {
-
       try {
-
-        const result =
-          await callGemini();
-
-        answer =
-          result.answer;
-
-        usedProvider =
-          "Gemini";
-
-        usedModel =
-          result.model;
-
+        result =
+          await askGemini();
       } catch (error) {
-
         console.error(
-          "PRIMARY GEMINI FAILED:",
+          "GEMINI FAILED:",
           error?.message
         );
-
       }
-
     }
 
     // -------------------------------------------------------
-    // 2. OpenRouter
+    // SECOND: OPENROUTER
     // -------------------------------------------------------
 
-    if (!answer && openRouterKey) {
-
+    if (!result && openRouterKey) {
       try {
-
-        const result =
-          await callOpenRouter();
-
-        answer =
-          result.answer;
-
-        usedProvider =
-          "OpenRouter";
-
-        usedModel =
-          result.model;
-
+        result =
+          await askOpenRouter();
       } catch (error) {
-
         console.error(
-          "FALLBACK OPENROUTER FAILED:",
+          "OPENROUTER FAILED:",
           error?.message
         );
-
       }
-
-    }
-
-    // -------------------------------------------------------
-    // 3. Gemini FINAL RETRY
-    // -------------------------------------------------------
-
-    if (
-      !answer &&
-      geminiKey
-    ) {
-
-      try {
-
-        const result =
-          await callGemini();
-
-        answer =
-          result.answer;
-
-        usedProvider =
-          "Gemini";
-
-        usedModel =
-          result.model;
-
-      } catch (error) {
-
-        console.error(
-          "FINAL GEMINI RETRY FAILED:",
-          error?.message
-        );
-
-      }
-
     }
 
     // =======================================================
     // BOTH FAILED
     // =======================================================
 
-    if (!answer) {
-
+    if (!result) {
       return res.status(503).json({
-
         success: false,
 
         error:
-          "⚠️ ShahanFX AI لە ئێستادا بەردەست نییە. تکایە دووبارە هەوڵ بدە.",
+          "⚠️ هەردوو سیستەمی زیرەک لە ئێستادا بەردەست نین. تکایە دووبارە هەوڵ بدە.",
+
+        geminiConnected:
+          Boolean(geminiKey),
+
+        openRouterConnected:
+          Boolean(openRouterKey),
 
         marketConnected:
           Boolean(
@@ -1644,9 +1355,7 @@ ${message || "ئەم Chart ـە شیکاربکە."}
           Boolean(
             newsData?.success
           )
-
       });
-
     }
 
     // =======================================================
@@ -1654,16 +1363,16 @@ ${message || "ئەم Chart ـە شیکاربکە."}
     // =======================================================
 
     return res.status(200).json({
-
       success: true,
 
-      answer,
+      answer:
+        result.answer,
 
       provider:
-        usedProvider,
+        result.provider,
 
       model:
-        usedModel,
+        result.model,
 
       hasImage:
         Boolean(
@@ -1672,7 +1381,6 @@ ${message || "ئەم Chart ـە شیکاربکە."}
         ),
 
       liveData: {
-
         market:
           Boolean(
             marketData?.success
@@ -1682,11 +1390,9 @@ ${message || "ئەم Chart ـە شیکاربکە."}
           Boolean(
             newsData?.success
           )
-
       },
 
       market: {
-
         symbol:
           marketData?.symbol ||
           finalSymbol,
@@ -1698,11 +1404,9 @@ ${message || "ئەم Chart ـە شیکاربکە."}
         currentPrice,
 
         direction
-
       },
 
       news: {
-
         cpi:
           cpi.length,
 
@@ -1714,20 +1418,16 @@ ${message || "ئەم Chart ـە شیکاربکە."}
 
         ppi:
           ppi.length
-
       }
-
     });
 
   } catch (error) {
-
     console.error(
       "SHAHANFX AI PRO ERROR:",
       error
     );
 
     return res.status(500).json({
-
       success: false,
 
       error:
@@ -1735,9 +1435,6 @@ ${message || "ئەم Chart ـە شیکاربکە."}
 
       details:
         error?.message || null
-
     });
-
   }
-
 }
