@@ -2,12 +2,8 @@ export default async function handler(req, res) {
 
   // =========================================================
   // SHAHANFX AI PRO
-  // GEMINI + OPENROUTER FALLBACK
+  // GEMINI + OPENROUTER AUTO FALLBACK
   // MARKET + NEWS + CPI + NFP + FOMC + PPI
-  // POST /api/chat
-  // GET  /api/chat?action=cpi
-  // GET  /api/chat?action=news
-  // GET  /api/chat?action=market
   // =========================================================
 
   // =========================
@@ -38,7 +34,7 @@ export default async function handler(req, res) {
   try {
 
     // =======================================================
-    // ENVIRONMENT VARIABLES
+    // API KEYS
     // =======================================================
 
     const geminiKey =
@@ -63,9 +59,7 @@ export default async function handler(req, res) {
         : (req.body || {});
 
     const action =
-      String(
-        input.action || ""
-      )
+      String(input.action || "")
         .toLowerCase()
         .trim();
 
@@ -109,20 +103,22 @@ export default async function handler(req, res) {
       GBPUSD: "GBP/USD",
       USDJPY: "USD/JPY",
       USDCHF: "USD/CHF",
+
       AUDUSD: "AUD/USD",
       USDCAD: "USD/CAD",
       NZDUSD: "NZD/USD"
 
     };
 
-    const normalizedSymbol =
-      String(symbol)
-        .toUpperCase()
-        .replace(/\s/g, "");
+    const mapped =
+      symbolMap[
+        String(symbol)
+          .toUpperCase()
+          .replace(/\s/g, "")
+      ];
 
     const finalSymbol =
-      symbolMap[normalizedSymbol] ||
-      symbol;
+      mapped || symbol;
 
     // =======================================================
     // INTERVAL
@@ -211,31 +207,29 @@ export default async function handler(req, res) {
         ) {
 
           const candles =
-            data.values.map(
-              c => ({
+            data.values.map(c => ({
 
-                datetime:
-                  c.datetime || null,
+              datetime:
+                c.datetime || null,
 
-                open:
-                  Number(c.open),
+              open:
+                Number(c.open),
 
-                high:
-                  Number(c.high),
+              high:
+                Number(c.high),
 
-                low:
-                  Number(c.low),
+              low:
+                Number(c.low),
 
-                close:
-                  Number(c.close),
+              close:
+                Number(c.close),
 
-                volume:
-                  c.volume !== undefined
-                    ? Number(c.volume)
-                    : null
+              volume:
+                c.volume !== undefined
+                  ? Number(c.volume)
+                  : null
 
-              })
-            );
+            }));
 
           const current =
             candles[0] || null;
@@ -246,10 +240,7 @@ export default async function handler(req, res) {
           let direction =
             "neutral";
 
-          if (
-            current &&
-            previous
-          ) {
+          if (current && previous) {
 
             if (
               current.close >
@@ -385,10 +376,14 @@ export default async function handler(req, res) {
           await fetch(
             newsUrl.toString(),
             {
+
               headers: {
+
                 Accept:
                   "application/json"
+
               }
+
             }
           );
 
@@ -414,34 +409,24 @@ export default async function handler(req, res) {
               ? data
               : [];
 
-          // =================================================
-          // US EVENTS
-          // =================================================
-
           const usEvents =
-            events.filter(
-              event => {
+            events.filter(event => {
 
-                const country =
-                  String(
-                    event?.country || ""
-                  ).toUpperCase();
+              const country =
+                String(
+                  event?.country || ""
+                ).toUpperCase();
 
-                return (
+              return (
 
-                  country === "US" ||
-                  country === "USA" ||
-                  country ===
-                    "UNITED STATES"
+                country === "US" ||
+                country === "USA" ||
+                country ===
+                  "UNITED STATES"
 
-                );
+              );
 
-              }
-            );
-
-          // =================================================
-          // KEYWORDS
-          // =================================================
+            });
 
           const keywords = [
 
@@ -481,20 +466,14 @@ export default async function handler(req, res) {
 
           ];
 
-          // =================================================
-          // NORMALIZE
-          // =================================================
-
           const normalizeEvent =
             event => ({
 
               date:
-                event?.date ||
-                null,
+                event?.date || null,
 
               country:
-                event?.country ||
-                null,
+                event?.country || null,
 
               event:
                 event?.event ||
@@ -534,152 +513,116 @@ export default async function handler(req, res) {
               normalizeEvent
             );
 
-          // =================================================
-          // IMPORTANT
-          // =================================================
-
           const important =
-            normalized.filter(
-              event => {
+            normalized.filter(event => {
 
-                const name =
-                  String(
-                    event.event || ""
-                  ).toLowerCase();
+              const name =
+                String(
+                  event.event || ""
+                ).toLowerCase();
 
-                return keywords.some(
-                  keyword =>
-                    name.includes(
-                      keyword.toLowerCase()
-                    )
-                );
+              return keywords.some(
+                keyword =>
+                  name.includes(
+                    keyword.toLowerCase()
+                  )
+              );
 
-              }
-            );
-
-          // =================================================
-          // HIGH IMPACT
-          // =================================================
+            });
 
           const highImpact =
-            normalized.filter(
-              event => {
+            normalized.filter(event => {
 
-                const impact =
-                  String(
-                    event.impact || ""
-                  ).toLowerCase();
+              const impact =
+                String(
+                  event.impact || ""
+                ).toLowerCase();
 
-                return (
+              return (
 
-                  impact.includes("high") ||
-                  impact === "3" ||
-                  impact.includes("3")
+                impact.includes("high") ||
+                impact === "3" ||
+                impact.includes("3")
 
-                );
+              );
 
-              }
-            );
-
-          // =================================================
-          // CPI
-          // =================================================
+            });
 
           const cpi =
-            normalized.filter(
-              event => {
+            normalized.filter(event => {
 
-                const name =
-                  String(
-                    event.event || ""
-                  ).toLowerCase();
+              const name =
+                String(
+                  event.event || ""
+                ).toLowerCase();
 
-                return (
+              return (
 
-                  name.includes("cpi") ||
-                  name.includes(
-                    "consumer price index"
-                  )
+                name.includes("cpi") ||
+                name.includes(
+                  "consumer price index"
+                )
 
-                );
+              );
 
-              }
-            );
-
-          // =================================================
-          // NFP
-          // =================================================
+            });
 
           const nfp =
-            normalized.filter(
-              event => {
+            normalized.filter(event => {
 
-                const name =
-                  String(
-                    event.event || ""
-                  ).toLowerCase();
+              const name =
+                String(
+                  event.event || ""
+                ).toLowerCase();
 
-                return (
+              return (
 
-                  name.includes("non farm") ||
-                  name.includes("non-farm") ||
-                  name.includes("nonfarm") ||
-                  name.includes("payroll") ||
-                  name === "nfp"
+                name.includes("non farm") ||
+                name.includes("non-farm") ||
+                name.includes("nonfarm") ||
+                name.includes("payroll") ||
+                name === "nfp"
 
-                );
+              );
 
-              }
-            );
-
-          // =================================================
-          // FOMC
-          // =================================================
+            });
 
           const fomc =
-            normalized.filter(
-              event => {
+            normalized.filter(event => {
 
-                const name =
-                  String(
-                    event.event || ""
-                  ).toLowerCase();
+              const name =
+                String(
+                  event.event || ""
+                ).toLowerCase();
 
-                return (
+              return (
 
-                  name.includes("fomc") ||
-                  name.includes("federal funds") ||
-                  name.includes("interest rate")
+                name.includes("fomc") ||
+                name.includes("federal funds") ||
+                name.includes("interest rate")
 
-                );
+              );
 
-              }
-            );
-
-          // =================================================
-          // PPI
-          // =================================================
+            });
 
           const ppi =
-            normalized.filter(
-              event => {
+            normalized.filter(event => {
 
-                const name =
-                  String(
-                    event.event || ""
-                  ).toLowerCase();
+              const name =
+                String(
+                  event.event || ""
+                ).toLowerCase();
 
-                return (
+              return (
 
-                  name.includes("ppi") ||
-                  name.includes(
-                    "producer price"
-                  )
+                name.includes("ppi") ||
+                name.includes(
+                  "producer price"
+                )
 
-                );
+              );
 
-              }
-            );
+            });
 
           newsData = {
 
@@ -793,38 +736,14 @@ export default async function handler(req, res) {
       const cpi =
         newsData.cpi || [];
 
-      if (cpi.length === 0) {
-
-        return res.status(200).json({
-
-          success: true,
-
-          type: "cpi",
-
-          found: false,
-
-          message:
-            "لە داتای ئەمڕۆدا هیچ هەواڵێکی CPI بۆ US نەدۆزرایەوە.",
-
-          date:
-            todayString,
-
-          source:
-            newsData.source,
-
-          cpi: []
-
-        });
-
-      }
-
       return res.status(200).json({
 
         success: true,
 
         type: "cpi",
 
-        found: true,
+        found:
+          cpi.length > 0,
 
         source:
           newsData.source,
@@ -835,36 +754,7 @@ export default async function handler(req, res) {
         count:
           cpi.length,
 
-        cpi:
-          cpi.map(
-            event => ({
-
-              date:
-                event.date,
-
-              event:
-                event.event,
-
-              impact:
-                event.impact,
-
-              actual:
-                event.actual,
-
-              forecast:
-                event.estimate,
-
-              previous:
-                event.previous,
-
-              unit:
-                event.unit,
-
-              currency:
-                event.currency
-
-            })
-          )
+        cpi
 
       });
 
@@ -951,7 +841,7 @@ export default async function handler(req, res) {
     }
 
     // =======================================================
-    // AT LEAST ONE AI KEY REQUIRED
+    // AI KEY CHECK
     // =======================================================
 
     if (
@@ -1010,30 +900,22 @@ export default async function handler(req, res) {
       ?? "neutral";
 
     const cpi =
-      Array.isArray(
-        newsData?.cpi
-      )
+      Array.isArray(newsData?.cpi)
         ? newsData.cpi
         : [];
 
     const nfp =
-      Array.isArray(
-        newsData?.nfp
-      )
+      Array.isArray(newsData?.nfp)
         ? newsData.nfp
         : [];
 
     const fomc =
-      Array.isArray(
-        newsData?.fomc
-      )
+      Array.isArray(newsData?.fomc)
         ? newsData.fomc
         : [];
 
     const ppi =
-      Array.isArray(
-        newsData?.ppi
-      )
+      Array.isArray(newsData?.ppi)
         ? newsData.ppi
         : [];
 
@@ -1085,56 +967,6 @@ Risk Management
 
 "داتای ڕاستەوخۆی ئەم بەشە بەردەست نییە."
 
-ئەگەر آرشیفی ئەمڕۆ پشکنراوە و هیچ event ـێک نییە:
-
-بڵێ:
-
-"لە داتای ئەمڕۆدا هیچ event ـێکی ئەم جۆرە نەدۆزرایەوە."
-
-=========================================================
-CPI
-=========================================================
-
-کاتێک بەکارهێنەر دەڵێت:
-
-CPI هەیە؟
-هەواڵی CPI هەیە؟
-CPI چییە؟
-CPI بۆ زێڕ چۆنە؟
-
-داتای CPI ـی نێردراو پشکنە.
-
-ئەگەر هەیە:
-
-Date
-Event
-Impact
-Actual
-Forecast
-Previous
-Unit
-Currency
-
-پیشان بدە.
-
-=========================================================
-NEWS + GOLD
-=========================================================
-
-CPI بە تەنیا Direction ـی زێڕ Guaranteed ناکات.
-
-بە گشتی:
-
-CPI زۆرتر لە Forecast
-→ دەتوانێت USD بەهێز بکات
-→ دەتوانێت فشار لەسەر Gold دروست بکات.
-
-CPI کەمتر لە Forecast
-→ دەتوانێت USD لاواز بکات
-→ دەتوانێت Gold پشتگیری بکات.
-
-بەڵام هەمیشە Price Action و Market Structure پشتڕاستی بکەوە.
-
 =========================================================
 ICT / SMC
 =========================================================
@@ -1173,11 +1005,6 @@ TRADE
 💰 Current Price:
 
 📰 News:
-📊 Actual:
-📊 Forecast:
-📊 Previous:
-
-⚡ News Impact:
 
 📈 Market Bias:
 
@@ -1213,7 +1040,6 @@ RISK
 هیچ trade ـێک 100% Guaranteed نییە.
 
 ئەگەر Balance و Risk % نییە:
-
 Lot Size مەحسابە.
 
 =========================================================
@@ -1261,7 +1087,7 @@ ${direction}
 
 Candles:
 ${JSON.stringify(
-  candles.slice(0, 50),
+  candles.slice(0, 100),
   null,
   2
 )}
@@ -1273,7 +1099,7 @@ ${newsData?.source || "Unavailable"}
 
 Important News:
 ${JSON.stringify(
-  importantNews.slice(0, 30),
+  importantNews,
   null,
   2
 )}
@@ -1281,7 +1107,7 @@ ${JSON.stringify(
 ================ CPI ================
 
 ${JSON.stringify(
-  cpi.slice(0, 20),
+  cpi,
   null,
   2
 )}
@@ -1289,7 +1115,7 @@ ${JSON.stringify(
 ================ NFP ================
 
 ${JSON.stringify(
-  nfp.slice(0, 20),
+  nfp,
   null,
   2
 )}
@@ -1297,7 +1123,7 @@ ${JSON.stringify(
 ================ FOMC ================
 
 ${JSON.stringify(
-  fomc.slice(0, 20),
+  fomc,
   null,
   2
 )}
@@ -1305,7 +1131,7 @@ ${JSON.stringify(
 ================ PPI ================
 
 ${JSON.stringify(
-  ppi.slice(0, 20),
+  ppi,
   null,
   2
 )}
@@ -1363,17 +1189,20 @@ ${message || "ئەم Chart ـە شیکاربکە."}
     // OPENROUTER CONTENT
     // =======================================================
 
-    const openRouterContent = [];
+    const openRouterContent = [
 
-    openRouterContent.push({
+      {
 
-      type: "text",
+        type:
+          "text",
 
-      text:
-        systemPrompt +
-        liveContext
+        text:
+          systemPrompt +
+          liveContext
 
-    });
+      }
+
+    ];
 
     if (
       image &&
@@ -1398,6 +1227,14 @@ ${message || "ئەم Chart ـە شیکاربکە."}
     }
 
     // =======================================================
+    // AI RESULT
+    // =======================================================
+
+    let answer = null;
+    let usedProvider = null;
+    let usedModel = null;
+
+    // =======================================================
     // GEMINI FUNCTION
     // =======================================================
 
@@ -1405,27 +1242,23 @@ ${message || "ئەم Chart ـە شیکاربکە."}
 
       if (!geminiKey) {
 
-        return {
-
-          success: false,
-
-          reason:
-            "NO_GEMINI_KEY"
-
-        };
+        throw new Error(
+          "GEMINI_API_KEY نەدۆزرایەوە."
+        );
 
       }
 
       const models = [
 
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite"
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash"
 
       ];
 
-      for (
-        const model of models
-      ) {
+      let lastError = null;
+
+      for (const model of models) {
 
         try {
 
@@ -1437,103 +1270,75 @@ ${message || "ئەم Chart ـە شیکاربکە."}
               geminiKey
             );
 
-          const controller =
-            new AbortController();
+          const response =
+            await fetch(
+              endpoint,
+              {
 
-          const timeout =
-            setTimeout(
-              () =>
-                controller.abort(),
-              25000
-            );
+                method:
+                  "POST",
 
-          let response;
+                headers: {
 
-          try {
+                  "Content-Type":
+                    "application/json"
 
-            response =
-              await fetch(
-                endpoint,
-                {
+                },
 
-                  method:
-                    "POST",
+                body:
+                  JSON.stringify({
 
-                  headers: {
+                    contents: [
 
-                    "Content-Type":
-                      "application/json"
+                      {
 
-                  },
+                        role:
+                          "user",
 
-                  body:
-                    JSON.stringify({
-
-                      contents: [
-
-                        {
-
-                          role:
-                            "user",
-
-                          parts:
-                            geminiParts
-
-                        }
-
-                      ],
-
-                      generationConfig: {
-
-                        maxOutputTokens:
-                          4000,
-
-                        temperature:
-                          0.2
+                        parts:
+                          geminiParts
 
                       }
 
-                    }),
+                    ],
 
-                  signal:
-                    controller.signal
+                    generationConfig: {
 
-                }
-              );
+                      maxOutputTokens:
+                        5000,
 
-          } finally {
+                      temperature:
+                        0.2
 
-            clearTimeout(
-              timeout
+                    }
+
+                  })
+
+              }
             );
-
-          }
 
           const data =
             await response.json();
 
-          if (
-            response.ok
-          ) {
+          if (response.ok) {
 
-            const answer =
+            const text =
               data
                 ?.candidates?.[0]
                 ?.content?.parts
                 ?.map(
-                  part =>
-                    part.text || ""
+                  p =>
+                    p.text || ""
                 )
                 .join("")
                 .trim();
 
-            if (answer) {
+            if (text) {
 
               return {
 
-                success: true,
-
-                answer,
+                answer:
+                  text,
 
                 model
 
@@ -1543,59 +1348,34 @@ ${message || "ئەم Chart ـە شیکاربکە."}
 
           }
 
-          const status =
-            response.status;
-
-          const errorMessage =
-            String(
-              data?.error?.message ||
-              ""
-            );
+          lastError =
+            data?.error?.message ||
+            `Gemini HTTP ${response.status}`;
 
           console.error(
             "Gemini failed:",
-            model,
-            status,
-            errorMessage
+            lastError
           );
-
-          // Move to next Gemini model
-          if (
-            status === 429 ||
-            status === 500 ||
-            status === 502 ||
-            status === 503 ||
-            status === 504
-          ) {
-
-            continue;
-
-          }
-
-          // Other error
-          break;
 
         } catch (error) {
 
+          lastError =
+            error?.message ||
+            "Gemini error";
+
           console.error(
             "Gemini exception:",
-            error?.message
+            lastError
           );
-
-          continue;
 
         }
 
       }
 
-      return {
-
-        success: false,
-
-        reason:
-          "GEMINI_FAILED"
-
-      };
+      throw new Error(
+        lastError ||
+        "Gemini failed."
+      );
 
     }
 
@@ -1607,133 +1387,103 @@ ${message || "ئەم Chart ـە شیکاربکە."}
 
       if (!openRouterKey) {
 
-        return {
-
-          success: false,
-
-          reason:
-            "NO_OPENROUTER_KEY"
-
-        };
+        throw new Error(
+          "OPENROUTER_API_KEY نەدۆزرایەوە."
+        );
 
       }
 
+      // =====================================================
+      // OpenRouter models
+      // =====================================================
+
       const models = [
 
-        "openrouter/free"
+        "google/gemini-2.5-flash",
+        "meta-llama/llama-4-maverick",
+        "qwen/qwen3-30b-a3b"
 
       ];
 
-      for (
-        const model of models
-      ) {
+      let lastError = null;
+
+      for (const model of models) {
 
         try {
 
-          const controller =
-            new AbortController();
+          const response =
+            await fetch(
+              "https://openrouter.ai/api/v1/chat/completions",
+              {
 
-          const timeout =
-            setTimeout(
-              () =>
-                controller.abort(),
-              30000
+                method:
+                  "POST",
+
+                headers: {
+
+                  "Content-Type":
+                    "application/json",
+
+                  Authorization:
+                    `Bearer ${openRouterKey}`,
+
+                  "HTTP-Referer":
+                    "https://shahanfx.com",
+
+                  "X-Title":
+                    "ShahanFX AI"
+
+                },
+
+                body:
+                  JSON.stringify({
+
+                    model,
+
+                    messages: [
+
+                      {
+
+                        role:
+                          "user",
+
+                        content:
+                          openRouterContent
+
+                      }
+
+                    ],
+
+                    temperature:
+                      0.2,
+
+                    max_tokens:
+                      5000
+
+                  })
+
+              }
             );
-
-          let response;
-
-          try {
-
-            response =
-              await fetch(
-                "https://openrouter.ai/api/v1/chat/completions",
-                {
-
-                  method:
-                    "POST",
-
-                  headers: {
-
-                    "Authorization":
-                      `Bearer ${openRouterKey}`,
-
-                    "Content-Type":
-                      "application/json",
-
-                    "HTTP-Referer":
-                      "https://shahanfx.com",
-
-                    "X-Title":
-                      "ShahanFX AI"
-
-                  },
-
-                  body:
-                    JSON.stringify({
-
-                      model,
-
-                      messages: [
-
-                        {
-
-                          role:
-                            "user",
-
-                          content:
-                            openRouterContent
-
-                        }
-
-                      ],
-
-                      temperature:
-                        0.2,
-
-                      max_tokens:
-                        4000
-
-                    }),
-
-                  signal:
-                    controller.signal
-
-                }
-              );
-
-          } finally {
-
-            clearTimeout(
-              timeout
-            );
-
-          }
 
           const data =
             await response.json();
 
-          if (
-            response.ok
-          ) {
+          if (response.ok) {
 
-            const answer =
+            const text =
               data
                 ?.choices?.[0]
-                ?.message
-                ?.content
+                ?.message?.content
                 ?.trim();
 
-            if (answer) {
+            if (text) {
 
               return {
 
-                success: true,
+                answer:
+                  text,
 
-                answer,
-
-                model:
-                  data?.model ||
-                  model
+                model
 
               };
 
@@ -1741,60 +1491,134 @@ ${message || "ئەم Chart ـە شیکاربکە."}
 
           }
 
+          lastError =
+            data?.error?.message ||
+            `OpenRouter HTTP ${response.status}`;
+
           console.error(
             "OpenRouter failed:",
-            response.status,
-            data?.error
+            lastError
           );
 
         } catch (error) {
 
+          lastError =
+            error?.message ||
+            "OpenRouter error";
+
           console.error(
             "OpenRouter exception:",
-            error?.message
+            lastError
           );
 
         }
 
       }
 
-      return {
-
-        success: false,
-
-        reason:
-          "OPENROUTER_FAILED"
-
-      };
+      throw new Error(
+        lastError ||
+        "OpenRouter failed."
+      );
 
     }
 
     // =======================================================
-    // AI ROUTER
+    // AUTOMATIC FALLBACK
     // =======================================================
+
+    // -------------------------------------------------------
     // 1. Gemini
-    // 2. OpenRouter fallback
-    // =======================================================
+    // -------------------------------------------------------
 
-    let aiResult =
-      await callGemini();
+    if (geminiKey) {
 
-    let provider =
-      "Gemini";
+      try {
+
+        const result =
+          await callGemini();
+
+        answer =
+          result.answer;
+
+        usedProvider =
+          "Gemini";
+
+        usedModel =
+          result.model;
+
+      } catch (error) {
+
+        console.error(
+          "PRIMARY GEMINI FAILED:",
+          error?.message
+        );
+
+      }
+
+    }
+
+    // -------------------------------------------------------
+    // 2. OpenRouter
+    // -------------------------------------------------------
+
+    if (!answer && openRouterKey) {
+
+      try {
+
+        const result =
+          await callOpenRouter();
+
+        answer =
+          result.answer;
+
+        usedProvider =
+          "OpenRouter";
+
+        usedModel =
+          result.model;
+
+      } catch (error) {
+
+        console.error(
+          "FALLBACK OPENROUTER FAILED:",
+          error?.message
+        );
+
+      }
+
+    }
+
+    // -------------------------------------------------------
+    // 3. Gemini FINAL RETRY
+    // -------------------------------------------------------
 
     if (
-      !aiResult.success
+      !answer &&
+      geminiKey
     ) {
 
-      console.log(
-        "Gemini unavailable -> OpenRouter fallback"
-      );
+      try {
 
-      aiResult =
-        await callOpenRouter();
+        const result =
+          await callGemini();
 
-      provider =
-        "OpenRouter";
+        answer =
+          result.answer;
+
+        usedProvider =
+          "Gemini";
+
+        usedModel =
+          result.model;
+
+      } catch (error) {
+
+        console.error(
+          "FINAL GEMINI RETRY FAILED:",
+          error?.message
+        );
+
+      }
 
     }
 
@@ -1802,16 +1626,14 @@ ${message || "ئەم Chart ـە شیکاربکە."}
     // BOTH FAILED
     // =======================================================
 
-    if (
-      !aiResult.success
-    ) {
+    if (!answer) {
 
       return res.status(503).json({
 
         success: false,
 
         error:
-          "⚠️ ShahanFX AI لە ئێستادا وەڵام ناداتەوە. Gemini و OpenRouter هەردووکیان بەردەست نین.",
+          "⚠️ ShahanFX AI لە ئێستادا بەردەست نییە. تکایە دووبارە هەوڵ بدە.",
 
         marketConnected:
           Boolean(
@@ -1835,14 +1657,13 @@ ${message || "ئەم Chart ـە شیکاربکە."}
 
       success: true,
 
-      answer:
-        aiResult.answer,
+      answer,
 
-      provider,
+      provider:
+        usedProvider,
 
       model:
-        aiResult.model ||
-        null,
+        usedModel,
 
       hasImage:
         Boolean(
