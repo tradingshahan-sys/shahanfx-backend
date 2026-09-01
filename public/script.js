@@ -1,299 +1,290 @@
-// public/script.js
-
 const SHAHANFX_LOGO =
   "https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg";
 
-const messages =
-  document.getElementById("messages");
-
-const messageInput =
-  document.getElementById("messageInput");
-
-const sendBtn =
-  document.getElementById("sendBtn");
-
-const imageInput =
-  document.getElementById("imageInput");
-
-const imagePreview =
-  document.getElementById("imagePreview");
-
 let selectedImage = null;
 
+function addMessage(type, text) {
+  const chat =
+    document.getElementById("chat") ||
+    document.getElementById("chatMessages") ||
+    document.querySelector(".chat-messages");
 
-// =====================================================
-// ADD MESSAGE
-// =====================================================
+  if (!chat) return;
 
-function addMessage(text, type = "ai") {
-  if (!messages) return;
+  const message = document.createElement("div");
+  message.className =
+    type === "user"
+      ? "message user-message"
+      : "message ai-message";
 
-  const row =
-    document.createElement("div");
+  const avatar = document.createElement("div");
+  avatar.className = "message-avatar";
 
-  row.className =
-    `message-row ${type}`;
-
-  const avatar =
-    document.createElement("div");
-
-  avatar.className = "avatar";
-
-  if (type === "ai") {
-    const img =
-      document.createElement("img");
-
+  if (type === "user") {
+    avatar.textContent = "👤";
+  } else {
+    const img = document.createElement("img");
     img.src = SHAHANFX_LOGO;
-    img.alt = "ShahanFX AI";
-
-    img.onerror = () => {
+    img.alt = "ShahanFX";
+    img.onerror = function () {
+      this.style.display = "none";
       avatar.textContent = "S";
     };
-
     avatar.appendChild(img);
-  } else {
-    avatar.textContent = "👤";
   }
 
-  const bubble =
-    document.createElement("div");
+  const content = document.createElement("div");
+  content.className = "message-content";
 
-  bubble.className = "bubble";
+  content.textContent = text || "";
 
-  // textContent بەکاردهێنین بۆ ئەوەی
-  // HTML ـی بەکارهێنەر اجرا نەبێت.
-  bubble.textContent = text;
+  message.appendChild(avatar);
+  message.appendChild(content);
 
-  row.appendChild(avatar);
-  row.appendChild(bubble);
+  chat.appendChild(message);
 
-  messages.appendChild(row);
-
-  messages.scrollTop =
-    messages.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
 }
 
+function showTyping() {
+  const chat =
+    document.getElementById("chat") ||
+    document.getElementById("chatMessages") ||
+    document.querySelector(".chat-messages");
 
-// =====================================================
-// QUICK QUESTION
-// =====================================================
+  if (!chat) return;
 
-window.quickQuestion =
-  function (question) {
-    if (!messageInput) return;
+  const old = document.getElementById("shahanfx-typing");
 
-    messageInput.value =
-      question;
+  if (old) old.remove();
 
-    sendMessage();
-  };
+  const message = document.createElement("div");
 
+  message.id = "shahanfx-typing";
+  message.className = "message ai-message";
 
-// =====================================================
-// IMAGE SELECT
-// =====================================================
+  const avatar = document.createElement("div");
+  avatar.className = "message-avatar";
 
-if (imageInput) {
-  imageInput.addEventListener(
-    "change",
-    event => {
-      const file =
-        event.target.files?.[0];
+  const img = document.createElement("img");
+  img.src = SHAHANFX_LOGO;
+  img.alt = "ShahanFX";
 
-      if (!file) {
-        selectedImage = null;
+  avatar.appendChild(img);
 
-        if (imagePreview) {
-          imagePreview.innerHTML = "";
-        }
+  const content = document.createElement("div");
+  content.className = "message-content";
+  content.textContent = "⏳ ShahanFX AI لە وەڵامدانەوەدایە...";
 
-        return;
-      }
+  message.appendChild(avatar);
+  message.appendChild(content);
 
-      if (!file.type.startsWith("image/")) {
-        addMessage(
-          "⚠️ تکایە تەنها وێنە هەڵبژێرە.",
-          "ai"
-        );
+  chat.appendChild(message);
 
-        imageInput.value = "";
-        selectedImage = null;
-
-        return;
-      }
-
-      const reader =
-        new FileReader();
-
-      reader.onload = () => {
-        selectedImage =
-          reader.result;
-
-        if (imagePreview) {
-          imagePreview.innerHTML =
-            `<img
-              src="${selectedImage}"
-              alt="Chart Preview"
-              style="
-                max-width:140px;
-                max-height:100px;
-                border-radius:12px;
-                object-fit:cover;
-              "
-            >`;
-        }
-      };
-
-      reader.readAsDataURL(file);
-    }
-  );
+  chat.scrollTop = chat.scrollHeight;
 }
 
+function hideTyping() {
+  const typing =
+    document.getElementById("shahanfx-typing");
 
-// =====================================================
-// SEND MESSAGE
-// =====================================================
-
-async function sendMessage() {
-  if (!messageInput || !sendBtn) {
-    return;
+  if (typing) {
+    typing.remove();
   }
+}
 
-  const message =
-    messageInput.value.trim();
+async function askShahanFX(message = "") {
+  const input =
+    document.getElementById("messageInput") ||
+    document.getElementById("chatInput") ||
+    document.querySelector("textarea");
+
+  if (!message && input) {
+    message = input.value.trim();
+  }
 
   if (!message && !selectedImage) {
     return;
   }
 
   addMessage(
-    message ||
-      "📷 شیکردنەوەی Chart ـەکە.",
-    "user"
+    "user",
+    message || "📷 شیکردنەوەی Chart"
   );
 
-  messageInput.value = "";
+  if (input) {
+    input.value = "";
+  }
 
-  sendBtn.disabled = true;
-
-  const oldText =
-    sendBtn.textContent;
-
-  sendBtn.textContent =
-    "⏳ ...";
+  showTyping();
 
   try {
-    const response =
-      await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/json"
-        },
-        body: JSON.stringify({
-          message,
-          image:
-            selectedImage,
-          symbol:
-            "XAU/USD",
-          interval:
-            "5min",
-          action:
-            "market"
-        })
-      });
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: message,
+        image: selectedImage,
+        symbol: "XAU/USD",
+        interval: "5min",
+        action: "market"
+      })
+    });
 
-    let data;
+    let data = null;
 
     try {
-      data =
-        await response.json();
-    } catch {
-      throw new Error(
-        "وەڵامی Backend دروست نییە."
+      data = await response.json();
+    } catch (error) {
+      hideTyping();
+
+      addMessage(
+        "ai",
+        "❌ Backend وەڵامێکی دروستی JSON ـی نەگەڕاندەوە."
       );
+
+      return;
     }
 
-    if (!response.ok || !data.success) {
-      throw new Error(
+    hideTyping();
+
+    const isSuccess =
+      data &&
+      (data.ok === true ||
+        data.success === true);
+
+    if (!response.ok || !isSuccess) {
+      addMessage(
+        "ai",
         data?.error ||
-        "ShahanFX AI بەردەست نییە."
+          "❌ Backend وەڵامێکی دروستی نەدا."
       );
+
+      return;
+    }
+
+    if (!data.answer) {
+      addMessage(
+        "ai",
+        "❌ Backend وەڵامی AI ـی بەتاڵی نارد."
+      );
+
+      return;
     }
 
     addMessage(
-      data.answer ||
-        "هیچ وەڵامێک نەدرا.",
-      "ai"
+      "ai",
+      data.answer
     );
 
-  } catch (error) {
-    console.error(
-      "ShahanFX AI Error:",
-      error
-    );
+    selectedImage = null;
 
-    addMessage(
-      `❌ ${error.message}`,
-      "ai"
-    );
-  } finally {
-    sendBtn.disabled =
-      false;
+    const preview =
+      document.getElementById("imagePreview");
 
-    sendBtn.textContent =
-      oldText || "Send";
+    if (preview) {
+      preview.innerHTML = "";
+      preview.style.display = "none";
+    }
 
-    selectedImage =
-      null;
+    const imageInput =
+      document.getElementById("imageInput") ||
+      document.getElementById("fileInput");
 
     if (imageInput) {
       imageInput.value = "";
     }
 
-    if (imagePreview) {
-      imagePreview.innerHTML = "";
-    }
+  } catch (error) {
+    console.error(
+      "ShahanFX Frontend Error:",
+      error
+    );
+
+    hideTyping();
+
+    addMessage(
+      "ai",
+      "❌ نەتوانرا پەیوەندی بە ShahanFX AI Backend ـەوە بکرێت. تکایە Backend و Deployment بپشکنە."
+    );
   }
 }
 
-
-// =====================================================
-// SEND BUTTON
-// =====================================================
-
-if (sendBtn) {
-  sendBtn.addEventListener(
-    "click",
-    sendMessage
-  );
+function quickQuestion(question) {
+  askShahanFX(question);
 }
 
+function handleImageUpload(event) {
+  const file =
+    event.target.files &&
+    event.target.files[0];
 
-// =====================================================
-// ENTER KEY
-// =====================================================
+  if (!file) return;
 
-if (messageInput) {
-  messageInput.addEventListener(
-    "keydown",
-    event => {
-      if (
-        event.key === "Enter" &&
-        !event.shiftKey
-      ) {
-        event.preventDefault();
+  if (!file.type.startsWith("image/")) {
+    alert("تکایە تەنها وێنە هەڵبژێرە.");
+    return;
+  }
 
-        sendMessage();
-      }
+  const reader = new FileReader();
+
+  reader.onload = function (e) {
+    selectedImage = e.target.result;
+
+    const preview =
+      document.getElementById("imagePreview");
+
+    if (preview) {
+      preview.innerHTML = "";
+
+      const img =
+        document.createElement("img");
+
+      img.src = selectedImage;
+      img.alt = "Chart Preview";
+
+      preview.appendChild(img);
+
+      preview.style.display = "block";
     }
-  );
+  };
+
+  reader.readAsDataURL(file);
 }
 
+document.addEventListener(
+  "DOMContentLoaded",
+  function () {
+    const imageInput =
+      document.getElementById("imageInput") ||
+      document.getElementById("fileInput");
 
-// =====================================================
-// GLOBAL
-// =====================================================
+    if (imageInput) {
+      imageInput.addEventListener(
+        "change",
+        handleImageUpload
+      );
+    }
 
-window.sendMessage =
-  sendMessage;
+    const input =
+      document.getElementById("messageInput") ||
+      document.getElementById("chatInput");
+
+    if (input) {
+      input.addEventListener(
+        "keydown",
+        function (event) {
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey
+          ) {
+            event.preventDefault();
+            askShahanFX();
+          }
+        }
+      );
+    }
+  }
+);
