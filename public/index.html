@@ -3,15 +3,9 @@
 <head>
   <meta charset="UTF-8">
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <meta
-    name="theme-color"
-    content="#090909"
-  >
+  <meta name="theme-color" content="#090909">
 
   <meta
     name="description"
@@ -21,6 +15,7 @@
   <title>ShahanFX AI — Live Analysis Pro</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
+
   <link
     href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap"
     rel="stylesheet"
@@ -31,344 +26,291 @@
 
 <body>
 
-  <!-- =========================
-       TOP BAR
-  ========================== -->
+<header class="topbar">
 
-  <header class="topbar">
+  <div class="brand">
 
-    <div class="brand">
+    <img
+      class="brand-logo"
+      src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
+      alt="ShahanFX"
+    >
 
-      <img
-        class="brand-logo"
-        src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
-        alt="ShahanFX"
-      >
+    <div class="brand-text">
+      <strong>ShahanFX AI</strong>
+      <span>Live Analysis Pro</span>
+    </div>
 
-      <div class="brand-text">
-        <strong>ShahanFX AI</strong>
-        <span>Live Analysis Pro</span>
+  </div>
+
+  <div class="live-status">
+    <span class="live-dot"></span>
+    <span>LIVE</span>
+  </div>
+
+</header>
+
+
+<main class="container">
+
+  <section class="hero">
+
+    <div class="hero-content">
+
+      <div class="eyebrow">
+        FOREX • GOLD • ALC™ • ICT • SMC
       </div>
+
+      <h1>
+        شیکاریی بازاڕ
+        <span>بە داتای ڕاستەوخۆ</span>
+      </h1>
+
+      <p>
+        ShahanFX AI داتای بازاڕ، Candle، Structure،
+        Liquidity، FVG، Order Block و News
+        بە یەکەوە شیکاری دەکات.
+      </p>
 
     </div>
 
-    <div class="live-status">
-      <span class="live-dot"></span>
-      <span>LIVE</span>
+  </section>
+
+
+  <section class="control-panel">
+
+    <div class="control-group">
+
+      <label for="symbol">
+        Symbol
+      </label>
+
+      <select id="symbol">
+
+        <option value="XAU/USD">
+          XAU/USD — Gold
+        </option>
+
+        <option value="EUR/USD">
+          EUR/USD
+        </option>
+
+        <option value="GBP/USD">
+          GBP/USD
+        </option>
+
+        <option value="USD/JPY">
+          USD/JPY
+        </option>
+
+      </select>
+
     </div>
 
-  </header>
+
+    <div class="control-group">
+
+      <label for="timeframe">
+        Timeframe
+      </label>
+
+      <select id="timeframe">
+
+        <option value="1min">
+          1M
+        </option>
+
+        <option value="5min" selected>
+          5M
+        </option>
+
+        <option value="15min">
+          15M
+        </option>
+
+        <option value="30min">
+          30M
+        </option>
+
+        <option value="1h">
+          1H
+        </option>
+
+      </select>
+
+    </div>
 
 
-  <!-- =========================
-       MAIN
-  ========================== -->
+    <button
+      id="analyzeBtn"
+      class="primary-btn"
+      type="button"
+    >
+      ⚡ شیکاری Live
+    </button>
 
-  <main class="container">
+  </section>
 
-    <!-- HERO -->
 
-    <section class="hero">
+  <section class="live-grid">
 
-      <div class="hero-content">
+    <article class="live-card">
 
-        <div class="eyebrow">
-          FOREX • GOLD • ALC™ • ICT • SMC
-        </div>
-
-        <h1>
-          شیکاریی بازاڕ
-          <span>بە داتای ڕاستەوخۆ</span>
-        </h1>
-
-        <p>
-          ShahanFX AI داتای بازاڕ، Candle، Structure،
-          Liquidity، FVG، Order Block و News
-          بە یەکەوە شیکاری دەکات.
-        </p>
-
+      <div class="card-label">
+        💰 Price
       </div>
 
-    </section>
-
-
-    <!-- =========================
-         CONTROLS
-    ========================== -->
-
-    <section class="control-panel">
-
-      <div class="control-group">
-
-        <label for="symbol">
-          Symbol
-        </label>
-
-        <select id="symbol">
-
-          <option value="XAU/USD">
-            XAU/USD — Gold
-          </option>
-
-          <option value="EUR/USD">
-            EUR/USD
-          </option>
-
-          <option value="GBP/USD">
-            GBP/USD
-          </option>
-
-          <option value="USD/JPY">
-            USD/JPY
-          </option>
-
-        </select>
-
+      <div id="livePrice" class="card-value">
+        —
       </div>
 
-
-      <div class="control-group">
-
-        <label for="timeframe">
-          Timeframe
-        </label>
-
-        <select id="timeframe">
-
-          <option value="1min">
-            1M
-          </option>
-
-          <option value="5min" selected>
-            5M
-          </option>
-
-          <option value="15min">
-            15M
-          </option>
-
-          <option value="30min">
-            30M
-          </option>
-
-          <option value="1h">
-            1H
-          </option>
-
-        </select>
-
+      <div class="card-sub">
+        Live Market
       </div>
 
-
-      <button
-        id="analyzeBtn"
-        class="primary-btn"
-        type="button"
-      >
-        ⚡ شیکاری Live
-      </button>
-
-    </section>
+    </article>
 
 
-    <!-- =========================
-         LIVE DATA
-    ========================== -->
+    <article class="live-card">
 
-    <section class="live-grid">
+      <div class="card-label">
+        📊 Bias
+      </div>
 
-      <article class="live-card">
+      <div id="liveBias" class="card-value">
+        WAIT
+      </div>
 
-        <div class="card-label">
-          💰 Price
-        </div>
+      <div class="card-sub">
+        Market Direction
+      </div>
 
-        <div
-          id="livePrice"
-          class="card-value"
+    </article>
+
+
+    <article class="live-card">
+
+      <div class="card-label">
+        📰 News
+      </div>
+
+      <div id="newsCount" class="card-value">
+        —
+      </div>
+
+      <div class="card-sub">
+        Economic Events
+      </div>
+
+    </article>
+
+
+    <article class="live-card">
+
+      <div class="card-label">
+        🕒 Updated
+      </div>
+
+      <div id="lastUpdated" class="card-value small-value">
+        —
+      </div>
+
+      <div class="card-sub">
+        Auto Refresh
+      </div>
+
+    </article>
+
+  </section>
+
+
+  <section class="market-status">
+
+    <div class="status-title">
+      <span class="status-pulse"></span>
+      Live Market Engine
+    </div>
+
+    <div class="status-items">
+
+      <span>✓ Price</span>
+      <span>✓ Candle</span>
+      <span>✓ Structure</span>
+      <span>✓ Liquidity</span>
+      <span>✓ News</span>
+
+    </div>
+
+  </section>
+
+
+  <section class="assistant">
+
+    <div class="assistant-header">
+
+      <div class="assistant-brand">
+
+        <img
+          src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
+          alt="ShahanFX AI"
+          class="ai-logo"
         >
-          —
+
+        <div>
+
+          <strong>
+            ShahanFX AI
+          </strong>
+
+          <span>
+            AI Trading Assistant
+          </span>
+
         </div>
-
-        <div class="card-sub">
-          Live Market
-        </div>
-
-      </article>
-
-
-      <article class="live-card">
-
-        <div class="card-label">
-          📊 Bias
-        </div>
-
-        <div
-          id="liveBias"
-          class="card-value"
-        >
-          WAIT
-        </div>
-
-        <div class="card-sub">
-          Market Direction
-        </div>
-
-      </article>
-
-
-      <article class="live-card">
-
-        <div class="card-label">
-          📰 News
-        </div>
-
-        <div
-          id="newsCount"
-          class="card-value"
-        >
-          —
-        </div>
-
-        <div class="card-sub">
-          Economic Events
-        </div>
-
-      </article>
-
-
-      <article class="live-card">
-
-        <div class="card-label">
-          🕒 Updated
-        </div>
-
-        <div
-          id="lastUpdated"
-          class="card-value small-value"
-        >
-          —
-        </div>
-
-        <div class="card-sub">
-          Auto Refresh
-        </div>
-
-      </article>
-
-    </section>
-
-
-    <!-- =========================
-         MARKET STATUS
-    ========================== -->
-
-    <section class="market-status">
-
-      <div class="status-title">
-        <span class="status-pulse"></span>
-        Live Market Engine
-      </div>
-
-      <div class="status-items">
-
-        <span>
-          ✓ Price
-        </span>
-
-        <span>
-          ✓ Candle
-        </span>
-
-        <span>
-          ✓ Structure
-        </span>
-
-        <span>
-          ✓ Liquidity
-        </span>
-
-        <span>
-          ✓ News
-        </span>
 
       </div>
 
-    </section>
+      <span class="online">
+        ● Online
+      </span>
+
+    </div>
 
 
-    <!-- =========================
-         AI ASSISTANT
-    ========================== -->
+    <div id="chatBox" class="chat-box">
 
-    <section class="assistant">
+      <div class="message ai-message">
 
-      <div class="assistant-header">
-
-        <div class="assistant-brand">
+        <div class="avatar">
 
           <img
             src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
-            alt="ShahanFX AI"
-            class="ai-logo"
+            alt="AI"
           >
 
-          <div>
-
-            <strong>
-              ShahanFX AI
-            </strong>
-
-            <span>
-              AI Trading Assistant
-            </span>
-
-          </div>
-
         </div>
 
-        <span class="online">
-          ● Online
-        </span>
+        <div class="message-content">
 
-      </div>
-
-
-      <!-- CHAT -->
-
-      <div
-        id="chatBox"
-        class="chat-box"
-      >
-
-        <div class="message ai-message">
-
-          <div class="avatar">
-
-            <img
-              src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
-              alt="AI"
-            >
-
+          <div class="message-name">
+            ShahanFX AI
           </div>
 
-          <div class="message-content">
+          <div class="message-text">
 
-            <div class="message-name">
-              ShahanFX AI
-            </div>
+            سڵاو 👋
 
-            <div class="message-text">
-              سڵاو 👋
-              <br><br>
-              من <strong>ShahanFX AI</strong> ـم.
-              یارمەتیدەری زیرەک بۆ Forex،
-              ALC™، ICT و SMC.
-              <br><br>
-              دەتوانیت داوای شیکاریی
-              <strong>Live</strong> بکەیت یان
-              وێنەی Chart ـەکەت بنێریت.
-            </div>
+            <br><br>
+
+            من <strong>ShahanFX AI</strong> ـم.
+            یارمەتیدەری زیرەک بۆ Forex،
+            ALC™، ICT و SMC.
+
+            <br><br>
+
+            دەتوانیت داوای شیکاریی
+            <strong>Live</strong> بکەیت یان
+            وێنەی Chart ـەکەت بنێریت.
 
           </div>
 
@@ -376,131 +318,132 @@
 
       </div>
 
-
-      <!-- QUICK ACTIONS -->
-
-      <div class="quick-actions">
-
-        <button
-          class="quick-btn"
-          data-question="XAU/USD ئێستا بە داتای Live شیکاری بکە."
-        >
-          🥇 XAU/USD
-        </button>
-
-        <button
-          class="quick-btn"
-          data-question="Market Structure و Liquidity ـی XAU/USD شیکاری بکە."
-        >
-          📊 Structure
-        </button>
-
-        <button
-          class="quick-btn"
-          data-question="News ـە گرنگەکانی ئەمڕۆ بۆ Gold و Forex بپشکنە."
-        >
-          📰 News
-        </button>
-
-        <button
-          class="quick-btn"
-          data-question="بە ALC™ و ICT و SMC شیکاریی Live بۆ XAU/USD بکە."
-        >
-          🧠 ALC™ / ICT / SMC
-        </button>
-
-      </div>
+    </div>
 
 
-      <!-- IMAGE PREVIEW -->
+    <div class="quick-actions">
 
-      <div
-        id="imagePreview"
-        class="image-preview hidden"
+      <button
+        class="quick-btn"
+        data-question="XAU/USD ئێستا بە داتای Live شیکاری بکە."
+        type="button"
+      >
+        🥇 XAU/USD
+      </button>
+
+
+      <button
+        class="quick-btn"
+        data-question="Market Structure و Liquidity ـی XAU/USD شیکاری بکە."
+        type="button"
+      >
+        📊 Structure
+      </button>
+
+
+      <button
+        class="quick-btn"
+        data-question="News ـە گرنگەکانی ئەمڕۆ بۆ Gold و Forex بپشکنە."
+        type="button"
+      >
+        📰 News
+      </button>
+
+
+      <button
+        class="quick-btn"
+        data-question="بە ALC™ و ICT و SMC شیکاریی Live بۆ XAU/USD بکە."
+        type="button"
+      >
+        🧠 ALC™ / ICT / SMC
+      </button>
+
+    </div>
+
+
+    <div
+      id="imagePreview"
+      class="image-preview hidden"
+    >
+
+      <img
+        id="previewImage"
+        src=""
+        alt="Chart Preview"
       >
 
-        <img
-          id="previewImage"
-          src=""
-          alt="Chart Preview"
+      <button
+        id="removeImage"
+        type="button"
+      >
+        ✕
+      </button>
+
+    </div>
+
+
+    <div class="input-area">
+
+      <textarea
+        id="messageInput"
+        rows="2"
+        placeholder="پرسیارەکەت بنووسە... بۆ نموونە: XAU/USD شیکاری Live بکە"
+      ></textarea>
+
+
+      <div class="input-tools">
+
+        <label
+          for="chartImage"
+          class="upload-btn"
+          title="ناردنی Chart"
+        >
+          📷 Chart
+        </label>
+
+        <input
+          id="chartImage"
+          type="file"
+          accept="image/*"
+          hidden
         >
 
+
         <button
-          id="removeImage"
+          id="sendBtn"
+          class="send-btn"
           type="button"
         >
-          ✕
+          ➤ ناردن
         </button>
 
       </div>
 
+    </div>
 
-      <!-- INPUT -->
-
-      <div class="input-area">
-
-        <textarea
-          id="messageInput"
-          rows="2"
-          placeholder="پرسیارەکەت بنووسە... بۆ نموونە: XAU/USD شیکاری Live بکە"
-        ></textarea>
-
-        <div class="input-tools">
-
-          <label
-            for="chartImage"
-            class="upload-btn"
-            title="ناردنی Chart"
-          >
-            📷 Chart
-          </label>
-
-          <input
-            id="chartImage"
-            type="file"
-            accept="image/*"
-            hidden
-          >
-
-          <button
-            id="sendBtn"
-            class="send-btn"
-            type="button"
-          >
-            ➤ ناردن
-          </button>
-
-        </div>
-
-      </div>
-
-    </section>
+  </section>
 
 
-    <!-- =========================
-         FOOTER
-    ========================== -->
+  <footer>
 
-    <footer>
+    <div class="footer-brand">
+      ShahanFX AI
+    </div>
 
-      <div class="footer-brand">
-        ShahanFX AI
-      </div>
+    <div class="footer-text">
+      Forex • Gold • ALC™ • ICT • SMC
+    </div>
 
-      <div class="footer-text">
-        Forex • Gold • ALC™ • ICT • SMC
-      </div>
+    <div class="footer-note">
+      Live market analysis system
+    </div>
 
-      <div class="footer-note">
-        Live market analysis system
-      </div>
+  </footer>
 
-    </footer>
-
-  </main>
+</main>
 
 
-  <script src="/script.js"></script>
+<script src="/script.js"></script>
 
 </body>
 </html>
