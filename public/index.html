@@ -1,152 +1,220 @@
-<!DOCTYPE html><html lang="ku" dir="rtl"><head>
-  <meta charset="UTF-8"><meta
-name="viewport"
-content="width=device-width, initial-scale=1.0"
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
 
-«»
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>ShahanFX AI</title>  <link rel="stylesheet" href="style.css">
-</head><body>  <main class="app"><!-- HEADER -->
-<header class="header">
+  <title>ShahanFX AI</title>
 
-  <div class="logo">
-    <span>⚡</span>
+  <link rel="stylesheet" href="style.css">
 
-    <div>
-      <h1>ShahanFX</h1>
-      <p>AI Trading Assistant</p>
-    </div>
-  </div>
+  <style>
+    /* ShahanFX Logo - Hero */
+    .hero-icon {
+      width: 110px;
+      height: 110px;
+      margin: 0 auto 18px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-  <div class="status">
-    <i></i>
-    Online
-  </div>
+    .hero-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
 
-</header>
+    /* ShahanFX Logo - AI Avatar */
+    .avatar {
+      width: 45px;
+      height: 45px;
+      min-width: 45px;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  </style>
 
-<!-- HERO -->
-<section class="hero">
+</head>
 
-  <div class="hero-icon">
-    🤖
-  </div>
+<body>
 
-  <h2>
-    بەخێربێیت بۆ ShahanFX AI
-  </h2>
+  <main class="app">
 
-  <p>
-    یارمەتیدەری زیرەک بۆ Forex، ICT و SMC
-  </p>
+    <!-- HEADER -->
+    <header class="header">
 
-</section>
+      <div class="logo">
 
+        <span>⚡</span>
 
-<!-- CHAT -->
-<section class="chat-box">
+        <div>
+          <h1>ShahanFX</h1>
+          <p>AI Trading Assistant</p>
+        </div>
 
-  <div id="messages" class="messages">
-
-    <div class="message ai">
-
-      <div class="avatar">
-        🤖
       </div>
 
-      <div class="bubble">
+      <div class="status">
+        <i></i>
+        Online
+      </div>
 
-        سڵاو 👋<br><br>
+    </header>
 
-        من <strong>ShahanFX AI</strong> ـم.
 
-        دەتوانیت پرسیارم لەسەر Forex،
-        ICT، SMC و شیکردنەوەی Chart بکەیت.
+    <!-- HERO -->
+    <section class="hero">
+
+      <div class="hero-icon">
+        <img
+          src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
+          alt="ShahanFX Logo"
+        >
+      </div>
+
+      <h2>
+        بەخێربێیت بۆ ShahanFX AI
+      </h2>
+
+      <p>
+        یارمەتیدەری زیرەک بۆ Forex، ICT و SMC
+      </p>
+
+    </section>
+
+
+    <!-- CHAT -->
+    <section class="chat-box">
+
+      <div id="messages" class="messages">
+
+        <div class="message ai">
+
+          <!-- AI AVATAR -->
+          <div class="avatar">
+
+            <img
+              src="https://raw.githubusercontent.com/tradingshahan-sys/shahanfx-backend/main/IMG_20260901_021941.jpg"
+              alt="ShahanFX AI"
+            >
+
+          </div>
+
+
+          <div class="bubble">
+
+            سڵاو 👋<br><br>
+
+            من <strong>ShahanFX AI</strong> ـم.
+
+            دەتوانیت پرسیارم لەسەر Forex،
+            ICT، SMC و شیکردنەوەی Chart بکەیت.
+
+          </div>
+
+        </div>
 
       </div>
 
-    </div>
 
-  </div>
-
-
-  <!-- IMAGE PREVIEW -->
-  <div
-    class="image-preview"
-    id="imagePreview">
-  </div>
+      <!-- IMAGE PREVIEW -->
+      <div
+        class="image-preview"
+        id="imagePreview">
+      </div>
 
 
-  <!-- INPUT -->
-  <div class="input-area">
+      <!-- INPUT -->
+      <div class="input-area">
 
-    <label class="upload">
+        <label class="upload">
 
-      📷
+          📷
 
-      <input
-        type="file"
-        id="imageInput"
-        accept="image/*"
-        hidden
+          <input
+            type="file"
+            id="imageInput"
+            accept="image/*"
+            hidden
+          >
+
+        </label>
+
+
+        <textarea
+          id="messageInput"
+          placeholder="پرسیارەکەت بنووسە..."
+          rows="1"
+        ></textarea>
+
+
+        <button id="sendBtn">
+          ➤
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- QUICK ACTIONS -->
+    <div class="quick-actions">
+
+      <button
+        onclick="quickQuestion('XAUUSD ئێستا چۆن شیکاربکەم؟')"
       >
-
-    </label>
-
-
-    <textarea
-      id="messageInput"
-      placeholder="پرسیارەکەت بنووسە..."
-      rows="1"
-    ></textarea>
+        🥇 XAUUSD
+      </button>
 
 
-    <button id="sendBtn">
-      ➤
-    </button>
-
-  </div>
-
-</section>
+      <button
+        onclick="quickQuestion('FVG چییە و چۆن بەکاری بهێنم؟')"
+      >
+        📊 FVG
+      </button>
 
 
-<!-- QUICK ACTIONS -->
-<div class="quick-actions">
-
-  <button
-    onclick="quickQuestion('XAUUSD ئێستا چۆن شیکاربکەم؟')"
-  >
-    🥇 XAUUSD
-  </button>
+      <button
+        onclick="quickQuestion('Liquidity Sweep چۆن بناسمەوە؟')"
+      >
+        💧 Liquidity
+      </button>
 
 
-  <button
-    onclick="quickQuestion('FVG چییە و چۆن بەکاری بهێنم؟')"
-  >
-    📊 FVG
-  </button>
+      <button
+        onclick="quickQuestion('BOS و CHOCH جیاوازییان چییە؟')"
+      >
+        🔥 BOS / CHOCH
+      </button>
+
+    </div>
 
 
-  <button
-    onclick="quickQuestion('Liquidity Sweep چۆن بناسمەوە؟')"
-  >
-    💧 Liquidity
-  </button>
+    <!-- FOOTER -->
+    <footer>
+      ShahanFX AI • ICT • SMC • Forex
+    </footer>
+
+  </main>
 
 
-  <button
-    onclick="quickQuestion('BOS و CHOCH جیاوازییان چییە؟')"
-  >
-    🔥 BOS / CHOCH
-  </button>
+  <script src="script.js"></script>
 
-</div>
+</body>
 
-
-<!-- FOOTER -->
-<footer>
-  ShahanFX AI • ICT • SMC • Forex
-</footer>
-
-  </main>  <script src="script.js"></script></body></html>
+</html>
