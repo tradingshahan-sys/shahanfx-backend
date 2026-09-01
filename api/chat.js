@@ -1,112 +1,153 @@
 export default async function handler(req, res) {
 
-  /*
-   * =========================================================
-   * SHAHANFX AI PRO
-   * Forex • ICT • SMC • Chart Vision
-   * Gemini Fallback System
-   * =========================================================
-   */
-
   // =========================================================
-  // CORS
+  // SHAHANFX AI PRO
+  // Live Market + Economic News + Chart Vision
   // =========================================================
 
-  res.setHeader(
-    "Access-Control-Allow-Origin",
-    "*"
-  );
-
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "POST, OPTIONS"
-  );
-
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type"
-  );
-
-
-  // =========================================================
-  // OPTIONS
-  // =========================================================
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-
-  // =========================================================
-  // ONLY POST
-  // =========================================================
-
   if (req.method !== "POST") {
-
     return res.status(405).json({
       success: false,
       error: "تەنها POST ڕێگەپێدراوە."
     });
-
   }
-
 
   try {
 
     // =======================================================
-    // API KEY
+    // GEMINI KEY
     // =======================================================
 
     const apiKey =
       process.env.GEMINI_API_KEY;
 
-
     if (!apiKey) {
-
       return res.status(500).json({
         success: false,
-        error:
-          "GEMINI_API_KEY لە Vercel Environment Variables دانەنراوە."
+        error: "GEMINI_API_KEY لە Vercel دانەنراوە."
       });
-
     }
 
-
     // =======================================================
-    // REQUEST BODY
+    // BODY
     // =======================================================
 
     const body =
       req.body || {};
-
 
     const message =
       typeof body.message === "string"
         ? body.message.trim()
         : "";
 
-
     const image =
       body.image || null;
 
+    const symbol =
+      body.symbol ||
+      "XAUUSD";
 
-    // =======================================================
-    // VALIDATION
-    // =======================================================
+    const interval =
+      body.interval ||
+      "5min";
 
     if (!message && !image) {
-
       return res.status(400).json({
         success: false,
-        error:
-          "تکایە پرسیار یان وێنەی Chart بنێرە."
+        error: "تکایە پرسیار یان وێنەی Chart بنێرە."
       });
+    }
+
+    // =======================================================
+    // GET LIVE MARKET
+    // =======================================================
+
+    let marketData = null;
+
+    try {
+
+      const host =
+        req.headers.host;
+
+      const protocol =
+        req.headers["x-forwarded-proto"] ||
+        "https";
+
+      const marketURL =
+        `${protocol}://${host}` +
+        `/api/market?symbol=${encodeURIComponent(symbol)}` +
+        `&interval=${encodeURIComponent(interval)}` +
+        `&outputsize=100`;
+
+      const marketResponse =
+        await fetch(marketURL);
+
+      marketData =
+        await marketResponse.json();
+
+    } catch (error) {
+
+      console.error(
+        "Market fetch failed:",
+        error
+      );
+
+      marketData = {
+        success: false,
+        error: "Live market data بەردەست نەبوو."
+      };
 
     }
 
+    // =======================================================
+    // GET NEWS
+    // =======================================================
+
+    let newsData = null;
+
+    try {
+
+      const host =
+        req.headers.host;
+
+      const protocol =
+        req.headers["x-forwarded-proto"] ||
+        "https";
+
+      const newsURL =
+        `${protocol}://${host}` +
+        `/api/news`;
+
+      const newsResponse =
+        await fetch(newsURL);
+
+      newsData =
+        await newsResponse.json();
+
+    } catch (error) {
+
+      console.error(
+        "News fetch failed:",
+        error
+      );
+
+      newsData = {
+        success: false,
+        error: "Economic news بەردەست نەبوو."
+      };
+
+    }
 
     // =======================================================
-    // SHAHANFX AI SYSTEM PROMPT
+    // SYSTEM PROMPT
     // =======================================================
 
     const systemPrompt = `
@@ -121,80 +162,46 @@ SMC
 Price Action
 Technical Analysis
 Chart Analysis
+Economic News
 Risk Management
 
-=========================================================
-زمان
-=========================================================
-
-زمانی سەرەکی:
-
-کوردی سۆرانی.
-
-ئەگەر بەکارهێنەر بە کوردی پرسیار کرد،
-بە کوردی سۆرانی وەڵام بدە.
-
-وەڵامەکان ڕوون،
-پیشەیی،
-ڕێکخراو،
-و بەسوود بن.
+زمان:
+هەمیشە بە کوردی سۆرانی وەڵام بدە.
 
 =========================================================
-FOREX EXPERT
+LIVE DATA RULE
+=========================================================
+
+ئەگەر LIVE MARKET DATA لە خوارەوە هەیە،
+تەنها ئەو داتایە بەکاربهێنە بۆ current market.
+
+خۆت current price دروست مەکە.
+
+ئەگەر News Data لە خوارەوە هەیە،
+هەواڵەکان لەگەڵ candle reaction پەیوەندی پێوە بکە.
+
+خۆت news دروست مەکە.
+
+=========================================================
+ICT / SMC
 =========================================================
 
 لەمانەدا شارەزاییت هەیە:
 
-Forex
-XAUUSD
-EURUSD
-GBPUSD
-USDJPY
-USDCHF
-AUDUSD
-USDCAD
-NZDUSD
-
-Price Action
-Candlestick Analysis
-Technical Analysis
 Market Structure
-Trend
-Support
-Resistance
-Breakout
-Retest
-Pullback
-Momentum
-Volatility
-
-Pips
-Points
-Spread
-Leverage
-Lot Size
-Position Size
-Risk Management
-Stop Loss
-Take Profit
-Risk Reward
-Trading Psychology
-
-=========================================================
-ICT
-=========================================================
-
-ICT concepts:
+HH
+HL
+LH
+LL
+BOS
+CHOCH
 
 Liquidity
 Buy-Side Liquidity
 Sell-Side Liquidity
 Liquidity Sweep
-Liquidity Grab
 
-Fair Value Gap
-Inverse Fair Value Gap
-
+FVG
 Order Block
 Breaker Block
 Mitigation Block
@@ -202,10 +209,6 @@ Mitigation Block
 Premium
 Discount
 Equilibrium
-
-Market Structure
-BOS
-CHOCH
 
 Displacement
 Imbalance
@@ -216,137 +219,73 @@ Fibonacci
 Asian Session
 London Session
 New York Session
-
 Kill Zones
 
 Power Of Three
-Accumulation
-Manipulation
-Distribution
 
 =========================================================
-SMC
+NEWS + CANDLE CORRELATION
 =========================================================
 
-Smart Money Concepts:
+ئەمە زۆر گرنگە.
 
-Higher High
-Higher Low
-Lower High
-Lower Low
+کاتێک Economic Event ـێکی گرنگ هەیە:
 
-HH
-HL
-LH
-LL
+1. Event ـەکە بناسە.
+2. Actual / Forecast / Previous هەڵسەنگێنە ئەگەر بەردەست بوون.
+3. دیاری بکە کام currency پەیوەندی پێوە هەیە.
+4. بۆ XAUUSD کاریگەریی USD لەبەرچاو بگرە.
+5. candle reaction بپشکنە.
+6. volatility بپشکنە.
+7. liquidity sweep بپشکنە.
+8. displacement بپشکنە.
+9. BOS / CHOCH بپشکنە.
+10. FVG / Order Block بپشکنە.
+11. هەردوو سەرچاوەکە پێکەوە هەڵبسەنگێنە.
 
-BOS
-CHOCH
+هیچ کاتێک مەڵێ:
 
-Liquidity
-Order Block
-FVG
-Breaker
-Mitigation
-Supply
-Demand
+"News = guaranteed BUY"
 
-Premium
-Discount
+یان:
+
+"News = guaranteed SELL"
+
+News تەنها یەک confirmation ـە.
 
 =========================================================
 CHART VISION
 =========================================================
 
-ئەگەر بەکارهێنەر وێنەی Chart نارد:
+ئەگەر وێنەی Chart هەیە:
 
-سەرەتا هەوڵ بدە ئەمانە بخوێنیتەوە:
+Symbol
+Timeframe
+Trend
+Market Structure
+HH
+HL
+LH
+LL
+BOS
+CHOCH
+Liquidity
+Liquidity Sweep
+FVG
+Order Block
+Premium
+Discount
+Candlestick Confirmation
 
-1. Symbol
-2. Timeframe
-3. Price
-4. Trend
-5. Market Structure
-6. HH
-7. HL
-8. LH
-9. LL
-10. BOS
-11. CHOCH
-12. Liquidity
-13. Liquidity Sweep
-14. FVG
-15. Order Block
-16. Breaker Block
-17. Support
-18. Resistance
-19. Premium
-20. Discount
-21. Candlestick confirmation
-
-بەڵام:
+هەموویان تەنها ئەگەر لە chart ـەکەدا بەڕوونی دیار بن.
 
 هیچ شتێک مەخەڵقە.
 
-ئەگەر لە chart ـەکەدا بە ڕوونی نەبینرێت،
-بڵێ:
-
-"ئەم زانیارییە لە وێنەکەدا بە دڵنیایی دیار نییە."
-
 =========================================================
-CHART ANALYSIS PROCESS
+ANALYSIS FORMAT
 =========================================================
 
-کاتێک Chart هەیە:
-
-STEP 1
-Symbol و timeframe دیاری بکە.
-
-STEP 2
-Trend دیاری بکە.
-
-STEP 3
-Market Structure شیکاربکە.
-
-STEP 4
-HH / HL / LH / LL بپشکنە.
-
-STEP 5
-BOS / CHOCH بپشکنە.
-
-STEP 6
-Liquidity بگەڕێ.
-
-STEP 7
-Liquidity Sweep بپشکنە.
-
-STEP 8
-FVG بپشکنە.
-
-STEP 9
-Order Block بپشکنە.
-
-STEP 10
-Premium / Discount بپشکنە.
-
-STEP 11
-Candlestick confirmation بپشکنە.
-
-STEP 12
-Potential Setup هەڵسەنگێنە.
-
-STEP 13
-Invalidation دیاری بکە.
-
-STEP 14
-Risk / Reward هەڵسەنگێنە.
-
-=========================================================
-TRADE ANALYSIS
-=========================================================
-
-ئەگەر بەکارهێنەر داوای trade analysis کرد،
-وەڵامەکە بە ئەم شێوەیە ڕێکبخە:
+ئەگەر current market analysis داواکرا:
 
 📊 SHAHANFX AI PRO
 
@@ -356,8 +295,20 @@ TRADE ANALYSIS
 ⏱ Timeframe:
 ...
 
+💰 Current Price:
+...
+
 📈 Market Bias:
 Bullish / Bearish / Neutral
+
+📰 News:
+...
+
+⚡ News Impact:
+Bullish / Bearish / Neutral / Unclear
+
+🕯 Candle Reaction:
+...
 
 🏗 Market Structure:
 ...
@@ -377,408 +328,169 @@ Bullish / Bearish / Neutral
 💎 Premium / Discount:
 ...
 
-🕯 Candlestick Confirmation:
-...
-
-🎯 Potential Setup:
+🎯 Setup:
 BUY / SELL / WAIT
 
-📍 Potential Entry:
+📍 Entry:
 ...
 
 🛑 Invalidation:
 ...
 
-🛑 Potential SL:
+🎯 TP:
 ...
 
-🎯 Potential TP:
-...
-
-⚖️ Risk / Reward:
+⚖️ Risk/Reward:
 ...
 
 🧠 Confidence:
-...%
+Low / Medium / High
 
-⚠️ Important:
-...
-
-=========================================================
-CONFIDENCE
-=========================================================
-
-Confidence تەنها هەڵسەنگاندنی AI ـە.
-
-هیچ کاتێک مەڵێ:
-
-100% Guaranteed
-100% Win
-Guaranteed Profit
-
+⚠️ Risk Warning:
 هیچ trade ـێک 100% دڵنیایی نییە.
 
-Confidence دەتوانێت:
-
-Low
-Medium
-High
-
-یان:
-
-Confidence: 72%
-
-بەڵام هەمیشە ڕوون بکەوە:
-
-"Confidence پێشبینیی AI ـە، نەک دڵنیایی لە داهاتووی بازاڕ."
-
 =========================================================
-RISK MANAGEMENT
+RISK
 =========================================================
 
-Risk Management زۆر گرنگە.
+ئەگەر balance و risk % نییە:
 
-ئەگەر account balance
-و risk percentage نەدراوە:
-
-خۆت balance دروست مەکە.
-
-خۆت lot size ـی ورد دروست مەکە.
+lot size دروست مەکە.
 
 بڵێ:
+"Balance و Risk % پێویستە بۆ Lot Size."
 
-"بۆ دیاریکردنی Lot Size ـی ورد،
-Balance و Risk % پێویستە."
-
-ئەگەر Risk/Reward کەمە،
-ئاگاداری بەکارهێنەر بکە.
+هیچ قازانجێک guaranteed نییە.
 
 =========================================================
-GENERAL FOREX
+LIVE MARKET DATA
 =========================================================
 
-ئەگەر پرسیارەکە فێرکارییە:
-
-Definition
-How it works
-How to identify
-Example
-Common mistake
-
-بەکاربهێنە.
-
-نموونە:
-
-BOS چییە؟
-
-CHOCH چییە؟
-
-FVG چییە؟
-
-Liquidity چییە؟
-
-Order Block چییە؟
-
-Premium و Discount چییە؟
+${JSON.stringify(
+  marketData,
+  null,
+  2
+)}
 
 =========================================================
-EDUCATION MODE
+ECONOMIC NEWS
 =========================================================
 
-ئەگەر بەکارهێنەر بڵێت:
-
-"فێرم بکە"
-
-یان:
-
-"وردی بۆ ڕوون بکەوە"
-
-بابەتەکە بە هەنگاوەکان دابەش بکە.
+${JSON.stringify(
+  newsData,
+  null,
+  2
+)}
 
 =========================================================
-MISSING INFORMATION
+USER QUESTION
 =========================================================
 
-ئەگەر زانیاری کەمە:
-
-خۆت data دروست مەکە.
-
-بڵێ:
-
-"بۆ شیکردنەوەی وردتر،
-Symbol، Timeframe یان Screenshot ـێکی ڕوونتر بنێرە."
-
-=========================================================
-LIVE DATA
-=========================================================
-
-ئەگەر هیچ live market data ـی پێنەدراوە:
-
-خۆت price ـی ئێستا دروست مەکە.
-
-خۆت news دروست مەکە.
-
-خۆت current market condition دروست مەکە.
-
-بڵێ:
-
-"بۆ current market analysis،
-live market data پێویستە."
-
-=========================================================
-IMPORTANT
-=========================================================
-
-تۆ ڕاوێژکارییەکی شیکارییت،
-نەک دڵنیابوونەوەی قازانج.
-
-Forex و CFD مەترسیدارن.
-
-هیچ قازانجێک Guaranteed نییە.
-
-هیچ trade ـێک 100% دڵنیایی نییە.
-
-Evidence
-Structure
-Liquidity
-Confirmation
-Risk
-
-لە هەموو شتێک پێشەنگن.
-
-ئەگەر setup لاوازە:
-
-WAIT
-
-ئەگەر confirmation نییە:
-
-WAIT FOR CONFIRMATION
-
-ئەگەر chart ناڕوونە:
-
-REQUEST CLEARER CHART
-
-=========================================================
-FINAL PRINCIPLE
-=========================================================
-
-ئامانجی ShahanFX AI:
-
-یارمەتیدانی بەکارهێنەر بۆ تێگەیشتن لە بازاڕ،
-فێربوونی Forex،
-شیکردنەوەی Chart،
-و بەکارهێنانی Risk Management.
-
-نەک دروستکردنی دڵنیایی ساختە.
+${message || "ئەم Chart ـە بە live market و news شیکاربکە."}
 
 `;
 
-
     // =======================================================
-    // USER REQUEST + SYSTEM PROMPT
+    // GEMINI PARTS
     // =======================================================
 
-    const parts = [];
-
-
-    parts.push({
-
-      text:
-        systemPrompt +
-
-        `
-
-=========================================================
-USER REQUEST
-=========================================================
-
-${
-
-  message ||
-
-  "تکایە ئەم Chart ـە بە شێوەی ShahanFX AI Pro شیکاربکە."
-
-}
-
-`
-
-    });
-
+    const parts = [
+      {
+        text: systemPrompt
+      }
+    ];
 
     // =======================================================
     // IMAGE
     // =======================================================
 
     if (
-      image &&
-      image.data &&
-      image.mimeType
+      image?.data &&
+      image?.mimeType
     ) {
 
       parts.push({
-
         inlineData: {
-
-          mimeType:
-            image.mimeType,
-
-          data:
-            image.data
-
+          mimeType: image.mimeType,
+          data: image.data
         }
-
       });
 
     }
-
 
     // =======================================================
     // MODELS
     // =======================================================
 
-    /*
-     * Primary:
-     * Gemini 3.7 Flash
-     *
-     * Fallback:
-     * Gemini 3.6 Flash
-     *
-     * Backup:
-     * Gemini 3.5 Flash
-     */
-
     const models = [
-
       "gemini-3.7-flash",
-
       "gemini-3.6-flash",
-
       "gemini-3.5-flash"
-
     ];
 
-
-    // =======================================================
-    // RETRY SETTINGS
-    // =======================================================
-
-    const MAX_RETRIES_PER_MODEL = 2;
-
-    const BASE_DELAY = 1200;
-
-
-    // =======================================================
-    // VARIABLES
-    // =======================================================
-
     let response = null;
-
     let data = null;
-
     let usedModel = null;
 
+    const MAX_RETRIES = 2;
 
     // =======================================================
-    // MODEL LOOP
+    // GEMINI LOOP
     // =======================================================
 
     outerLoop:
 
-    for (
-      const model of models
-    ) {
+    for (const model of models) {
 
       for (
         let attempt = 0;
-        attempt < MAX_RETRIES_PER_MODEL;
+        attempt < MAX_RETRIES;
         attempt++
       ) {
 
-
-        // ===================================================
-        // ENDPOINT
-        // ===================================================
-
-        const endpoint =
-          "https://generativelanguage.googleapis.com/v1beta/models/" +
-          model +
-          ":generateContent?key=" +
-          encodeURIComponent(apiKey);
-
-
         try {
 
-          // =================================================
-          // REQUEST
-          // =================================================
+          const endpoint =
+            "https://generativelanguage.googleapis.com/v1beta/models/" +
+            model +
+            ":generateContent?key=" +
+            encodeURIComponent(apiKey);
 
           response =
             await fetch(
               endpoint,
               {
-
-                method:
-                  "POST",
+                method: "POST",
 
                 headers: {
-
-                  "Content-Type":
-                    "application/json"
-
+                  "Content-Type": "application/json"
                 },
 
-                body:
-                  JSON.stringify({
+                body: JSON.stringify({
 
-                    contents: [
-
-                      {
-
-                        role:
-                          "user",
-
-                        parts:
-                          parts
-
-                      }
-
-                    ],
-
-                    generationConfig: {
-
-                      maxOutputTokens:
-                        5000,
-
-                      thinkingConfig: {
-
-                        thinkingLevel:
-                          "medium"
-
-                      }
-
+                  contents: [
+                    {
+                      role: "user",
+                      parts
                     }
+                  ],
 
-                  })
+                  generationConfig: {
 
+                    temperature: 0.4,
+
+                    maxOutputTokens: 5000
+
+                  }
+
+                })
               }
             );
-
-
-          // =================================================
-          // JSON
-          // =================================================
 
           data =
             await response.json();
 
-
-          // =================================================
-          // SUCCESS
-          // =================================================
-
-          if (
-            response.ok
-          ) {
+          if (response.ok) {
 
             usedModel =
               model;
@@ -787,21 +499,10 @@ ${
 
           }
 
-
-          // =================================================
-          // ERROR MESSAGE
-          // =================================================
-
           const errorText =
             String(
-              data?.error?.message ||
-              ""
+              data?.error?.message || ""
             ).toLowerCase();
-
-
-          // =================================================
-          // RETRYABLE ERRORS
-          // =================================================
 
           const retryable =
 
@@ -815,105 +516,52 @@ ${
 
             response.status === 504 ||
 
-            errorText.includes(
-              "high demand"
-            ) ||
+            errorText.includes("high demand") ||
 
-            errorText.includes(
-              "temporarily unavailable"
-            ) ||
+            errorText.includes("overloaded") ||
 
-            errorText.includes(
-              "overloaded"
-            ) ||
+            errorText.includes("temporarily unavailable") ||
 
-            errorText.includes(
-              "unavailable"
-            ) ||
-
-            errorText.includes(
-              "resource exhausted"
-            );
-
-
-          // =================================================
-          // NON-RETRYABLE
-          // =================================================
+            errorText.includes("resource exhausted");
 
           if (!retryable) {
-
-            console.error(
-              "Non-retryable Gemini error:",
-              data
-            );
-
             break outerLoop;
-
           }
-
-
-          // =================================================
-          // RETRY DELAY
-          // =================================================
 
           if (
             attempt <
-            MAX_RETRIES_PER_MODEL - 1
+            MAX_RETRIES - 1
           ) {
-
-            const delay =
-              BASE_DELAY *
-              Math.pow(
-                2,
-                attempt
-              );
-
-
-            console.log(
-              `ShahanFX AI: ${model} busy. ` +
-              `Retry ${attempt + 1}. ` +
-              `Waiting ${delay}ms`
-            );
-
 
             await new Promise(
               resolve =>
                 setTimeout(
                   resolve,
-                  delay
+                  1200 *
+                  Math.pow(2, attempt)
                 )
             );
 
           }
 
-        }
-
-        catch (error) {
+        } catch (error) {
 
           console.error(
-            `Network error on ${model}:`,
+            "Gemini error:",
             error
           );
 
-
           if (
             attempt <
-            MAX_RETRIES_PER_MODEL - 1
+            MAX_RETRIES - 1
           ) {
-
-            const delay =
-              BASE_DELAY *
-              Math.pow(
-                2,
-                attempt
-              );
-
 
             await new Promise(
               resolve =>
                 setTimeout(
                   resolve,
-                  delay
+                  1200 *
+                  Math.pow(2, attempt)
                 )
             );
 
@@ -925,9 +573,8 @@ ${
 
     }
 
-
     // =======================================================
-    // ALL MODELS FAILED
+    // FAILED
     // =======================================================
 
     if (
@@ -936,41 +583,29 @@ ${
       !usedModel
     ) {
 
-      console.error(
-        "All Gemini models failed:",
-        data
-      );
-
-
-      const originalError =
-        data?.error?.message ||
-        "";
-
-
       return res.status(503).json({
 
-        success:
-          false,
+        success: false,
 
         error:
-          "⚠️ ShahanFX AI لە ئێستادا بەهۆی زۆری داواکارییەکانەوە بەردەست نییە. تکایە دووبارە هەوڵ بدە.",
+          "⚠️ ShahanFX AI لە ئێستادا بەردەست نییە. تکایە دووبارە هەوڵ بدە.",
 
         details:
-          originalError || null
+          data?.error?.message || null
 
       });
 
     }
 
-
     // =======================================================
-    // EXTRACT ANSWER
+    // ANSWER
     // =======================================================
 
     const answer =
       data
         ?.candidates?.[0]
-        ?.content?.parts
+        ?.content
+        ?.parts
         ?.map(
           part =>
             part.text || ""
@@ -978,37 +613,28 @@ ${
         .join("")
         .trim();
 
-
-    // =======================================================
-    // EMPTY RESPONSE
-    // =======================================================
-
     if (!answer) {
 
       return res.status(502).json({
 
-        success:
-          false,
+        success: false,
 
         error:
-          "Gemini هیچ وەڵامێکی دەق نەگەڕاندەوە."
+          "Gemini هیچ وەڵامێکی دروستی نەگەڕاندەوە."
 
       });
 
     }
 
-
     // =======================================================
-    // FINAL RESPONSE
+    // FINAL
     // =======================================================
 
     return res.status(200).json({
 
-      success:
-        true,
+      success: true,
 
-      answer:
-        answer,
+      answer,
 
       model:
         usedModel,
@@ -1017,32 +643,33 @@ ${
         Boolean(
           image?.data &&
           image?.mimeType
+        ),
+
+      liveMarket:
+        Boolean(
+          marketData?.success
+        ),
+
+      liveNews:
+        Boolean(
+          newsData?.success
         )
 
     });
 
-
-  }
-
-  // =========================================================
-  // SERVER ERROR
-  // =========================================================
-
-  catch (error) {
+  } catch (error) {
 
     console.error(
       "ShahanFX Server Error:",
       error
     );
 
-
     return res.status(500).json({
 
-      success:
-        false,
+      success: false,
 
       error:
-        "هەڵەی ناوخۆی Backend ڕوویدا."
+        "هەڵەی ناوخۆی ShahanFX Backend ڕوویدا."
 
     });
 
