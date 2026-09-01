@@ -1,7 +1,7 @@
 // api/chat.js
 // ShahanFX AI Pro Backend
-// Gemini 3.x + OpenRouter fallback
-// Kurdish Sorani Trading Assistant
+// Gemini + OpenRouter Fallback
+// Kurdish Sorani + Forex + ALC™ + ICT + SMC
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -19,16 +19,18 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     return res.status(200).json({
       ok: true,
+      success: true,
       project: "ShahanFX AI",
       status: "online",
-      message: "ShahanFX AI Backend is working!"
+      message: "بەکەی Backend ـی ShahanFX AI بە سەرکەوتوویی کار دەکات."
     });
   }
 
   if (req.method !== "POST") {
     return res.status(405).json({
+      ok: false,
       success: false,
-      error: "تەنها POST ڕێگەپێدراوە."
+      error: "تەنها داواکاری POST ڕێگەپێدراوە."
     });
   }
 
@@ -84,6 +86,7 @@ export default async function handler(req, res) {
 
   if (!message && !image) {
     return res.status(400).json({
+      ok: false,
       success: false,
       error: "تکایە پرسیارێک بنووسە یان وێنەی Chart بنێرە."
     });
@@ -129,15 +132,15 @@ export default async function handler(req, res) {
     return text.trim();
   }
 
-  // =====================================================
+  // =========================
   // MARKET DATA
-  // =====================================================
+  // =========================
 
   async function getMarketData() {
     if (!TWELVE_DATA_API_KEY) {
       return {
         available: false,
-        reason: "TWELVE_DATA_API_KEY دانەنراوە."
+        reason: "کلیلی TWELVE_DATA_API_KEY دانەنراوە."
       };
     }
 
@@ -167,7 +170,7 @@ export default async function handler(req, res) {
 
         return {
           available: false,
-          reason: "Market Data بەردەست نییە."
+          reason: "زانیاریی بازاڕ بەردەست نییە."
         };
       }
 
@@ -217,20 +220,20 @@ export default async function handler(req, res) {
 
       return {
         available: false,
-        reason: "هەڵە لە وەرگرتنی Market Data."
+        reason: "هەڵەیەک ڕوویدا لە وەرگرتنی زانیاریی بازاڕ."
       };
     }
   }
 
-  // =====================================================
-  // NEWS
-  // =====================================================
+  // =========================
+  // NEWS DATA
+  // =========================
 
   async function getNewsData() {
     if (!FMP_API_KEY) {
       return {
         available: false,
-        reason: "FMP_API_KEY دانەنراوە."
+        reason: "کلیلی FMP_API_KEY دانەنراوە."
       };
     }
 
@@ -316,7 +319,7 @@ export default async function handler(req, res) {
 
       return {
         available: false,
-        reason: "هەڵە لە وەرگرتنی News Data."
+        reason: "هەڵەیەک ڕوویدا لە وەرگرتنی News Data."
       };
     }
   }
@@ -327,33 +330,33 @@ export default async function handler(req, res) {
       getNewsData()
     ]);
 
-  // =====================================================
+  // =========================
   // SYSTEM PROMPT
-  // تەنها ئەم بەشە بۆ زمانی کوردی سۆرانی چاککراوە
-  // =====================================================
+  // =========================
 
   const systemPrompt = `
-تۆ ShahanFX AI ـیت؛ ڕاوێژکاری زیرەکی بۆ Forex، Gold، ALC™، ICT و SMC.
+تۆ ShahanFX AI ـیت، ڕاوێژکاری زیرەکی بۆ Forex، Gold، ALC™، ICT و SMC.
+
+ALC™ سیستەمێکی جیاوازە لە ICT و SMC وەک یەکێک لە بنەماکانی شیکردنەوە مامەڵەی لەگەڵ بکە.
 
 یاساکان:
 
-1. هەموو وەڵامەکانت بە کوردی سۆرانی بنووسە.
-2. بە شێوەیەکی سروشتی، ڕوون و ئاسان بە کوردی سۆرانی قسە بکە.
-3. لە زمانی عەرەبی، فارسی یان تورکی بەکارمەهێنە.
-4. وشە تەکنیکییە باوەکان وەک Forex، Gold، ALC™، ICT، SMC، XAUUSD، FVG، Liquidity، BOS، CHOCH، Entry، Stop Loss، Take Profit و Risk/Reward دەتوانن بە English بمێننەوە.
-5. وشەی بێمانا، وشەی ساختە یان وشەی تێکەڵکراوی زمانی تر بەکارمەهێنە.
-6. هیچ نرخ، News، CPI، NFP، FOMC یان Data ـێک لە خۆتەوە دروست مەکە.
-7. ئەگەر Live Data بەردەست نەبوو، بە کوردی سۆرانی ڕوونی بکەوە.
-8. هیچ قازانجێکی دڵنیایی یان Trade ـی 100% مەبەخشە.
-9. ئەگەر Confirmation ـی تەواو نییە، WAIT پێشنیار بکە.
-10. ئەگەر News ـی گرنگ نزیکە، بە کوردی سۆرانی ئاگاداری بکە.
-11. Risk Management هەمیشە لەبەرچاو بگرە.
-12. ئەگەر Chart Image هەیە، Chart ـەکە بە وردی شیکاربکە.
-13. ئەگەر Image ـەکە بە باشی ناتوانرێت بخوێندرێتەوە، بە کوردی سۆرانی ڕوونی بکەوە.
-14. هیچ زانیارییەکی ساختە مەدروستکە.
-15. ALC™، ICT و SMC وەک بابەت و سیستەمی جیاواز لە شیکردنەوەدا بناسێنە.
+1. هەموو وەڵامەکان بە کوردی سۆرانی بنووسە.
+2. وشە تەکنیکییە باوەکان وەک Forex، Gold، Buy، Sell، Entry، Stop Loss، Take Profit، Liquidity، FVG، BOS، CHOCH، ICT، SMC و ALC™ دەتوانن بە English بمێننەوە.
+3. هیچ نرخ، News، CPI، NFP، FOMC یان Data ـێک لە خۆتەوە دروست مەکە.
+4. تەنها ئەو Live Data ـە بەکاربهێنە کە لە Context ـدا دراوە.
+5. ئەگەر Live Data بەردەست نەبوو، بە ڕوونی بڵێ.
+6. هیچ قازانجێکی دڵنیایی یان Trade ـی 100% مەبەخشە.
+7. ئەگەر Confirmation تەواو نییە، WAIT پێشنیار بکە.
+8. ئەگەر News ـی گرنگ نزیکە، ئاگاداری بکە.
+9. Risk Management گرنگە.
+10. ئەگەر Chart Image هەیە، شیکردنەوەی Chart بکە.
+11. ئەگەر Image ـەکە ناتوانرێت بخوێندرێتەوە، ڕوونی بکەوە.
+12. هیچ زانیارییەکی ساختە دروست مەکە.
+13. وەڵامەکان کورت، ڕوون و پیشەیی بن.
+14. بە زمانی کوردی سۆرانی و ڕێنووسی ئاسان و سروشتی وەڵام بدە.
 
-بۆ Trade Setup ئەگەر Confirmation هەبوو:
+بۆ Trade Setup، تەنها کاتێک Confirmation هەیە:
 
 📊 Symbol:
 📈 Bias:
@@ -365,19 +368,19 @@ export default async function handler(req, res) {
 📰 News:
 ⏳ Decision:
 
-ئەگەر Setup ـەکە تەواو نییە:
+ئەگەر Setup تەواو نییە:
 
 ⏳ WAIT
 
-پاشان هۆکاری WAIT بە کوردی سۆرانی بە کورتی ڕوون بکەوە.
+هۆکاری WAIT بە کوردی سۆرانی ڕوون بکەوە.
 
 ئامانج:
-وەڵامێکی ڕوون، سروشتی و پیشەیی بە کوردی سۆرانی بدە، بە پشتبەستن بە Live Data و Chart Data ـی بەردەست.
+شیکردنەوەی ورد و پارێزراو، نەک دڵنیایی ساختە.
 `;
 
-  // =====================================================
+  // =========================
   // LIVE CONTEXT
-  // =====================================================
+  // =========================
 
   let liveContext = `
 ━━━ SHAHANFX LIVE CONTEXT ━━━
@@ -502,9 +505,9 @@ ${newsData.reason}
       .join("\n");
   }
 
-  // =====================================================
+  // =========================
   // IMAGE
-  // =====================================================
+  // =========================
 
   let imagePart = null;
 
@@ -527,15 +530,13 @@ ${newsData.reason}
     }
   }
 
-  // =====================================================
+  // =========================
   // GEMINI
-  // =====================================================
+  // =========================
 
   async function callGemini() {
     if (!GEMINI_API_KEY) {
-      throw new Error(
-        "GEMINI_API_KEY is missing"
-      );
+      throw new Error("GEMINI_API_KEY is missing");
     }
 
     const models = [
@@ -550,9 +551,7 @@ ${newsData.reason}
       try {
         const url =
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
-          `?key=${encodeURIComponent(
-            GEMINI_API_KEY
-          )}`;
+          `?key=${encodeURIComponent(GEMINI_API_KEY)}`;
 
         const parts = [
           {
@@ -573,8 +572,7 @@ ${newsData.reason}
             {
               method: "POST",
               headers: {
-                "Content-Type":
-                  "application/json"
+                "Content-Type": "application/json"
               },
               body: JSON.stringify({
                 contents: [
@@ -591,8 +589,7 @@ ${newsData.reason}
             30000
           );
 
-        const data =
-          await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
           console.error(
@@ -643,9 +640,9 @@ ${newsData.reason}
     );
   }
 
-  // =====================================================
+  // =========================
   // OPENROUTER
-  // =====================================================
+  // =========================
 
   async function callOpenRouter() {
     if (!OPENROUTER_API_KEY) {
@@ -703,8 +700,7 @@ ${newsData.reason}
         30000
       );
 
-    const data =
-      await response.json();
+    const data = await response.json();
 
     if (!response.ok) {
       console.error(
@@ -739,28 +735,21 @@ ${newsData.reason}
     };
   }
 
-  // =====================================================
+  // =========================
   // AI FALLBACK
-  // =====================================================
+  // =========================
 
   let aiResult = null;
 
-  let geminiStatus =
-    "not attempted";
-
-  let openRouterStatus =
-    "not attempted";
+  let geminiStatus = "not attempted";
+  let openRouterStatus = "not attempted";
 
   if (GEMINI_API_KEY) {
     try {
-      aiResult =
-        await callGemini();
-
-      geminiStatus =
-        "success";
+      aiResult = await callGemini();
+      geminiStatus = "success";
     } catch (error) {
-      geminiStatus =
-        "failed";
+      geminiStatus = "failed";
 
       console.error(
         "All Gemini models failed:",
@@ -768,23 +757,15 @@ ${newsData.reason}
       );
     }
   } else {
-    geminiStatus =
-      "missing API key";
+    geminiStatus = "missing API key";
   }
 
-  if (
-    !aiResult &&
-    OPENROUTER_API_KEY
-  ) {
+  if (!aiResult && OPENROUTER_API_KEY) {
     try {
-      aiResult =
-        await callOpenRouter();
-
-      openRouterStatus =
-        "success";
+      aiResult = await callOpenRouter();
+      openRouterStatus = "success";
     } catch (error) {
-      openRouterStatus =
-        "failed";
+      openRouterStatus = "failed";
 
       console.error(
         "OpenRouter failed:",
@@ -792,13 +773,12 @@ ${newsData.reason}
       );
     }
   } else if (!OPENROUTER_API_KEY) {
-    openRouterStatus =
-      "missing API key";
+    openRouterStatus = "missing API key";
   }
 
-  // =====================================================
+  // =========================
   // FAILURE
-  // =====================================================
+  // =========================
 
   if (!aiResult) {
     console.error(
@@ -810,6 +790,7 @@ ${newsData.reason}
     );
 
     return res.status(503).json({
+      ok: false,
       success: false,
       error:
         "⚠️ هیچ یەکێک لە خزمەتگوزارییەکانی ShahanFX AI وەڵامی نەدا. تکایە دواتر دووبارە هەوڵ بدە.",
@@ -818,15 +799,20 @@ ${newsData.reason}
     });
   }
 
-  // =====================================================
+  // =========================
   // SUCCESS
-  // =====================================================
+  // =========================
 
   return res.status(200).json({
+    ok: true,
     success: true,
+
     answer: aiResult.answer,
+
     provider: aiResult.provider,
+
     model: aiResult.model,
+
     hasImage: Boolean(image),
 
     liveData: {
@@ -836,21 +822,16 @@ ${newsData.reason}
 
     market: marketData.available
       ? {
-          symbol:
-            marketData.symbol,
-          interval:
-            marketData.interval,
-          direction:
-            marketData.direction,
-          current:
-            marketData.current
+          symbol: marketData.symbol,
+          interval: marketData.interval,
+          direction: marketData.direction,
+          current: marketData.current
         }
       : null,
 
     news: newsData.available
       ? {
-          count:
-            newsData.events.length
+          count: newsData.events.length
         }
       : null
   });
