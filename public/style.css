@@ -15,77 +15,84 @@ body {
 .app {
   width: min(950px, 94%);
   margin: auto;
-  padding: 25px 0;
+  padding: 20px 0;
 }
+
+/* Header */
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px;
+  padding: 15px 17px;
   background: rgba(255,255,255,.05);
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 20px;
+  border-radius: 18px;
   backdrop-filter: blur(15px);
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .logo > span {
-  font-size: 35px;
+  font-size: 29px;
 }
 
 .logo h1 {
-  font-size: 22px;
+  font-size: 19px;
 }
 
 .logo p {
   color: #9ca8bd;
-  font-size: 12px;
-  margin-top: 4px;
+  font-size: 11px;
+  margin-top: 3px;
 }
 
 .status {
   color: #75ffb1;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .status i {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   background: #36ef91;
   border-radius: 50%;
   margin-left: 5px;
 }
 
+/* Hero */
+
 .hero {
   text-align: center;
-  padding: 45px 10px 30px;
+  padding: 34px 10px 25px;
 }
 
 .hero-icon {
-  font-size: 60px;
-  margin-bottom: 15px;
+  font-size: 48px;
+  margin-bottom: 11px;
 }
 
 .hero h2 {
-  font-size: 30px;
-  margin-bottom: 10px;
+  font-size: 25px;
+  margin-bottom: 7px;
 }
 
 .hero p {
   color: #9ca8bd;
+  font-size: 13px;
 }
+
+/* Chat */
 
 .chat-box {
   background: rgba(10,15,28,.85);
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 25px;
+  border-radius: 22px;
   overflow: hidden;
   box-shadow: 0 20px 70px rgba(0,0,0,.35);
 }
@@ -93,32 +100,34 @@ body {
 .messages {
   height: 480px;
   overflow-y: auto;
-  padding: 25px;
+  padding: 20px;
 }
 
 .message {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 9px;
+  margin-bottom: 17px;
 }
 
 .avatar {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   background: #151e34;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  font-size: 15px;
 }
 
 .bubble {
   max-width: 80%;
   background: #151e34;
-  padding: 15px 17px;
-  border-radius: 17px;
-  line-height: 1.8;
+  padding: 12px 15px;
+  border-radius: 15px;
+  line-height: 1.75;
+  font-size: 14px;
   white-space: pre-wrap;
 }
 
@@ -132,11 +141,13 @@ body {
   direction: rtl;
 }
 
+/* Input */
+
 .input-area {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 15px;
+  gap: 8px;
+  padding: 12px;
   border-top: 1px solid rgba(255,255,255,.08);
 }
 
@@ -147,10 +158,10 @@ textarea {
   outline: none;
   background: #11182a;
   color: #fff;
-  border-radius: 15px;
-  padding: 14px;
-  font-size: 15px;
-  min-height: 48px;
+  border-radius: 13px;
+  padding: 12px;
+  font-size: 14px;
+  min-height: 45px;
 }
 
 textarea::placeholder {
@@ -159,19 +170,19 @@ textarea::placeholder {
 
 .upload {
   cursor: pointer;
-  font-size: 23px;
-  padding: 8px;
+  font-size: 20px;
+  padding: 7px;
 }
 
 #sendBtn {
-  width: 48px;
-  height: 48px;
+  width: 45px;
+  height: 45px;
   border: none;
-  border-radius: 15px;
+  border-radius: 13px;
   cursor: pointer;
   background: #fff;
   color: #07101d;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: bold;
 }
 
@@ -180,71 +191,120 @@ textarea::placeholder {
   cursor: not-allowed;
 }
 
+/* Quick Actions */
+
 .quick-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: center;
-  margin: 20px 0;
+  margin: 16px 0;
 }
 
 .quick-actions button {
   background: rgba(255,255,255,.05);
   color: #fff;
   border: 1px solid rgba(255,255,255,.1);
-  padding: 10px 15px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .quick-actions button:hover {
   background: rgba(255,255,255,.1);
 }
 
+/* Image */
+
 .image-preview {
-  padding: 0 15px;
+  padding: 0 12px;
 }
 
 .image-preview img {
-  max-width: 180px;
-  max-height: 120px;
-  border-radius: 12px;
-  margin-bottom: 10px;
+  max-width: 170px;
+  max-height: 110px;
+  border-radius: 11px;
+  margin-bottom: 8px;
 }
+
+/* Footer */
 
 footer {
   text-align: center;
   color: #647087;
-  font-size: 12px;
-  padding: 15px;
+  font-size: 11px;
+  padding: 12px;
 }
+
+/* Mobile */
 
 @media (max-width: 600px) {
 
   .app {
     width: 96%;
-    padding-top: 10px;
+    padding-top: 8px;
+  }
+
+  .header {
+    padding: 13px 14px;
+  }
+
+  .logo > span {
+    font-size: 26px;
+  }
+
+  .logo h1 {
+    font-size: 18px;
+  }
+
+  .logo p {
+    font-size: 10px;
   }
 
   .hero {
-    padding: 30px 5px 20px;
+    padding: 25px 5px 17px;
+  }
+
+  .hero-icon {
+    font-size: 42px;
   }
 
   .hero h2 {
-    font-size: 23px;
+    font-size: 21px;
+  }
+
+  .hero p {
+    font-size: 12px;
   }
 
   .messages {
     height: 55vh;
-    padding: 15px;
+    padding: 14px;
   }
 
   .bubble {
     max-width: 88%;
+    font-size: 13px;
+    padding: 11px 13px;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  textarea {
+    font-size: 13px;
   }
 
   .quick-actions button {
-    font-size: 12px;
+    font-size: 11px;
+    padding: 7px 10px;
   }
 
+  footer {
+    font-size: 10px;
+  }
 }
