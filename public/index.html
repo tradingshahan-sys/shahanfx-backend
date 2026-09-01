@@ -1,122 +1,152 @@
-<!DOCTYPE html>
-<html lang="ku" dir="rtl">
-<head>
-  <meta charset="UTF-8">
+<!DOCTYPE html><html lang="ku" dir="rtl"><head>
+  <meta charset="UTF-8"><meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+«»
 
-  <title>ShahanFX AI</title>
+  <title>ShahanFX AI</title>  <link rel="stylesheet" href="style.css">
+</head><body>  <main class="app"><!-- HEADER -->
+<header class="header">
 
-  <link rel="stylesheet" href="style.css">
-</head>
+  <div class="logo">
+    <span>⚡</span>
 
-<body>
+    <div>
+      <h1>ShahanFX</h1>
+      <p>AI Trading Assistant</p>
+    </div>
+  </div>
 
-  <main class="app">
+  <div class="status">
+    <i></i>
+    Online
+  </div>
 
-    <header class="header">
-      <div class="logo">
-        <span>⚡</span>
-        <div>
-          <h1>ShahanFX</h1>
-          <p>AI Trading Assistant</p>
-        </div>
+</header>
+
+
+<!-- HERO -->
+<section class="hero">
+
+  <div class="hero-icon">
+    🤖
+  </div>
+
+  <h2>
+    بەخێربێیت بۆ ShahanFX AI
+  </h2>
+
+  <p>
+    یارمەتیدەری زیرەک بۆ Forex، ICT و SMC
+  </p>
+
+</section>
+
+
+<!-- CHAT -->
+<section class="chat-box">
+
+  <div id="messages" class="messages">
+
+    <div class="message ai">
+
+      <div class="avatar">
+        🤖
       </div>
 
-      <div class="status">
-        <i></i>
-        Online
-      </div>
-    </header>
+      <div class="bubble">
 
-    <section class="hero">
+        سڵاو 👋<br><br>
 
-      <div class="hero-icon">🤖</div>
+        من <strong>ShahanFX AI</strong> ـم.
 
-      <h2>بەخێربێیت بۆ ShahanFX AI</h2>
-
-      <p>
-        یارمەتیدەری زیرەک بۆ Forex، ICT و SMC
-      </p>
-
-    </section>
-
-    <section class="chat-box">
-
-      <div id="messages" class="messages">
-
-        <div class="message ai">
-          <div class="avatar">🤖</div>
-
-          <div class="bubble">
-            سڵاو 👋<br><br>
-
-            من <strong>ShahanFX AI</strong> ـم.
-            دەتوانیت پرسیارم لەسەر Forex،
-            ICT، SMC و شیکردنەوەی Chart بکەیت.
-          </div>
-        </div>
+        دەتوانیت پرسیارم لەسەر Forex،
+        ICT، SMC و شیکردنەوەی Chart بکەیت.
 
       </div>
-
-      <div class="image-preview" id="imagePreview"></div>
-
-      <div class="input-area">
-
-        <label class="upload">
-          📷
-          <input
-            type="file"
-            id="imageInput"
-            accept="image/*"
-            hidden
-          >
-        </label>
-
-        <textarea
-          id="messageInput"
-          placeholder="پرسیارەکەت بنووسە..."
-          rows="1"
-        ></textarea>
-
-        <button id="sendBtn">
-          ➤
-        </button>
-
-      </div>
-
-    </section>
-
-    <div class="quick-actions">
-
-      <button onclick="quickQuestion('XAUUSD ئێستا چۆن شیکاربکەم؟')">
-        🥇 XAUUSD
-      </button>
-
-      <button onclick="quickQuestion('FVG چییە و چۆن بەکاری بهێنم؟')">
-        📊 FVG
-      </button>
-
-      <button onclick="quickQuestion('Liquidity Sweep چۆن بناسمەوە؟')">
-        💧 Liquidity
-      </button>
-
-      <button onclick="quickQuestion('BOS و CHOCH جیاوازییان چییە؟')">
-        🔥 BOS / CHOCH
-      </button>
 
     </div>
 
-    <footer>
-      ShahanFX AI • ICT • SMC • Forex
-    </footer>
+  </div>
 
-  </main>
 
-  <script src="script.js"></script>
+  <!-- IMAGE PREVIEW -->
+  <div
+    class="image-preview"
+    id="imagePreview">
+  </div>
 
-</body>
-</html>
+
+  <!-- INPUT -->
+  <div class="input-area">
+
+    <label class="upload">
+
+      📷
+
+      <input
+        type="file"
+        id="imageInput"
+        accept="image/*"
+        hidden
+      >
+
+    </label>
+
+
+    <textarea
+      id="messageInput"
+      placeholder="پرسیارەکەت بنووسە..."
+      rows="1"
+    ></textarea>
+
+
+    <button id="sendBtn">
+      ➤
+    </button>
+
+  </div>
+
+</section>
+
+
+<!-- QUICK ACTIONS -->
+<div class="quick-actions">
+
+  <button
+    onclick="quickQuestion('XAUUSD ئێستا چۆن شیکاربکەم؟')"
+  >
+    🥇 XAUUSD
+  </button>
+
+
+  <button
+    onclick="quickQuestion('FVG چییە و چۆن بەکاری بهێنم؟')"
+  >
+    📊 FVG
+  </button>
+
+
+  <button
+    onclick="quickQuestion('Liquidity Sweep چۆن بناسمەوە؟')"
+  >
+    💧 Liquidity
+  </button>
+
+
+  <button
+    onclick="quickQuestion('BOS و CHOCH جیاوازییان چییە؟')"
+  >
+    🔥 BOS / CHOCH
+  </button>
+
+</div>
+
+
+<!-- FOOTER -->
+<footer>
+  ShahanFX AI • ICT • SMC • Forex
+</footer>
+
+  </main>  <script src="script.js"></script></body></html>
