@@ -2,309 +2,419 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-}
+  }
 
 body {
-  font-family: Arial, sans-serif;
-  background:
-    radial-gradient(circle at top, #17213b, #070b14 60%);
-  color: #fff;
-  min-height: 100vh;
+font-family: Arial, sans-serif;
+
+background:
+radial-gradient(
+circle at top,
+#17213b,
+#070b14 60%
+);
+
+color: #fff;
+min-height: 100vh;
 }
 
 .app {
-  width: min(950px, 94%);
-  margin: auto;
-  padding: 20px 0;
+width: min(950px, 94%);
+margin: auto;
+padding: 20px 0;
 }
 
-/* Header */
+/* =========================
+HEADER
+========================= */
 
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 17px;
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 18px;
-  backdrop-filter: blur(15px);
+display: flex;
+justify-content: space-between;
+align-items: center;
+
+padding: 15px 17px;
+
+background: rgba(255,255,255,.05);
+
+border: 1px solid rgba(255,255,255,.08);
+
+border-radius: 18px;
+
+backdrop-filter: blur(15px);
 }
 
 .logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+display: flex;
+align-items: center;
+gap: 10px;
 }
 
 .logo > span {
-  font-size: 29px;
+font-size: 29px;
 }
 
 .logo h1 {
-  font-size: 19px;
+font-size: 19px;
 }
 
 .logo p {
-  color: #9ca8bd;
-  font-size: 11px;
-  margin-top: 3px;
+color: #9ca8bd;
+font-size: 11px;
+margin-top: 3px;
 }
 
 .status {
-  color: #75ffb1;
-  font-size: 12px;
+color: #75ffb1;
+font-size: 12px;
 }
 
 .status i {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  background: #36ef91;
-  border-radius: 50%;
-  margin-left: 5px;
+display: inline-block;
+
+width: 7px;
+height: 7px;
+
+background: #36ef91;
+
+border-radius: 50%;
+
+margin-left: 5px;
 }
 
-/* Hero */
+/* =========================
+HERO
+========================= */
 
 .hero {
-  text-align: center;
-  padding: 34px 10px 25px;
+text-align: center;
+
+padding: 34px 10px 25px;
 }
 
 .hero-icon {
-  font-size: 48px;
-  margin-bottom: 11px;
+font-size: 48px;
+
+margin-bottom: 11px;
 }
 
 .hero h2 {
-  font-size: 25px;
-  margin-bottom: 7px;
+font-size: 25px;
+
+margin-bottom: 7px;
 }
 
 .hero p {
-  color: #9ca8bd;
-  font-size: 13px;
+color: #9ca8bd;
+
+font-size: 13px;
 }
 
-/* Chat */
+/* =========================
+CHAT
+========================= */
 
 .chat-box {
-  background: rgba(10,15,28,.85);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 22px;
-  overflow: hidden;
-  box-shadow: 0 20px 70px rgba(0,0,0,.35);
+background: rgba(10,15,28,.85);
+
+border: 1px solid rgba(255,255,255,.08);
+
+border-radius: 22px;
+
+overflow: hidden;
+
+box-shadow:
+0 20px 70px rgba(0,0,0,.35);
 }
 
 .messages {
-  height: 480px;
-  overflow-y: auto;
-  padding: 20px;
+height: 480px;
+
+overflow-y: auto;
+
+padding: 20px;
 }
 
 .message {
-  display: flex;
-  gap: 9px;
-  margin-bottom: 17px;
+display: flex;
+
+gap: 9px;
+
+margin-bottom: 17px;
 }
 
 .avatar {
-  width: 34px;
-  height: 34px;
-  background: #151e34;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 15px;
+width: 34px;
+height: 34px;
+
+background: #151e34;
+
+border-radius: 50%;
+
+display: flex;
+align-items: center;
+justify-content: center;
+
+flex-shrink: 0;
+
+font-size: 15px;
 }
 
 .bubble {
-  max-width: 80%;
-  background: #151e34;
-  padding: 12px 15px;
-  border-radius: 15px;
-  line-height: 1.75;
-  font-size: 14px;
-  white-space: pre-wrap;
+max-width: 80%;
+
+background: #151e34;
+
+padding: 12px 15px;
+
+border-radius: 15px;
+
+line-height: 1.75;
+
+font-size: 14px;
+
+white-space: pre-wrap;
 }
 
 .message.user {
-  direction: ltr;
-  justify-content: flex-start;
+direction: ltr;
+
+justify-content: flex-start;
 }
 
 .message.user .bubble {
-  background: #25385f;
-  direction: rtl;
+background: #25385f;
+
+direction: rtl;
 }
 
-/* Input */
+/* =========================
+INPUT
+========================= */
 
 .input-area {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border-top: 1px solid rgba(255,255,255,.08);
+display: flex;
+
+align-items: center;
+
+gap: 8px;
+
+padding: 12px;
+
+border-top:
+1px solid rgba(255,255,255,.08);
 }
 
 textarea {
-  flex: 1;
-  resize: none;
-  border: none;
-  outline: none;
-  background: #11182a;
-  color: #fff;
-  border-radius: 13px;
-  padding: 12px;
-  font-size: 14px;
-  min-height: 45px;
+flex: 1;
+
+resize: none;
+
+border: none;
+
+outline: none;
+
+background: #11182a;
+
+color: #fff;
+
+border-radius: 13px;
+
+padding: 12px;
+
+font-size: 14px;
+
+min-height: 45px;
 }
 
 textarea::placeholder {
-  color: #69758b;
-}
-
-#sendBtn {
-  width: 45px;
-  height: 45px;
-  border: none;
-  border-radius: 13px;
-  cursor: pointer;
-  background: #fff;
-  color: #07101d;
-  font-size: 20px;
-  font-weight: bold;
-}
-
-#sendBtn:disabled {
-  opacity: .5;
-  cursor: not-allowed;
+color: #69758b;
 }
 
 .upload {
-  cursor: pointer;
-  font-size: 20px;
-  padding: 7px;
+cursor: pointer;
+
+font-size: 20px;
+
+padding: 7px;
 }
 
-/* Quick Actions */
+#sendBtn {
+width: 45px;
+height: 45px;
+
+border: none;
+
+border-radius: 13px;
+
+cursor: pointer;
+
+background: #fff;
+
+color: #07101d;
+
+font-size: 20px;
+
+font-weight: bold;
+}
+
+#sendBtn:disabled {
+opacity: .5;
+
+cursor: not-allowed;
+}
+
+/* =========================
+QUICK ACTIONS
+========================= */
 
 .quick-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin: 16px 0;
+display: flex;
+
+gap: 8px;
+
+flex-wrap: wrap;
+
+justify-content: center;
+
+margin: 16px 0;
 }
 
 .quick-actions button {
-  background: rgba(255,255,255,.05);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,.1);
-  padding: 8px 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 12px;
+background: rgba(255,255,255,.05);
+
+color: #fff;
+
+border:
+1px solid rgba(255,255,255,.1);
+
+padding: 8px 12px;
+
+border-radius: 10px;
+
+cursor: pointer;
+
+font-size: 12px;
 }
 
 .quick-actions button:hover {
-  background: rgba(255,255,255,.1);
+background: rgba(255,255,255,.1);
 }
 
-/* Image */
+/* =========================
+IMAGE
+========================= */
 
 .image-preview {
-  padding: 0 12px;
+padding: 0 12px;
 }
 
 .image-preview img {
-  max-width: 170px;
-  max-height: 110px;
-  border-radius: 11px;
-  margin-bottom: 8px;
+max-width: 170px;
+
+max-height: 110px;
+
+border-radius: 11px;
+
+margin-bottom: 8px;
 }
 
-/* Footer */
+/* =========================
+FOOTER
+========================= */
 
 footer {
-  text-align: center;
-  color: #647087;
-  font-size: 11px;
-  padding: 12px;
+text-align: center;
+
+color: #647087;
+
+font-size: 11px;
+
+padding: 12px;
 }
 
-/* Mobile */
+/* =========================
+MOBILE
+========================= */
 
 @media (max-width: 600px) {
 
-  .app {
-    width: 96%;
-    padding-top: 8px;
-  }
+.app {
+width: 96%;
 
-  .header {
-    padding: 13px 14px;
-  }
+padding-top: 8px;
 
-  .logo > span {
-    font-size: 26px;
-  }
+}
 
-  .logo h1 {
-    font-size: 18px;
-  }
+.header {
+padding: 13px 14px;
+}
 
-  .logo p {
-    font-size: 10px;
-  }
+.logo > span {
+font-size: 26px;
+}
 
-  .hero {
-    padding: 25px 5px 17px;
-  }
+.logo h1 {
+font-size: 18px;
+}
 
-  .hero-icon {
-    font-size: 42px;
-  }
+.logo p {
+font-size: 10px;
+}
 
-  .hero h2 {
-    font-size: 21px;
-  }
+.hero {
+padding: 25px 5px 17px;
+}
 
-  .hero p {
-    font-size: 12px;
-  }
+.hero-icon {
+font-size: 42px;
+}
 
-  .messages {
-    height: 55vh;
-    padding: 14px;
-  }
+.hero h2 {
+font-size: 21px;
+}
 
-  .bubble {
-    max-width: 88%;
-    font-size: 13px;
-    padding: 11px 13px;
-  }
+.hero p {
+font-size: 12px;
+}
 
-  .avatar {
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
-  }
+.messages {
+height: 55vh;
 
-  textarea {
-    font-size: 13px;
-  }
+padding: 14px;
 
-  .quick-actions button {
-    font-size: 11px;
-    padding: 7px 10px;
-  }
+}
 
-  footer {
-    font-size: 10px;
-  }
+.bubble {
+max-width: 88%;
+
+font-size: 13px;
+
+padding: 11px 13px;
+
+}
+
+.avatar {
+width: 32px;
+height: 32px;
+
+font-size: 14px;
+
+}
+
+textarea {
+font-size: 13px;
+}
+
+.quick-actions button {
+font-size: 11px;
+
+padding: 7px 10px;
+
+}
+
+footer {
+font-size: 10px;
+}
+
 }
