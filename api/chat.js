@@ -4,12 +4,13 @@ export default async function handler(req, res) {
    * =========================================================
    * SHAHANFX AI PRO
    * Forex • ICT • SMC • Chart Vision
+   * Gemini Fallback System
    * =========================================================
    */
 
-  // ---------------------------------------------------------
+  // =========================================================
   // CORS
-  // ---------------------------------------------------------
+  // =========================================================
 
   res.setHeader(
     "Access-Control-Allow-Origin",
@@ -27,24 +28,34 @@ export default async function handler(req, res) {
   );
 
 
+  // =========================================================
+  // OPTIONS
+  // =========================================================
+
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
 
+  // =========================================================
+  // ONLY POST
+  // =========================================================
+
   if (req.method !== "POST") {
+
     return res.status(405).json({
       success: false,
       error: "تەنها POST ڕێگەپێدراوە."
     });
+
   }
 
 
   try {
 
-    // -------------------------------------------------------
+    // =======================================================
     // API KEY
-    // -------------------------------------------------------
+    // =======================================================
 
     const apiKey =
       process.env.GEMINI_API_KEY;
@@ -61,59 +72,78 @@ export default async function handler(req, res) {
     }
 
 
-    // -------------------------------------------------------
-    // REQUEST
-    // -------------------------------------------------------
+    // =======================================================
+    // REQUEST BODY
+    // =======================================================
 
     const body =
       req.body || {};
+
 
     const message =
       typeof body.message === "string"
         ? body.message.trim()
         : "";
 
+
     const image =
       body.image || null;
 
+
+    // =======================================================
+    // VALIDATION
+    // =======================================================
 
     if (!message && !image) {
 
       return res.status(400).json({
         success: false,
         error:
-          "نامە یان وێنەی Chart بنێرە."
+          "تکایە پرسیار یان وێنەی Chart بنێرە."
       });
 
     }
 
 
-    // -------------------------------------------------------
-    // SHAHANFX SYSTEM INSTRUCTIONS
-    // -------------------------------------------------------
+    // =======================================================
+    // SHAHANFX AI SYSTEM PROMPT
+    // =======================================================
 
     const systemPrompt = `
 
 تۆ ShahanFX AI Pro ـیت.
 
-تۆ ڕاوێژکاری زیرەکی تایبەتیت بۆ Forex،
-ICT، SMC، Price Action و Technical Analysis.
+تۆ ڕاوێژکاری زیرەکی تایبەتیت بۆ:
+
+Forex
+ICT
+SMC
+Price Action
+Technical Analysis
+Chart Analysis
+Risk Management
+
+=========================================================
+زمان
+=========================================================
 
 زمانی سەرەکی:
+
 کوردی سۆرانی.
 
-هەرکات بەکارهێنەر بە کوردی پرسیار کرد،
+ئەگەر بەکارهێنەر بە کوردی پرسیار کرد،
 بە کوردی سۆرانی وەڵام بدە.
 
-ئەگەر بە زمانێکی تر پرسیاری کرد،
-دەتوانیت بە هەمان زمان وەڵام بدەیت،
-بەڵام کوردی سۆرانی هەمیشە پەسەندکراوە.
+وەڵامەکان ڕوون،
+پیشەیی،
+ڕێکخراو،
+و بەسوود بن.
 
 =========================================================
-1. FOREX EXPERTISE
+FOREX EXPERT
 =========================================================
 
-شارەزایی زۆرت هەیە لە:
+لەمانەدا شارەزاییت هەیە:
 
 Forex
 XAUUSD
@@ -127,29 +157,31 @@ NZDUSD
 
 Price Action
 Candlestick Analysis
+Technical Analysis
 Market Structure
-Trend Analysis
-Support / Resistance
+Trend
+Support
+Resistance
 Breakout
 Retest
 Pullback
 Momentum
 Volatility
 
-Risk Management
-Position Sizing
-Lot Size
 Pips
+Points
 Spread
 Leverage
-Risk / Reward
+Lot Size
+Position Size
+Risk Management
 Stop Loss
 Take Profit
-
+Risk Reward
 Trading Psychology
 
 =========================================================
-2. ICT
+ICT
 =========================================================
 
 ICT concepts:
@@ -180,22 +212,28 @@ Imbalance
 
 OTE
 Fibonacci
-Kill Zones
 
+Asian Session
 London Session
 New York Session
-Asian Session
 
-Power of Three
+Kill Zones
+
+Power Of Three
 Accumulation
 Manipulation
 Distribution
 
 =========================================================
-3. SMC
+SMC
 =========================================================
 
 Smart Money Concepts:
+
+Higher High
+Higher Low
+Lower High
+Lower Low
 
 HH
 HL
@@ -212,95 +250,103 @@ Breaker
 Mitigation
 Supply
 Demand
+
 Premium
 Discount
 
 =========================================================
-4. CHART VISION
+CHART VISION
 =========================================================
 
-ئەگەر وێنەی Chart هەیە:
+ئەگەر بەکارهێنەر وێنەی Chart نارد:
 
-سەرەتا هەوڵ بدە ئەمانە بناسیت:
+سەرەتا هەوڵ بدە ئەمانە بخوێنیتەوە:
 
 1. Symbol
 2. Timeframe
-3. Current price ـی دیاربوو
-4. Market direction
+3. Price
+4. Trend
 5. Market Structure
-6. HH / HL / LH / LL
-7. BOS
-8. CHOCH
-9. Liquidity
-10. Liquidity Sweep
-11. FVG
-12. Order Block
-13. Breaker
-14. Support / Resistance
-15. Premium / Discount
-16. Candlestick confirmation
-17. Possible setup
+6. HH
+7. HL
+8. LH
+9. LL
+10. BOS
+11. CHOCH
+12. Liquidity
+13. Liquidity Sweep
+14. FVG
+15. Order Block
+16. Breaker Block
+17. Support
+18. Resistance
+19. Premium
+20. Discount
+21. Candlestick confirmation
 
 بەڵام:
 
-هیچ شتێک لە chart ـەکەدا خۆت مەخەیتە ناو شیکردنەوە
-ئەگەر بە ڕوونی نەبینرێت.
+هیچ شتێک مەخەڵقە.
 
-ئەگەر timeframe یان price یان symbol نەخوێندرایەوە،
+ئەگەر لە chart ـەکەدا بە ڕوونی نەبینرێت،
 بڵێ:
 
-"لە وێنەکەدا بە دڵنیایی ناتوانم ئەم زانیارییە دیاری بکەم."
-
-هیچ زانیارییەک مەخەڵقە.
+"ئەم زانیارییە لە وێنەکەدا بە دڵنیایی دیار نییە."
 
 =========================================================
-5. CHART ANALYSIS PROCESS
+CHART ANALYSIS PROCESS
 =========================================================
 
-کاتێک chart دەنێردرێت:
+کاتێک Chart هەیە:
 
-STEP 1:
+STEP 1
 Symbol و timeframe دیاری بکە.
 
-STEP 2:
+STEP 2
+Trend دیاری بکە.
+
+STEP 3
 Market Structure شیکاربکە.
 
-STEP 3:
-Trend / Bias دیاری بکە.
+STEP 4
+HH / HL / LH / LL بپشکنە.
 
-STEP 4:
-Liquidity پشکنە.
+STEP 5
+BOS / CHOCH بپشکنە.
 
-STEP 5:
-Liquidity Sweep بگەڕێ.
+STEP 6
+Liquidity بگەڕێ.
 
-STEP 6:
-FVG و Imbalance پشکنە.
+STEP 7
+Liquidity Sweep بپشکنە.
 
-STEP 7:
-Order Block / Breaker پشکنە.
+STEP 8
+FVG بپشکنە.
 
-STEP 8:
-Premium / Discount هەڵسەنگێنە.
+STEP 9
+Order Block بپشکنە.
 
-STEP 9:
-Candlestick confirmation پشکنە.
+STEP 10
+Premium / Discount بپشکنە.
 
-STEP 10:
-Possible setup دروست بکە.
+STEP 11
+Candlestick confirmation بپشکنە.
 
-STEP 11:
+STEP 12
+Potential Setup هەڵسەنگێنە.
+
+STEP 13
 Invalidation دیاری بکە.
 
-STEP 12:
+STEP 14
 Risk / Reward هەڵسەنگێنە.
 
 =========================================================
-6. TRADE ANALYSIS
+TRADE ANALYSIS
 =========================================================
 
 ئەگەر بەکارهێنەر داوای trade analysis کرد،
-وەڵامەکە بە ئەم structure ـە بدە:
+وەڵامەکە بە ئەم شێوەیە ڕێکبخە:
 
 📊 SHAHANFX AI PRO
 
@@ -316,10 +362,10 @@ Bullish / Bearish / Neutral
 🏗 Market Structure:
 ...
 
-💧 Liquidity:
+🔥 BOS / CHOCH:
 ...
 
-🔥 BOS / CHOCH:
+💧 Liquidity:
 ...
 
 📦 FVG:
@@ -331,7 +377,7 @@ Bullish / Bearish / Neutral
 💎 Premium / Discount:
 ...
 
-🕯 Confirmation:
+🕯 Candlestick Confirmation:
 ...
 
 🎯 Potential Setup:
@@ -340,10 +386,13 @@ BUY / SELL / WAIT
 📍 Potential Entry:
 ...
 
-🛑 Invalidation / SL Area:
+🛑 Invalidation:
 ...
 
-🎯 TP Area:
+🛑 Potential SL:
+...
+
+🎯 Potential TP:
 ...
 
 ⚖️ Risk / Reward:
@@ -356,7 +405,7 @@ BUY / SELL / WAIT
 ...
 
 =========================================================
-7. CONFIDENCE
+CONFIDENCE
 =========================================================
 
 Confidence تەنها هەڵسەنگاندنی AI ـە.
@@ -367,57 +416,56 @@ Confidence تەنها هەڵسەنگاندنی AI ـە.
 100% Win
 Guaranteed Profit
 
-لەبری ئەوە:
+هیچ trade ـێک 100% دڵنیایی نییە.
 
-Low Confidence
-Medium Confidence
-High Confidence
+Confidence دەتوانێت:
+
+Low
+Medium
+High
 
 یان:
 
 Confidence: 72%
 
-بەڵام ڕوون بکەوە کە Confidence
-پێشبینییە، نەک دڵنیایی لە داهاتووی بازاڕ.
+بەڵام هەمیشە ڕوون بکەوە:
+
+"Confidence پێشبینیی AI ـە، نەک دڵنیایی لە داهاتووی بازاڕ."
 
 =========================================================
-8. RISK MANAGEMENT
+RISK MANAGEMENT
 =========================================================
 
-هەمیشە Risk Management لەبەرچاو بگرە.
+Risk Management زۆر گرنگە.
 
-ئەگەر بەکارهێنەر داوای trade کرد:
+ئەگەر account balance
+و risk percentage نەدراوە:
 
-Risk ـی زۆر پێشنیار مەکە.
+خۆت balance دروست مەکە.
 
-ئەگەر زانیاریی account balance
-و risk percentage نەدراوە،
-خۆت ژمارەی account balance دروست مەکە.
+خۆت lot size ـی ورد دروست مەکە.
 
 بڵێ:
 
-"بۆ دیاریکردنی lot size ـی ورد،
-balance و risk % پێویستە."
+"بۆ دیاریکردنی Lot Size ـی ورد،
+Balance و Risk % پێویستە."
+
+ئەگەر Risk/Reward کەمە،
+ئاگاداری بەکارهێنەر بکە.
 
 =========================================================
-9. WHEN INFORMATION IS MISSING
+GENERAL FOREX
 =========================================================
 
-ئەگەر زانیاری کەمە:
+ئەگەر پرسیارەکە فێرکارییە:
 
-خۆت داتا دروست مەکە.
+Definition
+How it works
+How to identify
+Example
+Common mistake
 
-بەکارهێنەر ئاگادار بکە:
-
-"بۆ شیکردنەوەی وردتر،
-symbol، timeframe یان screenshot ـی ڕوونتر بنێرە."
-
-=========================================================
-10. GENERAL FOREX QUESTIONS
-=========================================================
-
-ئەگەر پرسیارەکە تیۆرییە،
-بە شێوەی فێرکاری و ڕوون وەڵام بدە.
+بەکاربهێنە.
 
 نموونە:
 
@@ -431,15 +479,10 @@ Liquidity چییە؟
 
 Order Block چییە؟
 
-هەر یەک:
-
-Definition
-How to identify
-Example
-Common mistake
+Premium و Discount چییە؟
 
 =========================================================
-11. EDUCATIONAL MODE
+EDUCATION MODE
 =========================================================
 
 ئەگەر بەکارهێنەر بڵێت:
@@ -453,19 +496,47 @@ Common mistake
 بابەتەکە بە هەنگاوەکان دابەش بکە.
 
 =========================================================
-12. IMPORTANT SAFETY
+MISSING INFORMATION
+=========================================================
+
+ئەگەر زانیاری کەمە:
+
+خۆت data دروست مەکە.
+
+بڵێ:
+
+"بۆ شیکردنەوەی وردتر،
+Symbol، Timeframe یان Screenshot ـێکی ڕوونتر بنێرە."
+
+=========================================================
+LIVE DATA
+=========================================================
+
+ئەگەر هیچ live market data ـی پێنەدراوە:
+
+خۆت price ـی ئێستا دروست مەکە.
+
+خۆت news دروست مەکە.
+
+خۆت current market condition دروست مەکە.
+
+بڵێ:
+
+"بۆ current market analysis،
+live market data پێویستە."
+
+=========================================================
+IMPORTANT
 =========================================================
 
 تۆ ڕاوێژکارییەکی شیکارییت،
 نەک دڵنیابوونەوەی قازانج.
 
-بازاڕی Forex مەترسیدارە.
+Forex و CFD مەترسیدارن.
 
 هیچ قازانجێک Guaranteed نییە.
 
 هیچ trade ـێک 100% دڵنیایی نییە.
-
-لە شیکردنەوەدا:
 
 Evidence
 Structure
@@ -473,46 +544,9 @@ Liquidity
 Confirmation
 Risk
 
-لەسەر هەموو شتێک پێشەنگن.
+لە هەموو شتێک پێشەنگن.
 
-=========================================================
-13. RESPONSE STYLE
-=========================================================
-
-وەڵامەکان:
-
-ڕوون
-پیشەیی
-کورت بەڵام بەسوود
-ڕێکخراو
-
-بۆ headings ـەکان emoji بەکاربهێنە،
-بەڵام زۆر زیادەڕەوی مەکە.
-
-ئەگەر پرسیارەکە سادەیە،
-وەڵامی سادە بدە.
-
-ئەگەر شیکردنەوەی chart ـە،
-وردتر بە.
-
-=========================================================
-14. NEVER INVENT DATA
-=========================================================
-
-ئەگەر price، news، timeframe،
-indicator یان market data لە request ـەکەدا نییە:
-
-خۆت دروستی مەکە.
-
-بڵێ زانیارییەکە بەردەست نییە.
-
-=========================================================
-15. FINAL PRINCIPLE
-=========================================================
-
-هەموو شیکردنەوەیەک دەبێت پشت بە evidence ببەستێت.
-
-ئەگەر setup ـێک لاوازە:
+ئەگەر setup لاوازە:
 
 WAIT
 
@@ -524,36 +558,56 @@ WAIT FOR CONFIRMATION
 
 REQUEST CLEARER CHART
 
-ئامانج:
+=========================================================
+FINAL PRINCIPLE
+=========================================================
+
+ئامانجی ShahanFX AI:
+
 یارمەتیدانی بەکارهێنەر بۆ تێگەیشتن لە بازاڕ،
-نەک وادانانی ئەوەی کە AI داهاتووی بازاڕ بە دڵنیایی دەزانێت.
+فێربوونی Forex،
+شیکردنەوەی Chart،
+و بەکارهێنانی Risk Management.
+
+نەک دروستکردنی دڵنیایی ساختە.
 
 `;
 
 
-    // -------------------------------------------------------
-    // USER CONTENT
-    // -------------------------------------------------------
+    // =======================================================
+    // USER REQUEST + SYSTEM PROMPT
+    // =======================================================
 
     const parts = [];
 
 
     parts.push({
+
       text:
         systemPrompt +
-        "\n\n=========================================================\n" +
-        "USER REQUEST\n" +
-        "=========================================================\n\n" +
-        (
-          message ||
-          "ئەم chart ـە بە شێوەی ShahanFX AI Pro شیکاربکە."
-        )
+
+        `
+
+=========================================================
+USER REQUEST
+=========================================================
+
+${
+
+  message ||
+
+  "تکایە ئەم Chart ـە بە شێوەی ShahanFX AI Pro شیکاربکە."
+
+}
+
+`
+
     });
 
 
-    // -------------------------------------------------------
+    // =======================================================
     // IMAGE
-    // -------------------------------------------------------
+    // =======================================================
 
     if (
       image &&
@@ -564,8 +618,13 @@ REQUEST CLEARER CHART
       parts.push({
 
         inlineData: {
-          mimeType: image.mimeType,
-          data: image.data
+
+          mimeType:
+            image.mimeType,
+
+          data:
+            image.data
+
         }
 
       });
@@ -573,100 +632,345 @@ REQUEST CLEARER CHART
     }
 
 
-    // -------------------------------------------------------
-    // GEMINI API
-    // -------------------------------------------------------
+    // =======================================================
+    // MODELS
+    // =======================================================
 
-    const model =
-      "gemini-3.7-flash";
+    /*
+     * Primary:
+     * Gemini 3.7 Flash
+     *
+     * Fallback:
+     * Gemini 3.6 Flash
+     *
+     * Backup:
+     * Gemini 3.5 Flash
+     */
+
+    const models = [
+
+      "gemini-3.7-flash",
+
+      "gemini-3.6-flash",
+
+      "gemini-3.5-flash"
+
+    ];
 
 
-    const endpoint =
-      "https://generativelanguage.googleapis.com/v1beta/models/" +
-      model +
-      ":generateContent?key=" +
-      encodeURIComponent(apiKey);
+    // =======================================================
+    // RETRY SETTINGS
+    // =======================================================
+
+    const MAX_RETRIES_PER_MODEL = 2;
+
+    const BASE_DELAY = 1200;
 
 
-    const response =
-      await fetch(
-        endpoint,
-        {
-          method: "POST",
+    // =======================================================
+    // VARIABLES
+    // =======================================================
 
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
+    let response = null;
 
-          body: JSON.stringify({
+    let data = null;
 
-            contents: [
+    let usedModel = null;
 
+
+    // =======================================================
+    // MODEL LOOP
+    // =======================================================
+
+    outerLoop:
+
+    for (
+      const model of models
+    ) {
+
+      for (
+        let attempt = 0;
+        attempt < MAX_RETRIES_PER_MODEL;
+        attempt++
+      ) {
+
+
+        // ===================================================
+        // ENDPOINT
+        // ===================================================
+
+        const endpoint =
+          "https://generativelanguage.googleapis.com/v1beta/models/" +
+          model +
+          ":generateContent?key=" +
+          encodeURIComponent(apiKey);
+
+
+        try {
+
+          // =================================================
+          // REQUEST
+          // =================================================
+
+          response =
+            await fetch(
+              endpoint,
               {
-                role: "user",
 
-                parts: parts
+                method:
+                  "POST",
+
+                headers: {
+
+                  "Content-Type":
+                    "application/json"
+
+                },
+
+                body:
+                  JSON.stringify({
+
+                    contents: [
+
+                      {
+
+                        role:
+                          "user",
+
+                        parts:
+                          parts
+
+                      }
+
+                    ],
+
+                    generationConfig: {
+
+                      maxOutputTokens:
+                        5000,
+
+                      thinkingConfig: {
+
+                        thinkingLevel:
+                          "medium"
+
+                      }
+
+                    }
+
+                  })
+
               }
+            );
 
-            ],
 
-            generationConfig: {
+          // =================================================
+          // JSON
+          // =================================================
 
-              maxOutputTokens: 5000,
+          data =
+            await response.json();
 
-              thinkingConfig: {
-                thinkingLevel: "high"
-              }
 
-            }
+          // =================================================
+          // SUCCESS
+          // =================================================
 
-          })
+          if (
+            response.ok
+          ) {
+
+            usedModel =
+              model;
+
+            break outerLoop;
+
+          }
+
+
+          // =================================================
+          // ERROR MESSAGE
+          // =================================================
+
+          const errorText =
+            String(
+              data?.error?.message ||
+              ""
+            ).toLowerCase();
+
+
+          // =================================================
+          // RETRYABLE ERRORS
+          // =================================================
+
+          const retryable =
+
+            response.status === 429 ||
+
+            response.status === 500 ||
+
+            response.status === 502 ||
+
+            response.status === 503 ||
+
+            response.status === 504 ||
+
+            errorText.includes(
+              "high demand"
+            ) ||
+
+            errorText.includes(
+              "temporarily unavailable"
+            ) ||
+
+            errorText.includes(
+              "overloaded"
+            ) ||
+
+            errorText.includes(
+              "unavailable"
+            ) ||
+
+            errorText.includes(
+              "resource exhausted"
+            );
+
+
+          // =================================================
+          // NON-RETRYABLE
+          // =================================================
+
+          if (!retryable) {
+
+            console.error(
+              "Non-retryable Gemini error:",
+              data
+            );
+
+            break outerLoop;
+
+          }
+
+
+          // =================================================
+          // RETRY DELAY
+          // =================================================
+
+          if (
+            attempt <
+            MAX_RETRIES_PER_MODEL - 1
+          ) {
+
+            const delay =
+              BASE_DELAY *
+              Math.pow(
+                2,
+                attempt
+              );
+
+
+            console.log(
+              `ShahanFX AI: ${model} busy. ` +
+              `Retry ${attempt + 1}. ` +
+              `Waiting ${delay}ms`
+            );
+
+
+            await new Promise(
+              resolve =>
+                setTimeout(
+                  resolve,
+                  delay
+                )
+            );
+
+          }
 
         }
-      );
+
+        catch (error) {
+
+          console.error(
+            `Network error on ${model}:`,
+            error
+          );
 
 
-    // -------------------------------------------------------
-    // RESPONSE
-    // -------------------------------------------------------
+          if (
+            attempt <
+            MAX_RETRIES_PER_MODEL - 1
+          ) {
 
-    const data =
-      await response.json();
+            const delay =
+              BASE_DELAY *
+              Math.pow(
+                2,
+                attempt
+              );
 
 
-    if (!response.ok) {
+            await new Promise(
+              resolve =>
+                setTimeout(
+                  resolve,
+                  delay
+                )
+            );
+
+          }
+
+        }
+
+      }
+
+    }
+
+
+    // =======================================================
+    // ALL MODELS FAILED
+    // =======================================================
+
+    if (
+      !response ||
+      !response.ok ||
+      !usedModel
+    ) {
 
       console.error(
-        "Gemini API Error:",
-        JSON.stringify(data)
+        "All Gemini models failed:",
+        data
       );
 
 
-      return res.status(
-        response.status
-      ).json({
+      const originalError =
+        data?.error?.message ||
+        "";
 
-        success: false,
+
+      return res.status(503).json({
+
+        success:
+          false,
 
         error:
-          data?.error?.message ||
-          "هەڵەیەک لە Gemini API ڕوویدا."
+          "⚠️ ShahanFX AI لە ئێستادا بەهۆی زۆری داواکارییەکانەوە بەردەست نییە. تکایە دووبارە هەوڵ بدە.",
+
+        details:
+          originalError || null
 
       });
 
     }
 
 
-    // -------------------------------------------------------
+    // =======================================================
     // EXTRACT ANSWER
-    // -------------------------------------------------------
+    // =======================================================
 
     const answer =
       data
         ?.candidates?.[0]
-        ?.content
-        ?.parts
+        ?.content?.parts
         ?.map(
           part =>
             part.text || ""
@@ -675,11 +979,16 @@ REQUEST CLEARER CHART
         .trim();
 
 
+    // =======================================================
+    // EMPTY RESPONSE
+    // =======================================================
+
     if (!answer) {
 
       return res.status(502).json({
 
-        success: false,
+        success:
+          false,
 
         error:
           "Gemini هیچ وەڵامێکی دەق نەگەڕاندەوە."
@@ -689,17 +998,20 @@ REQUEST CLEARER CHART
     }
 
 
-    // -------------------------------------------------------
+    // =======================================================
     // FINAL RESPONSE
-    // -------------------------------------------------------
+    // =======================================================
 
     return res.status(200).json({
 
-      success: true,
+      success:
+        true,
 
-      answer: answer,
+      answer:
+        answer,
 
-      model: model,
+      model:
+        usedModel,
 
       hasImage:
         Boolean(
@@ -710,7 +1022,13 @@ REQUEST CLEARER CHART
     });
 
 
-  } catch (error) {
+  }
+
+  // =========================================================
+  // SERVER ERROR
+  // =========================================================
+
+  catch (error) {
 
     console.error(
       "ShahanFX Server Error:",
@@ -720,7 +1038,8 @@ REQUEST CLEARER CHART
 
     return res.status(500).json({
 
-      success: false,
+      success:
+        false,
 
       error:
         "هەڵەی ناوخۆی Backend ڕوویدا."
