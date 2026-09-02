@@ -1,12 +1,11 @@
 // api/news.js
-// ShahanFX AI
-// Xoomar Economic Calendar
-// No FMP required
-// No API key required
+// ShahanFX AI - LIVE FOREX NEWS
+// تەنها ئەم فایلە دەستکاری دەکرێت.
+// chat.js هیچ دەستکاری ناکرێت.
 
 export default async function handler(req, res) {
   // =========================================================
-  // CORS
+  // CORS + NO CACHE
   // =========================================================
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
@@ -15,12 +14,9 @@ export default async function handler(req, res) {
   );
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "Content-Type"
+    "Content-Type, Authorization"
   );
 
-  // =========================================================
-  // NO CACHE
-  // =========================================================
   res.setHeader(
     "Cache-Control",
     "no-store, no-cache, must-revalidate, proxy-revalidate"
@@ -47,37 +43,35 @@ export default async function handler(req, res) {
   }
 
   // =========================================================
-  // DATE HELPERS
+  // API KEY
   // =========================================================
+  const apiKey = process.env.FMP_API_KEY;
 
-  function getTodayUTC() {
-    return new Date()
-      .toISOString()
-      .slice(0, 10);
+  if (!apiKey) {
+    return res.status(200).json({
+      ok: true,
+      success: false,
+      live: false,
+      source: "FMP",
+      count: 0,
+      events: [],
+      warning:
+        "FMP_API_KEY نەدۆزرایەوە."
+    });
   }
 
-  function isValidDate(value) {
-    if (
-      typeof value !== "string" ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(value)
-    ) {
-      return false;
-    }
-
-    const d = new Date(
-      value + "T00:00:00Z"
-    );
-
-    return (
-      !Number.isNaN(d.getTime()) &&
-      d.toISOString().slice(0, 10) === value
-    );
-  }
+  // =========================================================
+  // HELPERS
+  // =========================================================
 
   function getQuery(name) {
     if (!req.query) return null;
 
     const value = req.query[name];
+
+    if (Array.isArray(value)) {
+      return value[0] || null;
+    }
 
     if (
       value === undefined ||
@@ -86,65 +80,60 @@ export default async function handler(req, res) {
       return null;
     }
 
-    if (Array.isArray(value)) {
-      return value[0] || null;
+    return String(value).trim();
+  }
+
+  function clean(value) {
+    if (
+      value === undefined ||
+      value === null
+    ) {
+      return "";
     }
 
     return String(value).trim();
   }
 
   // =========================================================
-  // TODAY
+  // CURRENT TIME
   // =========================================================
 
-  const today = getTodayUTC();
-
-  // بە default:
-  // ئەمڕۆ + 7 ڕۆژی داهاتوو
-  //
-  // ئەمە وای دەکات هەواڵ/ئێڤێنتی گرنگی داهاتووش
-  // لە Calendar ـدا پیشان بدرێت.
-  let from = getQuery("from");
-  let to = getQuery("to");
-
-  if (!isValidDate(from)) {
-    from = today;
-  }
-
-  if (!isValidDate(to)) {
-    const future = new Date(
-      today + "T00:00:00Z"
-    );
-
-    future.setUTCDate(
-      future.getUTCDate() + 7
-    );
-
-    to = future
-      .toISOString()
-      .slice(0, 10);
-  }
+  const fetchedAt =
+    new Date().toISOString();
 
   // =========================================================
-  // XOOMAR API
+  // LIVE FOREX NEWS ENDPOINT
   // =========================================================
   //
-  // Official Xoomar endpoint:
+  // FMP:
+  // /stable/news/forex-latest?page=0&limit=20
   //
-  // https://xoomar.com/api/markets/calendar
-  //
-  // importance=high
-  //
-  // No API key required.
+  // ئەمە Forex News ـە، نە Economic Calendar.
   // =========================================================
+
+  const page =
+    Number(getQuery("page")) >= 0
+      ? Number(getQuery("page"))
+      : 0;
+
+  const requestedLimit =
+    Number(getQuery("limit"));
+
+  const limit =
+    Number.isFinite(requestedLimit) &&
+    requestedLimit >= 1 &&
+    requestedLimit <= 50
+      ? requestedLimit
+      : 30;
 
   const url =
-    "https://xoomar.com/api/markets/calendar" +
-    "?from=" +
-    encodeURIComponent(from) +
-    "&to=" +
-    encodeURIComponent(to) +
-    "&importance=high";
+    "https://financialmodelingprep.com/stable/news/forex-latest" +
+    "?page=" +
+    encodeURIComponent(page) +
+    "&limit=" +
+    encodeURIComponent(limit) +
+    "&apikey=" +
+    encodeURIComponent(apiKey);
 
   // =========================================================
   // TIMEOUT
@@ -153,12 +142,9 @@ export default async function handler(req, res) {
   const controller =
     new AbortController();
 
-  const timeout = setTimeout(
-    function () {
-      controller.abort();
-    },
-    10000
-  );
+  const timeout = setTimeout(function () {
+    controller.abort();
+  }, 10000);
 
   let response;
 
@@ -169,12 +155,12 @@ export default async function handler(req, res) {
       headers: {
         Accept: "application/json",
         "User-Agent":
-          "ShahanFX-AI/1.0"
+          "ShahanFX-AI-News/1.0"
       },
 
-      cache: "no-store",
+      signal: controller.signal,
 
-      signal: controller.signal
+      cache: "no-store"
     });
   } catch (error) {
     clearTimeout(timeout);
@@ -184,13 +170,9 @@ export default async function handler(req, res) {
       success: false,
       live: false,
 
-      source: "Xoomar",
+      source: "FMP Forex News",
 
-      from,
-      to,
-
-      fetchedAt:
-        new Date().toISOString(),
+      fetchedAt,
 
       count: 0,
 
@@ -199,33 +181,33 @@ export default async function handler(req, res) {
       warning:
         error &&
         error.name === "AbortError"
-          ? "Xoomar API timeout ـی کرد."
+          ? "FMP Forex News timeout ـی کرد."
           : error &&
               error.message
             ? error.message
-            : "نەتوانرا پەیوەندی بە Xoomar بکرێت."
+            : "نەتوانرا پەیوەندی بە FMP Forex News بکرێت."
     });
   } finally {
     clearTimeout(timeout);
   }
 
   // =========================================================
-  // RESPONSE
+  // READ RESPONSE
   // =========================================================
 
   const rawText =
     await response.text();
 
-  let result = null;
+  let data = null;
 
   try {
-    result = JSON.parse(rawText);
+    data = JSON.parse(rawText);
   } catch {
-    result = null;
+    data = null;
   }
 
   // =========================================================
-  // XOOMAR ERROR
+  // API ERROR
   // =========================================================
 
   if (!response.ok) {
@@ -234,13 +216,9 @@ export default async function handler(req, res) {
       success: false,
       live: false,
 
-      source: "Xoomar",
+      source: "FMP Forex News",
 
-      from,
-      to,
-
-      fetchedAt:
-        new Date().toISOString(),
+      fetchedAt,
 
       count: 0,
 
@@ -249,178 +227,189 @@ export default async function handler(req, res) {
       status: response.status,
 
       warning:
-        "Xoomar API وەڵامی سەرکەوتوو نەدا.",
+        "FMP Forex News API وەڵامی سەرکەوتوو نەدا.",
 
       details:
-        result &&
-        typeof result === "object"
-          ? result.message ||
-            result.error ||
+        data &&
+        typeof data === "object"
+          ? data.message ||
+            data.error ||
             null
           : null
     });
   }
 
   // =========================================================
-  // XOOMAR RESPONSE FORMAT
-  // =========================================================
-  //
-  // {
-  //   data: [],
-  //   updatedAt: "...",
-  //   source: "...",
-  //   docs: "..."
-  // }
+  // CHECK ARRAY
   // =========================================================
 
-  if (
-    !result ||
-    !Array.isArray(result.data)
-  ) {
+  if (!Array.isArray(data)) {
     return res.status(200).json({
       ok: true,
       success: false,
       live: false,
 
-      source: "Xoomar",
+      source: "FMP Forex News",
 
-      from,
-      to,
-
-      fetchedAt:
-        new Date().toISOString(),
+      fetchedAt,
 
       count: 0,
 
       events: [],
 
       warning:
-        "Xoomar داتای Economic Calendar ـی دروستی نەگەڕاندەوە."
+        "FMP Forex News داتای دروستی نەگەڕاندەوە."
     });
   }
 
   // =========================================================
-  // NORMALIZE EVENTS
+  // IMPORTANT NEWS KEYWORDS
   // =========================================================
 
-  const events = result.data
+  const importantKeywords = [
+    "fed",
+    "federal reserve",
+    "fomc",
+    "interest rate",
+    "rate decision",
+    "cpi",
+    "inflation",
+    "ppi",
+    "nfp",
+    "nonfarm",
+    "employment",
+    "unemployment",
+    "payroll",
+    "gdp",
+    "pce",
+    "retail sales",
+    "ism",
+    "jobs",
+    "treasury",
+    "powell",
+    "central bank",
+    "dollar",
+    "usd",
+    "gold",
+    "xau"
+  ];
+
+  // =========================================================
+  // NORMALIZE NEWS
+  // =========================================================
+
+  const events = data
     .map(function (item) {
+      const title =
+        clean(
+          item.title ||
+          item.headline ||
+          item.name
+        );
+
+      const text =
+        clean(
+          item.text ||
+          item.content ||
+          item.description ||
+          item.snippet
+        );
+
+      const combined =
+        (
+          title +
+          " " +
+          text
+        ).toLowerCase();
+
+      const important =
+        importantKeywords.some(
+          function (keyword) {
+            return combined.includes(
+              keyword
+            );
+          }
+        );
+
       return {
-        source:
-          item.source ||
-          null,
+        title,
 
-        event:
-          item.eventName ||
-          item.event ||
-          item.name ||
-          "",
+        text,
 
-        importance:
-          item.importance ||
-          "high",
+        url:
+          clean(
+            item.url ||
+            item.link ||
+            item.articleURL
+          ) || null,
 
-        scheduledAt:
-          item.scheduledAt ||
+        site:
+          clean(
+            item.site ||
+            item.source ||
+            item.publisher
+          ) || "Unknown",
+
+        publishedDate:
+          item.publishedDate ||
+          item.published_at ||
           item.date ||
           item.datetime ||
           null,
 
-        periodLabel:
-          item.periodLabel ||
-          null,
+        symbol:
+          clean(
+            item.symbol ||
+            item.pair ||
+            ""
+          ) || null,
 
-        previous:
-          item.previous !== undefined
-            ? item.previous
-            : null,
-
-        actual:
-          item.actual !== undefined
-            ? item.actual
-            : null,
-
-        // Xoomar forecast نادات
-        // بۆیە هیچ forecast ـێک دروست ناکەین.
-        estimate: null
+        important
       };
     })
     .filter(function (item) {
-      return item.event !== "";
+      return item.title !== "";
     });
 
   // =========================================================
-  // SORT BY TIME
+  // SORT NEWEST FIRST
   // =========================================================
 
   events.sort(
     function (a, b) {
-      const aTime =
-        a.scheduledAt
-          ? new Date(
-              a.scheduledAt
-            ).getTime()
-          : 0;
+      const aTime = a.publishedDate
+        ? new Date(
+            a.publishedDate
+          ).getTime()
+        : 0;
 
-      const bTime =
-        b.scheduledAt
-          ? new Date(
-              b.scheduledAt
-            ).getTime()
-          : 0;
+      const bTime = b.publishedDate
+        ? new Date(
+            b.publishedDate
+          ).getTime()
+        : 0;
 
-      return aTime - bTime;
+      return bTime - aTime;
     }
   );
 
   // =========================================================
-  // IMPORTANT KEYWORDS
+  // LIMIT
   // =========================================================
 
-  const keywords = [
-    "CPI",
-    "Consumer Price",
-    "Nonfarm",
-    "Payroll",
-    "Employment",
-    "FOMC",
-    "Fed",
-    "Federal Reserve",
-    "GDP",
-    "PCE",
-    "Inflation",
-    "Interest Rate",
-    "Jobs"
-  ];
+  const finalEvents =
+    events.slice(0, limit);
+
+  // =========================================================
+  // IMPORTANT EVENTS
+  // =========================================================
 
   const importantEvents =
-    events.filter(
+    finalEvents.filter(
       function (item) {
-        const name =
-          String(
-            item.event || ""
-          ).toLowerCase();
-
-        return keywords.some(
-          function (keyword) {
-            return name.includes(
-              keyword.toLowerCase()
-            );
-          }
-        );
+        return item.important;
       }
     );
-
-  // =========================================================
-  // LIVE STATUS
-  // =========================================================
-
-  const fetchedAt =
-    new Date().toISOString();
-
-  const updatedAt =
-    result.updatedAt ||
-    null;
 
   // =========================================================
   // FINAL RESPONSE
@@ -431,40 +420,28 @@ export default async function handler(req, res) {
 
     success: true,
 
+    // تەنها کاتێک true ـە کە API ـەکە
+    // بە سەرکەوتوویی داتا گەڕاندبێتەوە.
     live: true,
 
-    source: "Xoomar",
-
-    provider:
-      "Xoomar Pulse",
-
-    from,
-
-    to,
+    source: "FMP Forex News",
 
     fetchedAt,
 
-    updatedAt,
+    serverTime:
+      new Date().toISOString(),
+
+    page,
+
+    limit,
 
     count:
-      events.length,
+      finalEvents.length,
 
     importantCount:
       importantEvents.length,
 
-    events,
-
-    // هەمان data ـەی Xoomar
-    // بۆ ئەوەی دواتر ئەگەر پێویست بوو
-    // بتوانین بە ئاسانی بەکاری بهێنین.
-    xoomar: {
-      source:
-        result.source ||
-        "xoomar.com",
-
-      docs:
-        result.docs ||
-        "https://xoomar.com/markets/api"
-    }
+    events:
+      finalEvents
   });
 }
