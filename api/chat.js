@@ -1,11 +1,14 @@
 // api/chat.js
+// ============================================================
 // ShahanFX AI Pro Backend
-// Kurdish Sorani AI + Live Market + News + Chart Image Analysis
+// Kurdish Sorani + Live Market + Economic News + Chart Image
+// Gemini Multi-Key Failover + OpenRouter Fallback
+// ============================================================
 
 export default async function handler(req, res) {
-  // =========================================================
+  // ==========================================================
   // CORS
-  // =========================================================
+  // ==========================================================
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -17,13 +20,16 @@ export default async function handler(req, res) {
   );
   res.setHeader("Cache-Control", "no-store");
 
+  // ==========================================================
+  // OPTIONS
+  // ==========================================================
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
 
-  // =========================================================
+  // ==========================================================
   // HEALTH CHECK
-  // =========================================================
+  // ==========================================================
   if (req.method === "GET") {
     return res.status(200).json({
       ok: true,
@@ -31,10 +37,14 @@ export default async function handler(req, res) {
       project: "ShahanFX AI Pro",
       status: "online",
       live: true,
+      version: "3.0",
       message: "ShahanFX Backend is working!"
     });
   }
 
+  // ==========================================================
+  // METHOD CHECK
+  // ==========================================================
   if (req.method !== "POST") {
     return res.status(405).json({
       ok: false,
@@ -42,16 +52,30 @@ export default async function handler(req, res) {
     });
   }
 
-  // =========================================================
+  // ==========================================================
   // ENVIRONMENT VARIABLES
-  // =========================================================
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-  const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY;
+  // ==========================================================
 
-  // =========================================================
-  // REQUEST DATA
-  // =========================================================
+  const GEMINI_KEYS = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY1,
+    process.env.GEMINI_API_KEY2
+  ].filter(
+    (key) =>
+      typeof key === "string" &&
+      key.trim().length > 0
+  );
+
+  const OPENROUTER_API_KEY =
+    process.env.OPENROUTER_API_KEY;
+
+  const TWELVE_DATA_API_KEY =
+    process.env.TWELVE_DATA_API_KEY;
+
+  // ==========================================================
+  // REQUEST BODY
+  // ==========================================================
+
   let body = {};
 
   try {
@@ -66,38 +90,64 @@ export default async function handler(req, res) {
     });
   }
 
+  // ==========================================================
+  // MESSAGE
+  // ==========================================================
+
   const message =
     typeof body.message === "string"
       ? body.message.trim()
       : "";
+
+  // ==========================================================
+  // IMAGE
+  // ==========================================================
 
   const image =
     typeof body.image === "string"
       ? body.image
       : null;
 
+  // ==========================================================
+  // SYMBOL
+  // ==========================================================
+
   const symbol =
-    typeof body.symbol === "string" && body.symbol.trim()
+    typeof body.symbol === "string" &&
+    body.symbol.trim()
       ? body.symbol.trim()
       : "XAU/USD";
 
+  // ==========================================================
+  // TIMEFRAME
+  // ==========================================================
+
   const interval =
-    typeof body.interval === "string" && body.interval.trim()
+    typeof body.interval === "string" &&
+    body.interval.trim()
       ? body.interval.trim()
       : "5min";
+
+  // ==========================================================
+  // VALIDATION
+  // ==========================================================
 
   if (!message && !image) {
     return res.status(400).json({
       ok: false,
-      error: "تکایە پرسیارێک بنووسە یان وێنەی Chart بنێرە."
+      error:
+        "تکایە پرسیارێک بنووسە یان وێنەی Chart بنێرە."
     });
   }
 
-  // =========================================================
-  // GLOBAL DEADLINE
-  // =========================================================
+  // ==========================================================
+  // GLOBAL TIME LIMIT
+  // ==========================================================
+
   const startedAt = Date.now();
-  const MAX_TIME = 23000;
+
+  // Vercel-friendly total execution window
+  const MAX_TIME = 24000;
 
   function remainingTime() {
     return Math.max(
@@ -106,31 +156,41 @@ export default async function handler(req, res) {
     );
   }
 
-  // =========================================================
+  // ==========================================================
   // FETCH WITH TIMEOUT
-  // =========================================================
-  async function fetchTimeout(url, options = {}, timeout = 8000) {
-    const controller = new AbortController();
+  // ==========================================================
+
+  async function fetchTimeout(
+    url,
+    options = {},
+    timeout = 8000
+  ) {
+    const controller =
+      new AbortController();
+
+    const safeTimeout = Math.min(
+      timeout,
+      remainingTime()
+    );
 
     const timer = setTimeout(() => {
       controller.abort();
-    }, Math.min(timeout, remainingTime()));
+    }, safeTimeout);
 
     try {
-      const response = await fetch(url, {
+      return await fetch(url, {
         ...options,
         signal: controller.signal
       });
-
-      return response;
     } finally {
       clearTimeout(timer);
     }
   }
 
-  // =========================================================
-  // CLEAN AI RESPONSE
-  // =========================================================
+  // ==========================================================
+  // CLEAN AI TEXT
+  // ==========================================================
+
   function clean(text) {
     if (!text) return "";
 
@@ -140,14 +200,17 @@ export default async function handler(req, res) {
       .trim();
   }
 
-  // =========================================================
+  // ==========================================================
   // GET LIVE MARKET DATA
-  // =========================================================
+  // ==========================================================
+
   async function getMarket() {
     if (!TWELVE_DATA_API_KEY) {
       return {
         available: false,
-        reason: "TWELVE_DATA_API_KEY نەدۆزرایەوە."
+        reason:
+          "TWELVE_DATA_API_KEY نەدۆزرایەوە.",
+        candles: []
       };
     }
 
@@ -156,133 +219,219 @@ export default async function handler(req, res) {
         "https://api.twelvedata.com/time_series" +
         `?symbol=${encodeURIComponent(symbol)}` +
         `&interval=${encodeURIComponent(interval)}` +
-        `&outputsize=120` +
-        `&apikey=${encodeURIComponent(TWELVE_DATA_API_KEY)}`;
+        "&outputsize=120" +
+        `&apikey=${encodeURIComponent(
+          TWELVE_DATA_API_KEY
+        )}`;
 
-      const response = await fetchTimeout(
-        url,
-        {
-          headers: {
-            Accept: "application/json"
-          }
-        },
-        7000
-      );
+      const response =
+        await fetchTimeout(
+          url,
+          {
+            headers: {
+              Accept:
+                "application/json"
+            }
+          },
+          6500
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
         return {
           available: false,
-          reason: `Market API HTTP ${response.status}`
+          reason:
+            `Market API HTTP ${response.status}`,
+          candles: []
         };
       }
 
-      const data = await response.json();
-
-      if (!data || !Array.isArray(data.values)) {
+      if (
+        !data ||
+        !Array.isArray(data.values)
+      ) {
         return {
           available: false,
-          reason: data?.message || "داتای بازاڕ بەردەست نییە."
+          reason:
+            data?.message ||
+            "داتای بازاڕ بەردەست نییە.",
+          candles: []
         };
       }
 
-      const candles = data.values;
+      const candles =
+        data.values;
 
       if (candles.length === 0) {
         return {
           available: false,
-          reason: "هیچ کاندڵێک نەدۆزرایەوە."
+          reason:
+            "هیچ کاندڵێک نەدۆزرایەوە.",
+          candles: []
         };
       }
 
-      const current = candles[0];
-      const previous = candles[1] || candles[0];
+      const current =
+        candles[0];
 
-      const currentClose = Number(current.close);
-      const previousClose = Number(previous.close);
+      const previous =
+        candles[1] ||
+        candles[0];
 
-      let direction = "neutral";
+      const currentClose =
+        Number(current.close);
+
+      const previousClose =
+        Number(previous.close);
+
+      let direction =
+        "neutral";
 
       if (
-        Number.isFinite(currentClose) &&
-        Number.isFinite(previousClose)
+        Number.isFinite(
+          currentClose
+        ) &&
+        Number.isFinite(
+          previousClose
+        )
       ) {
-        if (currentClose > previousClose) {
-          direction = "bullish";
-        } else if (currentClose < previousClose) {
-          direction = "bearish";
+        if (
+          currentClose >
+          previousClose
+        ) {
+          direction =
+            "bullish";
+        } else if (
+          currentClose <
+          previousClose
+        ) {
+          direction =
+            "bearish";
         }
       }
 
-      const recentCandles = candles
-        .slice(0, 20)
-        .map((c) => ({
-          datetime: c.datetime,
-          open: Number(c.open),
-          high: Number(c.high),
-          low: Number(c.low),
-          close: Number(c.close),
-          volume:
-            c.volume !== undefined
-              ? Number(c.volume)
-              : null
-        }));
+      const recentCandles =
+        candles
+          .slice(0, 30)
+          .map((c) => ({
+            datetime:
+              c.datetime,
+
+            open:
+              Number(c.open),
+
+            high:
+              Number(c.high),
+
+            low:
+              Number(c.low),
+
+            close:
+              Number(c.close),
+
+            volume:
+              c.volume !== undefined
+                ? Number(c.volume)
+                : null
+          }));
 
       return {
         available: true,
+
         symbol,
+
         interval,
+
         current: {
-          datetime: current.datetime,
-          open: Number(current.open),
-          high: Number(current.high),
-          low: Number(current.low),
-          close: Number(current.close)
+          datetime:
+            current.datetime,
+
+          open:
+            Number(current.open),
+
+          high:
+            Number(current.high),
+
+          low:
+            Number(current.low),
+
+          close:
+            Number(current.close)
         },
+
         previous: {
-          datetime: previous.datetime,
-          open: Number(previous.open),
-          high: Number(previous.high),
-          low: Number(previous.low),
-          close: Number(previous.close)
+          datetime:
+            previous.datetime,
+
+          open:
+            Number(previous.open),
+
+          high:
+            Number(previous.high),
+
+          low:
+            Number(previous.low),
+
+          close:
+            Number(previous.close)
         },
+
         direction,
+
         recentCandles
       };
     } catch (error) {
       return {
         available: false,
+
         reason:
-          error?.name === "AbortError"
+          error?.name ===
+          "AbortError"
             ? "Market API timeout"
-            : error?.message || "Market API error"
+            : error?.message ||
+              "Market API error",
+
+        candles: []
       };
     }
   }
 
-  // =========================================================
-  // GET ECONOMIC NEWS - XOOMAAR
-  // =========================================================
+  // ==========================================================
+  // ECONOMIC NEWS
+  // ==========================================================
+
   async function getNews() {
     try {
-      const now = new Date();
+      const now =
+        new Date();
 
-      const year = now.getUTCFullYear();
-      const month = String(
-        now.getUTCMonth() + 1
-      ).padStart(2, "0");
-      const day = String(
-        now.getUTCDate()
-      ).padStart(2, "0");
+      const year =
+        now.getUTCFullYear();
+
+      const month =
+        String(
+          now.getUTCMonth() + 1
+        ).padStart(2, "0");
+
+      const day =
+        String(
+          now.getUTCDate()
+        ).padStart(2, "0");
 
       const today =
         `${year}-${month}-${day}`;
 
-      // هەفتەی داهاتووش دەگرین بۆ ئەوەی
-      // هەواڵە گرنگەکانی نزیک بەردەست بن
-      const futureDate = new Date(
-        now.getTime() +
-        7 * 24 * 60 * 60 * 1000
-      );
+      const futureDate =
+        new Date(
+          now.getTime() +
+            7 *
+              24 *
+              60 *
+              60 *
+              1000
+        );
 
       const futureYear =
         futureDate.getUTCFullYear();
@@ -306,26 +455,31 @@ export default async function handler(req, res) {
         `&to=${encodeURIComponent(to)}` +
         "&importance=high";
 
-      const response = await fetchTimeout(
-        url,
-        {
-          headers: {
-            Accept: "application/json"
-          }
-        },
-        7000
-      );
+      const response =
+        await fetchTimeout(
+          url,
+          {
+            headers: {
+              Accept:
+                "application/json"
+            }
+          },
+          6500
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
         return {
           available: false,
+
           reason:
             `Xoomar News API HTTP ${response.status}`,
+
           events: []
         };
       }
-
-      const data = await response.json();
 
       const rawEvents =
         Array.isArray(data)
@@ -334,151 +488,184 @@ export default async function handler(req, res) {
             ? data.data
             : [];
 
-      if (!Array.isArray(rawEvents)) {
+      if (
+        !Array.isArray(
+          rawEvents
+        )
+      ) {
         return {
           available: false,
+
           reason:
             "Xoomar Economic Calendar داتای دروستی نەگەڕاندەوە.",
+
           events: []
         };
       }
 
-      const events = rawEvents
-        .map((item) => ({
-          date:
-            item.scheduledAt ||
-            item.datetime ||
-            item.date ||
-            null,
+      const importantKeywords = [
+        "cpi",
+        "nfp",
+        "fomc",
+        "fed",
+        "ppi",
+        "gdp",
+        "interest rate",
+        "interest",
+        "nonfarm",
+        "inflation",
+        "unemployment",
+        "retail sales",
+        "ism",
+        "employment",
+        "jobs",
+        "payroll"
+      ];
 
-          country:
-            item.country ||
-            item.countryName ||
-            "United States",
+      const events =
+        rawEvents
+          .map((item) => ({
+            date:
+              item.scheduledAt ||
+              item.datetime ||
+              item.date ||
+              null,
 
-          event:
-            item.eventName ||
-            item.event ||
-            item.name ||
-            item.title ||
-            "",
+            country:
+              item.country ||
+              item.countryName ||
+              "United States",
 
-          impact:
-            item.importance ||
-            item.impact ||
-            "high",
+            event:
+              item.eventName ||
+              item.event ||
+              item.name ||
+              item.title ||
+              "",
 
-          actual:
-            item.actual ?? null,
+            impact:
+              item.importance ||
+              item.impact ||
+              "high",
 
-          estimate:
-            item.estimate ??
-            item.forecast ??
-            null,
+            actual:
+              item.actual ??
+              null,
 
-          previous:
-            item.previous ?? null,
+            estimate:
+              item.estimate ??
+              item.forecast ??
+              null,
 
-          period:
-            item.periodLabel ||
-            item.period ||
-            null
-        }))
-        .filter((item) => {
-          const country =
-            String(
-              item.country || ""
-            ).toLowerCase();
+            previous:
+              item.previous ??
+              null,
 
-          const eventName =
-            String(
-              item.event || ""
-            ).toLowerCase();
+            period:
+              item.periodLabel ||
+              item.period ||
+              null
+          }))
+          .filter((item) => {
+            const country =
+              String(
+                item.country ||
+                  ""
+              ).toLowerCase();
 
-          const isUS =
-            country.includes(
-              "united states"
-            ) ||
-            country === "us" ||
-            country === "usa";
+            const eventName =
+              String(
+                item.event ||
+                  ""
+              ).toLowerCase();
 
-          // هەندێک جار Xoomar country ـەکە
-          // بە شێوەی جیاواز دەگەڕێنێتەوە.
-          const importantKeywords = [
-            "cpi",
-            "nfp",
-            "fomc",
-            "fed",
-            "ppi",
-            "gdp",
-            "interest rate",
-            "interest",
-            "nonfarm",
-            "inflation",
-            "unemployment",
-            "retail sales",
-            "ism",
-            "employment",
-            "jobs",
-            "payroll"
-          ];
+            const isUS =
+              country.includes(
+                "united states"
+              ) ||
+              country === "us" ||
+              country === "usa";
 
-          const isImportantEvent =
-            importantKeywords.some(
-              (keyword) =>
-                eventName.includes(keyword)
+            const isImportant =
+              importantKeywords.some(
+                (keyword) =>
+                  eventName.includes(
+                    keyword
+                  )
+              );
+
+            return (
+              isUS ||
+              isImportant
             );
-
-          return isUS || isImportantEvent;
-        })
-        .slice(0, 50);
+          })
+          .slice(0, 50);
 
       return {
         available: true,
+
         date: today,
+
         from: today,
+
         to,
-        source: "Xoomar",
-        provider: "Xoomar Pulse",
+
+        source:
+          "Xoomar",
+
+        provider:
+          "Xoomar Pulse",
+
         events
       };
-
     } catch (error) {
       return {
         available: false,
+
         reason:
-          error?.name === "AbortError"
+          error?.name ===
+          "AbortError"
             ? "Xoomar News API timeout"
             : error?.message ||
               "Xoomar News API error",
+
         events: []
       };
     }
   }
 
-  // =========================================================
+  // ==========================================================
   // LIVE DATA
-  // =========================================================
-  const [marketResult, newsResult] =
+  // ==========================================================
+
+  const [
+    marketResult,
+    newsResult
+  ] =
     await Promise.allSettled([
       getMarket(),
       getNews()
     ]);
 
   const market =
-    marketResult.status === "fulfilled"
+    marketResult.status ===
+    "fulfilled"
       ? marketResult.value
       : {
           available: false,
-          reason: "Market data error"
+          reason:
+            "Market data error",
+          candles: []
         };
 
   const news =
-    newsResult.status === "fulfilled"
+    newsResult.status ===
+    "fulfilled"
       ? newsResult.value
       : {
           available: false,
-          reason: "News data error",
+          reason:
+            "News data error",
           events: []
         };
 
@@ -498,23 +685,22 @@ export default async function handler(req, res) {
     }
   };
 
-  // =========================================================
-  // STRONG KURDISH SORANI SYSTEM PROMPT
-  // =========================================================
+  // ==========================================================
+  // SYSTEM PROMPT
+  // ==========================================================
+
   const systemPrompt = `
 تۆ ShahanFX AI ـیت، ڕاوێژکاری پیشەیی بۆ Forex، Gold، ICT، SMC و ALC™.
 
-━━━━━━━━━━━━━━━━━━━━━━
-یاسای زمانی گرنگ
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
+یاسای زمانی
+━━━━━━━━━━━━━━━━━━━━
 
 هەموو وەڵامەکەت بە کوردیی سۆرانی بنووسە.
 
-بە هیچ شێوەیەک وەڵامێکی زۆر بە ئینگلیزی مەدە.
+دەقی شیکردنەوە و ڕوونکردنەوە بە کوردی بێت.
 
-دەقی ڕوونکردنەوە، هۆکار، شیکردنەوە، ڕاپۆرت و بڕیارەکان هەموویان بە کوردیی سۆرانی بن.
-
-تەنها ئەم وشە تەکنیکییەکان دەتوانرێت بە ئینگلیزی بمێنن:
+تەنها وشە تەکنیکییە پێویستەکان دەتوانن بە ئینگلیزی بمێنن:
 
 Forex
 Gold
@@ -537,64 +723,9 @@ BUY
 SELL
 WAIT
 
-هیچ ڕستەیەکی ئینگلیزی بە تەواوی مەنووسە، مەگەر ناوی تایبەتی یان وشەی تەکنیکی بێت.
-
-━━━━━━━━━━━━━━━━━━━━━━
-وەرگێڕانی ناونیشانەکان
-━━━━━━━━━━━━━━━━━━━━━━
-
-Current Price = نرخی ئێستا
-Recent Range = مەودای دوایی
-Candle Direction = ئاڕاستەی کاندڵ
-Market Structure = پێکهاتەی بازاڕ
-Market Direction = ئاڕاستەی بازاڕ
-News Impact = کاریگەری هەواڵ
-Confidence = ڕێژەی دڵنیایی
-Decision = بڕیار
-Analysis = شیکردنەوە
-Reason = هۆکار
-Signal = ئاماژە
-Liquidity = Liquidity
-Order Block = Order Block
-Fair Value Gap = FVG
-
-ئەگەر ناونیشان بەکار دەهێنیت، ناونیشانی کوردی بەکاربهێنە.
-
-━━━━━━━━━━━━━━━━━━━━━━
-شیکردنەوەی بازاڕ
-━━━━━━━━━━━━━━━━━━━━━━
-
-لە شیکردنەوەکەتدا ئەمانە لەبەرچاو بگرە:
-
-1. نرخی ئێستا
-2. ئاڕاستەی کاندڵ
-3. پێکهاتەی بازاڕ
-4. Market Structure
-5. BOS
-6. CHOCH
-7. Liquidity
-8. Order Block
-9. FVG
-10. ICT
-11. SMC
-12. ALC™
-13. هەواڵە گرنگەکان
-14. Risk/Reward
-15. Entry
-16. Stop Loss
-17. Take Profit
-
-━━━━━━━━━━━━━━━━━━━━━━
-ALC™
-━━━━━━━━━━━━━━━━━━━━━━
-
-ALC™ سیستەمێکی جیاوازە و نابێت بە ICT یان SMC تێکەڵ بکرێت.
-
-کاتێک باس لە ALC™ دەکەیت، بە شێوەی جیاواز شیکردنەوەی بکە.
-
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 داتای ڕاستەوخۆ
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
 تەنها ئەو داتایە بەکاربهێنە کە لە live context ـەوە دراوە.
 
@@ -604,42 +735,76 @@ ALC™ سیستەمێکی جیاوازە و نابێت بە ICT یان SMC تێ�
 
 کاتی ساختە مەدۆزەوە.
 
-ئەگەر داتای بازاڕ بەردەست نەبوو، بە ڕوونی بڵێ:
+ئەگەر داتای بازاڕ بەردەست نەبوو بڵێ:
 
 "داتای ڕاستەوخۆی بازاڕ بەردەست نییە، بۆیە ناتوانم نرخی ئێستا بە دڵنیایی دیاری بکەم."
 
-ئەگەر هەواڵ بەردەست نەبوو، هەواڵێکی خۆت مەدروستکە.
+ئەگەر هەواڵ بەردەست نەبوو، هیچ هەواڵێکی خۆت مەدروستکە.
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
+شیکردنەوە
+━━━━━━━━━━━━━━━━━━━━
+
+کاتێک بەکارهێنەر داوای شیکردنەوەی Chart یان Trade دەکات، ئەمانە لەبەرچاو بگرە:
+
+1. نرخی ئێستا
+2. ئاڕاستەی کاندڵ
+3. Market Structure
+4. BOS
+5. CHOCH
+6. Liquidity
+7. Order Block
+8. FVG
+9. ICT
+10. SMC
+11. ALC™
+12. هەواڵە گرنگەکان
+13. Entry
+14. Stop Loss
+15. Take Profit
+16. Risk/Reward
+17. Confirmation
+
+━━━━━━━━━━━━━━━━━━━━
+ALC™
+━━━━━━━━━━━━━━━━━━━━
+
+ALC™ سیستەمێکی جیاوازە.
+
+ALC™ بە ICT یان SMC تێکەڵ مەکە.
+
+ئەگەر باس لە ALC™ کرا، شیکردنەوەی تایبەتی ALC™ بدە.
+
+━━━━━━━━━━━━━━━━━━━━
 BUY / SELL / WAIT
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
-هیچکات بە دڵنیایی 100% مەڵێ:
+هیچکات مەڵێ:
 
-"ئەمە حەتمەن سەرکەوتووە."
+"100% دڵنیام."
 
 یان:
 
-"ئەم Trade ـە 100% دەباتەوە."
+"ئەم Trade ـە حەتمەن دەباتەوە."
 
-ئەگەر پێداچوونەوە و Confirmation تەواو نەبوو، بڕیار:
+BUY یان SELL تەنها کاتێک پێشنیار بکە کە Confirmation ـی گونجاو هەبێت.
+
+ئەگەر Setup تەواو نەبوو:
 
 WAIT
 
 بەکاربهێنە.
 
-BUY یان SELL تەنها کاتێک پێشنیار بکە کە Setup ـێکی ڕوون هەبێت.
-
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 شێوازی وەڵام
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
-کاتێک بەکارهێنەر داوای شیکردنەوەی Trade یان Chart دەکات، ئەگەر داتا بەردەست بوو، ئەم شێوازە بەکاربهێنە:
+ئەگەر بەکارهێنەر شیکردنەوەی Trade یان Chart داوا کرد و داتا بەردەست بوو:
 
-📊 Symbol:
-[ناوی بازاڕ]
+📊 بازاڕ:
+[Symbol]
 
-⏱ Timeframe:
+⏱ کاتی Chart:
 [Timeframe]
 
 💵 نرخی ئێستا:
@@ -649,334 +814,542 @@ BUY یان SELL تەنها کاتێک پێشنیار بکە کە Setup ـێکی 
 [Bullish / Bearish / Neutral]
 
 🧱 پێکهاتەی بازاڕ:
-[شیکردنەوە بە کوردی]
+[شیکردنەوە]
 
 💧 Liquidity:
-[شیکردنەوە بە کوردی]
+[شیکردنەوە]
 
 🟦 Order Block:
-[شیکردنەوە بە کوردی]
+[شیکردنەوە]
 
 🟨 FVG:
-[شیکردنەوە بە کوردی]
+[شیکردنەوە]
 
 🧠 ICT / SMC:
-[شیکردنەوە بە کوردی]
+[شیکردنەوە]
 
 ⚡ ALC™:
-[شیکردنەوەی تایبەت بە ALC™]
+[شیکردنەوە]
 
 📰 کاریگەری هەواڵ:
-[هەواڵ و کاریگەری بە کوردی]
+[شیکردنەوە]
 
 🎯 Setup:
-[Setup بە کوردی]
+[شیکردنەوە]
 
 📍 Entry:
-[ئەگەر دەتوانرێت بە داتای بەردەست دیاری بکرێت]
+[نرخ، تەنها ئەگەر داتا ڕێگە بدات]
 
 🛑 Stop Loss:
-[ئەگەر دەتوانرێت دیاری بکرێت]
+[نرخ، تەنها ئەگەر داتا ڕێگە بدات]
 
 💰 Take Profit:
-[ئەگەر دەتوانرێت دیاری بکرێت]
+[نرخ، تەنها ئەگەر داتا ڕێگە بدات]
 
 ⚖️ Risk/Reward:
 [ڕێژە]
 
 🔎 Confirmation:
-[هۆکارەکانی پشتگیری]
+[هۆکار]
 
 🧠 ڕێژەی دڵنیایی:
-[ژمارەیەکی گونجاو، نەک 100%]
+[ژمارەی گونجاو، نەک 100%]
 
 ⏳ بڕیار:
 [BUY / SELL / WAIT]
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 یاسای کۆتایی
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━
 
-پێش ناردنی وەڵامەکەت، خۆت پشکنین بکە:
+پێش ناردنی وەڵام:
 
-- ئایا وەڵامەکە بە کوردیی سۆرانییە؟
-- ئایا ڕستەی ئینگلیزی زۆر تێدا نییە؟
-- ئایا هیچ نرخی ساختەم دروست نەکردووە؟
-- ئایا هیچ هەواڵێکی ساختەم دروست نەکردووە؟
-- ئایا BUY/SELL بەبێ Confirmation نەداوە؟
-- ئایا ALC™ لە ICT و SMC جیا کراوەتەوە؟
-
-ئەگەر وەڵامەکەت زۆر بە ئینگلیزی بوو، پێش ناردن بیگۆڕە بۆ کوردیی سۆرانی.
-
-وەڵامی کۆتایی دەبێت سروشتی، ڕوون، کورت و پیشەیی بێت.
+- هەموو شیکردنەوە بە کوردیی سۆرانی بێت.
+- نرخی ساختە دروست مەکە.
+- هەواڵی ساختە دروست مەکە.
+- BUY/SELL بەبێ Confirmation مەدە.
+- ALC™ لە ICT و SMC جیا بکەوە.
+- وەڵامەکە ڕوون، سروشتی و پیشەیی بێت.
 `;
 
-  // =========================================================
-  // GEMINI
-  // =========================================================
+  // ==========================================================
+  // GEMINI MODEL LIST
+  // ==========================================================
+
+  const GEMINI_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite"
+  ];
+
+  // ==========================================================
+  // BUILD GEMINI CONTENT
+  // ==========================================================
+
+  function buildGeminiParts() {
+    const parts = [];
+
+    parts.push({
+      text:
+        "داتای ڕاستەوخۆی ShahanFX:\n\n" +
+        JSON.stringify(
+          liveContext,
+          null,
+          2
+        )
+    });
+
+    parts.push({
+      text:
+        "\n\nپرسیاری بەکارهێنەر:\n" +
+        (
+          message ||
+          "ئەم Chart ـە بە وردی بە کوردیی سۆرانی شیکاربکە."
+        )
+    });
+
+    // ========================================================
+    // IMAGE
+    // ========================================================
+
+    if (image) {
+      const match =
+        image.match(
+          /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
+        );
+
+      if (match) {
+        parts.push({
+          inline_data: {
+            mime_type:
+              match[1],
+            data:
+              match[2]
+          }
+        });
+      }
+    }
+
+    return parts;
+  }
+
+  // ==========================================================
+  // GEMINI CALL
+  // ==========================================================
+
   async function callGemini() {
-    if (!GEMINI_API_KEY) {
+    if (
+      GEMINI_KEYS.length === 0
+    ) {
       return null;
     }
 
-    const models = [
-      "gemini-3.7-flash",
-      "gemini-3.6-flash"
-    ];
+    const parts =
+      buildGeminiParts();
 
-    for (const model of models) {
-      if (remainingTime() <= 2500) {
-        break;
-      }
+    // Try every API key
+    for (
+      let keyIndex = 0;
+      keyIndex <
+      GEMINI_KEYS.length;
+      keyIndex++
+    ) {
+      const apiKey =
+        GEMINI_KEYS[keyIndex];
 
-      try {
-        const parts = [];
-
-        parts.push({
-          text:
-            `داتای ڕاستەوخۆی ShahanFX:\n\n` +
-            JSON.stringify(
-              liveContext,
-              null,
-              2
-            )
-        });
-
-        parts.push({
-          text:
-            "\n\nپرسیاری بەکارهێنەر:\n" +
-            (message ||
-              "ئەم Chart ـە بە وردی بە کوردیی سۆرانی شیکاربکە.")
-        });
-
-        if (image) {
-          const match = image.match(
-            /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
-          );
-
-          if (match) {
-            parts.push({
-              inline_data: {
-                mime_type: match[1],
-                data: match[2]
-              }
-            });
-          }
+      // Try every supported model
+      for (
+        let modelIndex = 0;
+        modelIndex <
+        GEMINI_MODELS.length;
+        modelIndex++
+      ) {
+        if (
+          remainingTime() <=
+          3500
+        ) {
+          return null;
         }
 
-        const url =
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
-          `?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+        const model =
+          GEMINI_MODELS[
+            modelIndex
+          ];
 
-        const response = await fetchTimeout(
-          url,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              system_instruction: {
-                parts: [
-                  {
-                    text: systemPrompt
-                  }
-                ]
+        try {
+          const url =
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
+            `?key=${encodeURIComponent(
+              apiKey
+            )}`;
+
+          const response =
+            await fetchTimeout(
+              url,
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
+
+                body:
+                  JSON.stringify({
+                    system_instruction: {
+                      parts: [
+                        {
+                          text:
+                            systemPrompt
+                        }
+                      ]
+                    },
+
+                    contents: [
+                      {
+                        role:
+                          "user",
+
+                        parts
+                      }
+                    ],
+
+                    generationConfig: {
+                      maxOutputTokens:
+                        2200,
+
+                      temperature:
+                        0.3
+                    }
+                  })
               },
 
-              contents: [
-                {
-                  role: "user",
-                  parts
-                }
-              ],
+              Math.min(
+                7000,
+                remainingTime()
+              )
+            );
 
-              generationConfig: {
-                maxOutputTokens: 2200,
-                temperature: 0.3
-              }
-            })
-          },
-          Math.min(11000, remainingTime())
-        );
+          let data = null;
 
-        const data = await response.json();
+          try {
+            data =
+              await response.json();
+          } catch {
+            data = null;
+          }
 
-        if (!response.ok) {
-          continue;
+          // =================================================
+          // SUCCESS
+          // =================================================
+
+          if (
+            response.ok
+          ) {
+            const text =
+              data
+                ?.candidates?.[0]
+                ?.content?.parts
+                ?.map(
+                  (part) =>
+                    part.text ||
+                    ""
+                )
+                .join("")
+                .trim();
+
+            if (text) {
+              return {
+                provider:
+                  "gemini",
+
+                model,
+
+                key:
+                  `GEMINI_API_KEY${
+                    keyIndex === 0
+                      ? ""
+                      : keyIndex
+                  }`,
+
+                answer:
+                  clean(text)
+              };
+            }
+          }
+
+          // =================================================
+          // CONTINUE
+          // =================================================
+
+        } catch {
+          // Try next model / next API key
         }
-
-        const text =
-          data?.candidates?.[0]?.content?.parts
-            ?.map((part) => part.text || "")
-            .join("")
-            .trim();
-
-        if (text) {
-          return {
-            provider: "gemini",
-            model,
-            answer: clean(text)
-          };
-        }
-      } catch {
-        // Continue to next model / fallback
       }
     }
 
     return null;
   }
 
-  // =========================================================
+  // ==========================================================
   // OPENROUTER FALLBACK
-  // =========================================================
+  // ==========================================================
+
   async function callOpenRouter() {
-    if (!OPENROUTER_API_KEY) {
+    if (
+      !OPENROUTER_API_KEY
+    ) {
       return null;
     }
 
-    if (remainingTime() <= 2500) {
+    if (
+      remainingTime() <=
+      3000
+    ) {
       return null;
     }
 
     try {
-      const response = await fetchTimeout(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization:
-              `Bearer ${OPENROUTER_API_KEY}`,
-            "HTTP-Referer":
-              "https://shahanfx-backend-9576.vercel.app",
-            "X-Title": "ShahanFX AI Pro"
+      const userContent =
+        [
+          "داتای ڕاستەوخۆی ShahanFX:",
+          JSON.stringify(
+            liveContext,
+            null,
+            2
+          ),
+
+          "",
+
+          "پرسیاری بەکارهێنەر:",
+          (
+            message ||
+            "ئەم Chart ـە بە وردی بە کوردیی سۆرانی شیکاربکە."
+          )
+        ].join("\n");
+
+      const response =
+        await fetchTimeout(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${OPENROUTER_API_KEY}`,
+
+              "HTTP-Referer":
+                "https://shahanfx-backend-9576.vercel.app",
+
+              "X-Title":
+                "ShahanFX AI Pro"
+            },
+
+            body:
+              JSON.stringify({
+                model:
+                  "openrouter/free",
+
+                messages: [
+                  {
+                    role:
+                      "system",
+
+                    content:
+                      systemPrompt
+                  },
+
+                  {
+                    role:
+                      "system",
+
+                    content:
+                      "وەڵامی کۆتایی تەنها بە کوردیی سۆرانی بێت، جگە لە وشە تەکنیکییە پێویستەکان."
+                  },
+
+                  {
+                    role:
+                      "user",
+
+                    content:
+                      userContent
+                  }
+                ],
+
+                max_tokens:
+                  2200,
+
+                temperature:
+                  0.3
+              })
           },
 
-          body: JSON.stringify({
-            model: "openrouter/free",
+          Math.min(
+            8000,
+            remainingTime()
+          )
+        );
 
-            messages: [
-              {
-                role: "system",
-                content: systemPrompt
-              },
+      let data = null;
 
-              {
-                role: "system",
-                content:
-                  "گرنگترین یاسا: وەڵامی کۆتایی تەنها بە کوردیی سۆرانی بێت، جگە لە وشە تەکنیکییە پێویستەکان."
-              },
+      try {
+        data =
+          await response.json();
+      } catch {
+        data = null;
+      }
 
-              {
-                role: "user",
-                content:
-                  `داتای ڕاستەوخۆ:\n${JSON.stringify(
-                    liveContext,
-                    null,
-                    2
-                  )}\n\n` +
-                  `پرسیاری بەکارهێنەر:\n${
-                    message ||
-                    "ئەم Chart ـە بە وردی بە کوردیی سۆرانی شیکاربکە."
-                  }`
-              }
-            ],
-
-            max_tokens: 2200,
-
-            temperature: 0.3
-          })
-        },
-        Math.min(10000, remainingTime())
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         return null;
       }
 
       const text =
-        data?.choices?.[0]?.message?.content?.trim();
+        data
+          ?.choices?.[0]
+          ?.message
+          ?.content
+          ?.trim();
 
       if (!text) {
         return null;
       }
 
       return {
-        provider: "openrouter",
+        provider:
+          "openrouter",
+
         model:
           data?.model ||
           "openrouter/free",
-        answer: clean(text)
+
+        answer:
+          clean(text)
       };
     } catch {
       return null;
     }
   }
 
-  // =========================================================
-  // CALL AI
-  // =========================================================
-  let aiResult = await callGemini();
+  // ==========================================================
+  // AI EXECUTION
+  // ==========================================================
 
+  let aiResult =
+    await callGemini();
+
+  // Gemini failed → OpenRouter
   if (!aiResult) {
-    aiResult = await callOpenRouter();
+    aiResult =
+      await callOpenRouter();
   }
 
-  // =========================================================
+  // ==========================================================
   // AI FAILURE
-  // =========================================================
+  // ==========================================================
+
   if (!aiResult) {
     return res.status(503).json({
       ok: false,
+
+      success: false,
+
       error:
         "هیچ یەکێک لە سیستەمەکانی AI وەڵامی نەدا. تکایە دووبارە هەوڵ بدەوە.",
+
+      diagnostics: {
+        geminiKeys:
+          GEMINI_KEYS.length,
+
+        openrouter:
+          Boolean(
+            OPENROUTER_API_KEY
+          ),
+
+        market:
+          Boolean(
+            market?.available
+          ),
+
+        news:
+          Boolean(
+            news?.available
+          )
+      },
+
       liveData: {
-        market: market?.available === true,
-        news: news?.available === true
+        market:
+          market?.available ===
+          true,
+
+        news:
+          news?.available ===
+          true
       }
     });
   }
 
-  // =========================================================
+  // ==========================================================
   // FINAL RESPONSE
-  // =========================================================
+  // ==========================================================
+
   return res.status(200).json({
     ok: true,
 
     success: true,
 
-    answer: aiResult.answer,
+    answer:
+      aiResult.answer,
 
-    provider: aiResult.provider,
+    provider:
+      aiResult.provider,
 
-    model: aiResult.model,
+    model:
+      aiResult.model,
 
-    image: Boolean(image),
+    image:
+      Boolean(image),
 
     liveData: true,
 
     market: {
-      available: Boolean(market?.available),
+      available:
+        Boolean(
+          market?.available
+        ),
+
       symbol,
+
       interval,
+
       direction:
-        market?.direction || "neutral",
+        market?.direction ||
+        "neutral",
 
       currentPrice:
-        market?.current?.close ?? null,
+        market?.current
+          ?.close ??
+        null,
 
       datetime:
-        market?.current?.datetime ?? null
+        market?.current
+          ?.datetime ??
+        null
     },
 
     news: {
-      available: Boolean(news?.available),
+      available:
+        Boolean(
+          news?.available
+        ),
 
       events:
-        Array.isArray(news?.events)
+        Array.isArray(
+          news?.events
+        )
           ? news.events
           : []
     }
