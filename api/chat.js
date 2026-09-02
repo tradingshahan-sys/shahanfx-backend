@@ -102,15 +102,19 @@ export default async function handler(req, res) {
   let body = {};
 
   try {
+
     body =
       typeof req.body === "string"
         ? JSON.parse(req.body)
         : req.body || {};
+
   } catch {
+
     return res.status(400).json({
       ok: false,
       error: "داتای نێردراو دروست نییە."
     });
+
   }
 
   // ==========================================================
@@ -156,11 +160,13 @@ export default async function handler(req, res) {
   // ==========================================================
 
   if (!message && !image) {
+
     return res.status(400).json({
       ok: false,
       error:
         "تکایە پرسیارێک بنووسە یان وێنەی Chart بنێرە."
     });
+
   }
 
   // ==========================================================
@@ -205,6 +211,7 @@ export default async function handler(req, res) {
       clearTimeout(timer);
 
     }
+
   }
 
   // ==========================================================
@@ -227,6 +234,7 @@ export default async function handler(req, res) {
         ""
       )
       .trim();
+
   }
 
   // ==========================================================
@@ -378,6 +386,7 @@ export default async function handler(req, res) {
           .slice(0, 30)
           .map(
             (c) => ({
+
               datetime:
                 c.datetime,
 
@@ -400,6 +409,7 @@ export default async function handler(req, res) {
                       c.volume
                     )
                   : null
+
             })
           );
 
@@ -497,6 +507,91 @@ export default async function handler(req, res) {
   // ==========================================================
 
   async function getNews() {
+
+    // ========================================================
+    // IRAQ TIMEZONE
+    // UTC → Asia/Baghdad
+    // ========================================================
+
+    function formatIraqTime(dateValue) {
+
+      if (!dateValue) {
+        return null;
+      }
+
+      try {
+
+        let value =
+          String(dateValue).trim();
+
+        // ----------------------------------------------------
+        // If API returns a datetime without timezone,
+        // treat it as UTC explicitly.
+        // ----------------------------------------------------
+
+        if (
+          !/[zZ]$/.test(value) &&
+          !/[+-]\d{2}:\d{2}$/.test(value)
+        ) {
+
+          value =
+            value.replace(
+              " ",
+              "T"
+            ) + "Z";
+
+        }
+
+        const date =
+          new Date(value);
+
+        if (
+          Number.isNaN(
+            date.getTime()
+          )
+        ) {
+
+          return dateValue;
+
+        }
+
+        return new Intl.DateTimeFormat(
+          "ku-IQ",
+          {
+            timeZone:
+              "Asia/Baghdad",
+
+            year:
+              "numeric",
+
+            month:
+              "2-digit",
+
+            day:
+              "2-digit",
+
+            hour:
+              "2-digit",
+
+            minute:
+              "2-digit",
+
+            hour12:
+              false
+          }
+        ).format(date);
+
+      } catch {
+
+        return dateValue;
+
+      }
+
+    }
+
+    // ========================================================
+    // DATE RANGE
+    // ========================================================
 
     try {
 
@@ -644,50 +739,64 @@ export default async function handler(req, res) {
         rawEvents
 
           .map(
-            (item) => ({
+            (item) => {
 
-              date:
+              const rawDate =
                 item.scheduledAt ||
                 item.datetime ||
                 item.date ||
-                null,
+                null;
 
-              country:
-                item.country ||
-                item.countryName ||
-                "United States",
+              return {
 
-              event:
-                item.eventName ||
-                item.event ||
-                item.name ||
-                item.title ||
-                "",
+                // ==================================================
+                // IMPORTANT:
+                // News time is now converted to Iraq time
+                // ==================================================
 
-              impact:
-                item.importance ||
-                item.impact ||
-                "high",
+                date:
+                  formatIraqTime(
+                    rawDate
+                  ),
 
-              actual:
-                item.actual ??
-                null,
+                country:
+                  item.country ||
+                  item.countryName ||
+                  "United States",
 
-              estimate:
-                item.estimate ??
-                item.forecast ??
-                null,
+                event:
+                  item.eventName ||
+                  item.event ||
+                  item.name ||
+                  item.title ||
+                  "",
 
-              previous:
-                item.previous ??
-                null,
+                impact:
+                  item.importance ||
+                  item.impact ||
+                  "high",
 
-              period:
-                item.periodLabel ||
-                item.period ||
-                null
+                actual:
+                  item.actual ??
+                  null,
 
-            })
+                estimate:
+                  item.estimate ??
+                  item.forecast ??
+                  null,
+
+                previous:
+                  item.previous ??
+                  null,
+
+                period:
+                  item.periodLabel ||
+                  item.period ||
+                  null
+
+              };
+
+            }
           )
 
           .filter(
@@ -745,6 +854,12 @@ export default async function handler(req, res) {
 
         provider:
           "Xoomar Pulse",
+
+        timezone:
+          "Asia/Baghdad",
+
+        timezoneLabel:
+          "کاتی عێراق",
 
         events
 
@@ -943,6 +1058,13 @@ NEWS
 ━━━━━━━━━━━━━━━━━━━━
 
 تەنها ئەو News ـە باس بکە کە لە live context ـدا هەیە.
+
+کاتی News لە live context ـدا بە:
+
+Asia/Baghdad
+کاتی عێراق
+
+پیشان دەدرێت.
 
 ئەگەر News list بەتاڵە:
 
@@ -1441,13 +1563,6 @@ ALC™ Zone ـی ساختە = قەدەغە.
 
   async function runFailover() {
 
-    // --------------------------------------------------------
-    // Sequence:
-    //
-    // 0 → 1 → 2 → 3 → 4
-    // 0 → 1 → 2 → 3 → 4
-    // --------------------------------------------------------
-
     const sequence = [
 
       0,
@@ -1493,8 +1608,6 @@ ALC™ Zone ـی ساختە = قەدەغە.
           apiKey.trim()
         ) {
 
-          // Try primary Gemini model
-
           const result =
             await callGeminiOnce(
 
@@ -1518,11 +1631,6 @@ ALC™ Zone ـی ساختە = قەدەغە.
             };
 
           }
-
-          // --------------------------------------------------
-          // If primary model failed,
-          // try lite model within same provider slot.
-          // --------------------------------------------------
 
           const liteResult =
             await callGeminiOnce(
@@ -1719,6 +1827,12 @@ ALC™ Zone ـی ساختە = قەدەغە.
         Boolean(
           news?.available
         ),
+
+      timezone:
+        "Asia/Baghdad",
+
+      timezoneLabel:
+        "کاتی عێراق",
 
       events:
         Array.isArray(
