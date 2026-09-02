@@ -2,27 +2,51 @@
 // ============================================================
 // ShahanFX AI Pro Backend
 // Kurdish Sorani + Live Market + Economic News + Chart Image
-// Gemini Multi-Key Failover + OpenRouter Fallback
+// 4x Gemini Key Failover + OpenRouter
+//
+// RETRY ORDER:
+// 0 → 1 → 2 → 3 → 4 → 0 → 1 → 2 → 3 → 4
+//
+// 0 = GEMINI_API_KEY
+// 1 = GEMINI_API_KEY1
+// 2 = GEMINI_API_KEY2
+// 3 = GEMINI_API_KEY3
+// 4 = OPENROUTER_API_KEY
+//
+// Each attempt: max 8 seconds
+// Total attempts: 10
 // ============================================================
 
 export default async function handler(req, res) {
+
   // ==========================================================
   // CORS
   // ==========================================================
-  res.setHeader("Access-Control-Allow-Origin", "*");
+
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "*"
+  );
+
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, OPTIONS"
   );
+
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization"
   );
-  res.setHeader("Cache-Control", "no-store");
+
+  res.setHeader(
+    "Cache-Control",
+    "no-store"
+  );
 
   // ==========================================================
   // OPTIONS
   // ==========================================================
+
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
@@ -30,6 +54,7 @@ export default async function handler(req, res) {
   // ==========================================================
   // HEALTH CHECK
   // ==========================================================
+
   if (req.method === "GET") {
     return res.status(200).json({
       ok: true,
@@ -37,7 +62,7 @@ export default async function handler(req, res) {
       project: "ShahanFX AI Pro",
       status: "online",
       live: true,
-      version: "3.0",
+      version: "4.0",
       message: "ShahanFX Backend is working!"
     });
   }
@@ -45,6 +70,7 @@ export default async function handler(req, res) {
   // ==========================================================
   // METHOD CHECK
   // ==========================================================
+
   if (req.method !== "POST") {
     return res.status(405).json({
       ok: false,
@@ -59,18 +85,15 @@ export default async function handler(req, res) {
   const GEMINI_KEYS = [
     process.env.GEMINI_API_KEY,
     process.env.GEMINI_API_KEY1,
-    process.env.GEMINI_API_KEY2
-  ].filter(
-    (key) =>
-      typeof key === "string" &&
-      key.trim().length > 0
-  );
+    process.env.GEMINI_API_KEY2,
+    process.env.GEMINI_API_KEY3
+  ];
 
   const OPENROUTER_API_KEY =
-    process.env.OPENROUTER_API_KEY;
+    process.env.OPENROUTER_API_KEY || "";
 
   const TWELVE_DATA_API_KEY =
-    process.env.TWELVE_DATA_API_KEY;
+    process.env.TWELVE_DATA_API_KEY || "";
 
   // ==========================================================
   // REQUEST BODY
@@ -141,20 +164,12 @@ export default async function handler(req, res) {
   }
 
   // ==========================================================
-  // GLOBAL TIME LIMIT
+  // RETRY SETTINGS
   // ==========================================================
 
-  const startedAt = Date.now();
+  const ATTEMPT_TIMEOUT = 8000;
 
-  // Vercel-friendly total execution window
-  const MAX_TIME = 24000;
-
-  function remainingTime() {
-    return Math.max(
-      1000,
-      MAX_TIME - (Date.now() - startedAt)
-    );
-  }
+  const MAX_ATTEMPTS = 10;
 
   // ==========================================================
   // FETCH WITH TIMEOUT
@@ -163,27 +178,32 @@ export default async function handler(req, res) {
   async function fetchTimeout(
     url,
     options = {},
-    timeout = 8000
+    timeout = ATTEMPT_TIMEOUT
   ) {
+
     const controller =
       new AbortController();
 
-    const safeTimeout = Math.min(
-      timeout,
-      remainingTime()
-    );
-
-    const timer = setTimeout(() => {
-      controller.abort();
-    }, safeTimeout);
+    const timer =
+      setTimeout(() => {
+        controller.abort();
+      }, timeout);
 
     try {
-      return await fetch(url, {
-        ...options,
-        signal: controller.signal
-      });
+
+      return await fetch(
+        url,
+        {
+          ...options,
+          signal:
+            controller.signal
+        }
+      );
+
     } finally {
+
       clearTimeout(timer);
+
     }
   }
 
@@ -192,29 +212,42 @@ export default async function handler(req, res) {
   // ==========================================================
 
   function clean(text) {
-    if (!text) return "";
+
+    if (!text) {
+      return "";
+    }
 
     return String(text)
-      .replace(/User Safety:\s*safe/gi, "")
-      .replace(/^System:\s*/i, "")
+      .replace(
+        /User Safety:\s*safe/gi,
+        ""
+      )
+      .replace(
+        /^System:\s*/i,
+        ""
+      )
       .trim();
   }
 
   // ==========================================================
-  // GET LIVE MARKET DATA
+  // LIVE MARKET DATA
   // ==========================================================
 
   async function getMarket() {
+
     if (!TWELVE_DATA_API_KEY) {
+
       return {
         available: false,
         reason:
           "TWELVE_DATA_API_KEY نەدۆزرایەوە.",
         candles: []
       };
+
     }
 
     try {
+
       const url =
         "https://api.twelvedata.com/time_series" +
         `?symbol=${encodeURIComponent(symbol)}` +
@@ -236,22 +269,35 @@ export default async function handler(req, res) {
           6500
         );
 
-      const data =
-        await response.json();
+      let data = null;
+
+      try {
+
+        data =
+          await response.json();
+
+      } catch {
+
+        data = null;
+
+      }
 
       if (!response.ok) {
+
         return {
           available: false,
           reason:
             `Market API HTTP ${response.status}`,
           candles: []
         };
+
       }
 
       if (
         !data ||
         !Array.isArray(data.values)
       ) {
+
         return {
           available: false,
           reason:
@@ -259,19 +305,24 @@ export default async function handler(req, res) {
             "داتای بازاڕ بەردەست نییە.",
           candles: []
         };
+
       }
 
-      const candles =
-        data.values;
+      if (
+        data.values.length === 0
+      ) {
 
-      if (candles.length === 0) {
         return {
           available: false,
           reason:
             "هیچ کاندڵێک نەدۆزرایەوە.",
           candles: []
         };
+
       }
+
+      const candles =
+        data.values;
 
       const current =
         candles[0];
@@ -281,10 +332,14 @@ export default async function handler(req, res) {
         candles[0];
 
       const currentClose =
-        Number(current.close);
+        Number(
+          current.close
+        );
 
       const previousClose =
-        Number(previous.close);
+        Number(
+          previous.close
+        );
 
       let direction =
         "neutral";
@@ -297,47 +352,59 @@ export default async function handler(req, res) {
           previousClose
         )
       ) {
+
         if (
           currentClose >
           previousClose
         ) {
+
           direction =
             "bullish";
+
         } else if (
           currentClose <
           previousClose
         ) {
+
           direction =
             "bearish";
+
         }
+
       }
 
       const recentCandles =
         candles
           .slice(0, 30)
-          .map((c) => ({
-            datetime:
-              c.datetime,
+          .map(
+            (c) => ({
+              datetime:
+                c.datetime,
 
-            open:
-              Number(c.open),
+              open:
+                Number(c.open),
 
-            high:
-              Number(c.high),
+              high:
+                Number(c.high),
 
-            low:
-              Number(c.low),
+              low:
+                Number(c.low),
 
-            close:
-              Number(c.close),
+              close:
+                Number(c.close),
 
-            volume:
-              c.volume !== undefined
-                ? Number(c.volume)
-                : null
-          }));
+              volume:
+                c.volume !==
+                undefined
+                  ? Number(
+                      c.volume
+                    )
+                  : null
+            })
+          );
 
       return {
+
         available: true,
 
         symbol,
@@ -345,45 +412,69 @@ export default async function handler(req, res) {
         interval,
 
         current: {
+
           datetime:
             current.datetime,
 
           open:
-            Number(current.open),
+            Number(
+              current.open
+            ),
 
           high:
-            Number(current.high),
+            Number(
+              current.high
+            ),
 
           low:
-            Number(current.low),
+            Number(
+              current.low
+            ),
 
           close:
-            Number(current.close)
+            Number(
+              current.close
+            )
+
         },
 
         previous: {
+
           datetime:
             previous.datetime,
 
           open:
-            Number(previous.open),
+            Number(
+              previous.open
+            ),
 
           high:
-            Number(previous.high),
+            Number(
+              previous.high
+            ),
 
           low:
-            Number(previous.low),
+            Number(
+              previous.low
+            ),
 
           close:
-            Number(previous.close)
+            Number(
+              previous.close
+            )
+
         },
 
         direction,
 
         recentCandles
+
       };
+
     } catch (error) {
+
       return {
+
         available: false,
 
         reason:
@@ -394,8 +485,11 @@ export default async function handler(req, res) {
               "Market API error",
 
         candles: []
+
       };
+
     }
+
   }
 
   // ==========================================================
@@ -403,7 +497,9 @@ export default async function handler(req, res) {
   // ==========================================================
 
   async function getNews() {
+
     try {
+
       const now =
         new Date();
 
@@ -426,11 +522,11 @@ export default async function handler(req, res) {
       const futureDate =
         new Date(
           now.getTime() +
-            7 *
-              24 *
-              60 *
-              60 *
-              1000
+          7 *
+          24 *
+          60 *
+          60 *
+          1000
         );
 
       const futureYear =
@@ -467,43 +563,64 @@ export default async function handler(req, res) {
           6500
         );
 
-      const data =
-        await response.json();
+      let data = null;
+
+      try {
+
+        data =
+          await response.json();
+
+      } catch {
+
+        data = null;
+
+      }
 
       if (!response.ok) {
+
         return {
+
           available: false,
 
           reason:
             `Xoomar News API HTTP ${response.status}`,
 
           events: []
+
         };
+
       }
 
       const rawEvents =
         Array.isArray(data)
           ? data
-          : Array.isArray(data?.data)
-            ? data.data
-            : [];
+          : Array.isArray(
+              data?.data
+            )
+              ? data.data
+              : [];
 
       if (
         !Array.isArray(
           rawEvents
         )
       ) {
+
         return {
+
           available: false,
 
           reason:
             "Xoomar Economic Calendar داتای دروستی نەگەڕاندەوە.",
 
           events: []
+
         };
+
       }
 
       const importantKeywords = [
+
         "cpi",
         "nfp",
         "fomc",
@@ -520,88 +637,101 @@ export default async function handler(req, res) {
         "employment",
         "jobs",
         "payroll"
+
       ];
 
       const events =
         rawEvents
-          .map((item) => ({
-            date:
-              item.scheduledAt ||
-              item.datetime ||
-              item.date ||
-              null,
 
-            country:
-              item.country ||
-              item.countryName ||
-              "United States",
+          .map(
+            (item) => ({
 
-            event:
-              item.eventName ||
-              item.event ||
-              item.name ||
-              item.title ||
-              "",
+              date:
+                item.scheduledAt ||
+                item.datetime ||
+                item.date ||
+                null,
 
-            impact:
-              item.importance ||
-              item.impact ||
-              "high",
-
-            actual:
-              item.actual ??
-              null,
-
-            estimate:
-              item.estimate ??
-              item.forecast ??
-              null,
-
-            previous:
-              item.previous ??
-              null,
-
-            period:
-              item.periodLabel ||
-              item.period ||
-              null
-          }))
-          .filter((item) => {
-            const country =
-              String(
+              country:
                 item.country ||
-                  ""
-              ).toLowerCase();
+                item.countryName ||
+                "United States",
 
-            const eventName =
-              String(
+              event:
+                item.eventName ||
                 item.event ||
-                  ""
-              ).toLowerCase();
+                item.name ||
+                item.title ||
+                "",
 
-            const isUS =
-              country.includes(
-                "united states"
-              ) ||
-              country === "us" ||
-              country === "usa";
+              impact:
+                item.importance ||
+                item.impact ||
+                "high",
 
-            const isImportant =
-              importantKeywords.some(
-                (keyword) =>
-                  eventName.includes(
-                    keyword
-                  )
+              actual:
+                item.actual ??
+                null,
+
+              estimate:
+                item.estimate ??
+                item.forecast ??
+                null,
+
+              previous:
+                item.previous ??
+                null,
+
+              period:
+                item.periodLabel ||
+                item.period ||
+                null
+
+            })
+          )
+
+          .filter(
+            (item) => {
+
+              const country =
+                String(
+                  item.country ||
+                    ""
+                ).toLowerCase();
+
+              const eventName =
+                String(
+                  item.event ||
+                    ""
+                ).toLowerCase();
+
+              const isUS =
+                country.includes(
+                  "united states"
+                ) ||
+                country === "us" ||
+                country === "usa";
+
+              const isImportant =
+                importantKeywords.some(
+                  (keyword) =>
+                    eventName.includes(
+                      keyword
+                    )
+                );
+
+              return (
+                isUS ||
+                isImportant
               );
 
-            return (
-              isUS ||
-              isImportant
-            );
-          })
+            }
+          )
+
           .slice(0, 50);
 
       return {
+
         available: true,
 
         date: today,
@@ -617,9 +747,13 @@ export default async function handler(req, res) {
           "Xoomar Pulse",
 
         events
+
       };
+
     } catch (error) {
+
       return {
+
         available: false,
 
         reason:
@@ -630,12 +764,15 @@ export default async function handler(req, res) {
               "Xoomar News API error",
 
         events: []
+
       };
+
     }
+
   }
 
   // ==========================================================
-  // LIVE DATA
+  // GET LIVE DATA
   // ==========================================================
 
   const [
@@ -669,8 +806,17 @@ export default async function handler(req, res) {
           events: []
         };
 
+  // ==========================================================
+  // LIVE CONTEXT
+  // ==========================================================
+
   const liveContext = {
+
+    generatedAt:
+      new Date().toISOString(),
+
     symbol,
+
     interval,
 
     market,
@@ -678,11 +824,21 @@ export default async function handler(req, res) {
     news,
 
     dataPolicy: {
+
       liveDataOnly: true,
+
       doNotInventPrice: true,
+
       doNotInventNews: true,
-      doNotClaimCertainty: true
+
+      doNotInventTechnicalLevels:
+        true,
+
+      doNotClaimCertainty:
+        true
+
     }
+
   };
 
   // ==========================================================
@@ -690,17 +846,24 @@ export default async function handler(req, res) {
   // ==========================================================
 
   const systemPrompt = `
-تۆ ShahanFX AI ـیت، ڕاوێژکاری پیشەیی بۆ Forex، Gold، ICT، SMC و ALC™.
+
+تۆ ShahanFX AI ـیت.
+
+ڕاوێژکاری پیشەیی بۆ:
+
+Forex
+Gold
+ICT
+SMC
+ALC™
 
 ━━━━━━━━━━━━━━━━━━━━
-یاسای زمانی
+زمان
 ━━━━━━━━━━━━━━━━━━━━
 
-هەموو وەڵامەکەت بە کوردیی سۆرانی بنووسە.
+هەموو وەڵام بە کوردیی سۆرانی بنووسە.
 
-دەقی شیکردنەوە و ڕوونکردنەوە بە کوردی بێت.
-
-تەنها وشە تەکنیکییە پێویستەکان دەتوانن بە ئینگلیزی بمێنن:
+وشە تەکنیکییەکان دەتوانن بە ئینگلیزی بمێنن:
 
 Forex
 Gold
@@ -724,46 +887,40 @@ SELL
 WAIT
 
 ━━━━━━━━━━━━━━━━━━━━
-داتای ڕاستەوخۆ
+LIVE DATA
 ━━━━━━━━━━━━━━━━━━━━
 
 تەنها ئەو داتایە بەکاربهێنە کە لە live context ـەوە دراوە.
 
-نرخی ساختە مەدۆزەوە.
+هیچ نرخێک خۆت مەدروستکە.
 
-هەواڵی ساختە مەدۆزەوە.
+هیچ هەواڵێک خۆت مەدروستکە.
 
-کاتی ساختە مەدۆزەوە.
+هیچ کاتێک خۆت مەدروستکە.
 
-ئەگەر داتای بازاڕ بەردەست نەبوو بڵێ:
-
-"داتای ڕاستەوخۆی بازاڕ بەردەست نییە، بۆیە ناتوانم نرخی ئێستا بە دڵنیایی دیاری بکەم."
-
-ئەگەر هەواڵ بەردەست نەبوو، هیچ هەواڵێکی خۆت مەدروستکە.
+ئەگەر داتا بەردەست نەبوو، بە ڕوونی بڵێ.
 
 ━━━━━━━━━━━━━━━━━━━━
-شیکردنەوە
+IMPORTANT
 ━━━━━━━━━━━━━━━━━━━━
 
-کاتێک بەکارهێنەر داوای شیکردنەوەی Chart یان Trade دەکات، ئەمانە لەبەرچاو بگرە:
+Market Structure
+Liquidity
+FVG
+Order Block
+BOS
+CHOCH
+Entry
+SL
+TP
 
-1. نرخی ئێستا
-2. ئاڕاستەی کاندڵ
-3. Market Structure
-4. BOS
-5. CHOCH
-6. Liquidity
-7. Order Block
-8. FVG
-9. ICT
-10. SMC
-11. ALC™
-12. هەواڵە گرنگەکان
-13. Entry
-14. Stop Loss
-15. Take Profit
-16. Risk/Reward
-17. Confirmation
+تەنها کاتێک باس بکە کە داتا لە Live Context ـدا پشتگیریی بکات.
+
+ئەگەر دڵنیانیت نییە:
+
+"Confirmation کافی نییە."
+
+بڵێ.
 
 ━━━━━━━━━━━━━━━━━━━━
 ALC™
@@ -771,23 +928,31 @@ ALC™
 
 ALC™ سیستەمێکی جیاوازە.
 
-ALC™ بە ICT یان SMC تێکەڵ مەکە.
+ALC™ بە ICT و SMC تێکەڵ مەکە.
 
-ئەگەر باس لە ALC™ کرا، شیکردنەوەی تایبەتی ALC™ بدە.
+هیچ Zone ـێکی ALC™ خۆت مەدروستکە.
+
+ئەگەر داتای پێویست بۆ ALC™ نەبوو:
+
+"داتای کافی بۆ Confirmation ـی ALC™ نییە."
+
+بڵێ.
 
 ━━━━━━━━━━━━━━━━━━━━
-BUY / SELL / WAIT
+NEWS
 ━━━━━━━━━━━━━━━━━━━━
 
-هیچکات مەڵێ:
+تەنها ئەو News ـە باس بکە کە لە live context ـدا هەیە.
 
-"100% دڵنیام."
+ئەگەر News list بەتاڵە:
 
-یان:
+هیچ event ـێکی خۆت مەدروستکە.
 
-"ئەم Trade ـە حەتمەن دەباتەوە."
+━━━━━━━━━━━━━━━━━━━━
+BUY / SELL
+━━━━━━━━━━━━━━━━━━━━
 
-BUY یان SELL تەنها کاتێک پێشنیار بکە کە Confirmation ـی گونجاو هەبێت.
+BUY یان SELL بەبێ Confirmation مەدە.
 
 ئەگەر Setup تەواو نەبوو:
 
@@ -795,11 +960,13 @@ WAIT
 
 بەکاربهێنە.
 
+هیچکات 100% دڵنیایی مەدە.
+
 ━━━━━━━━━━━━━━━━━━━━
-شێوازی وەڵام
+OUTPUT
 ━━━━━━━━━━━━━━━━━━━━
 
-ئەگەر بەکارهێنەر شیکردنەوەی Trade یان Chart داوا کرد و داتا بەردەست بوو:
+کاتێک شیکردنەوەی Trade داواکرا:
 
 📊 بازاڕ:
 [Symbol]
@@ -810,10 +977,10 @@ WAIT
 💵 نرخی ئێستا:
 [نرخ]
 
-📈 ئاڕاستەی بازاڕ:
+📈 Bias:
 [Bullish / Bearish / Neutral]
 
-🧱 پێکهاتەی بازاڕ:
+🧱 Market Structure:
 [شیکردنەوە]
 
 💧 Liquidity:
@@ -831,20 +998,20 @@ WAIT
 ⚡ ALC™:
 [شیکردنەوە]
 
-📰 کاریگەری هەواڵ:
-[شیکردنەوە]
+📰 News:
+[تەنها ئەو event ـانەی لە داتا هەن]
 
 🎯 Setup:
 [شیکردنەوە]
 
 📍 Entry:
-[نرخ، تەنها ئەگەر داتا ڕێگە بدات]
+[تەنها ئەگەر Confirmation هەبێت]
 
 🛑 Stop Loss:
-[نرخ، تەنها ئەگەر داتا ڕێگە بدات]
+[تەنها ئەگەر Confirmation هەبێت]
 
 💰 Take Profit:
-[نرخ، تەنها ئەگەر داتا ڕێگە بدات]
+[تەنها ئەگەر Confirmation هەبێت]
 
 ⚖️ Risk/Reward:
 [ڕێژە]
@@ -852,59 +1019,71 @@ WAIT
 🔎 Confirmation:
 [هۆکار]
 
-🧠 ڕێژەی دڵنیایی:
-[ژمارەی گونجاو، نەک 100%]
+🧠 Confidence:
+[ڕێژەی گونجاو]
 
-⏳ بڕیار:
+⏳ Decision:
 [BUY / SELL / WAIT]
 
 ━━━━━━━━━━━━━━━━━━━━
-یاسای کۆتایی
+FINAL RULE
 ━━━━━━━━━━━━━━━━━━━━
 
-پێش ناردنی وەڵام:
+هیچ شتێک مەخەیتە ناو وەڵامەکە کە Live Context پشتگیریی نەکات.
 
-- هەموو شیکردنەوە بە کوردیی سۆرانی بێت.
-- نرخی ساختە دروست مەکە.
-- هەواڵی ساختە دروست مەکە.
-- BUY/SELL بەبێ Confirmation مەدە.
-- ALC™ لە ICT و SMC جیا بکەوە.
-- وەڵامەکە ڕوون، سروشتی و پیشەیی بێت.
+داتای ساختە = قەدەغە.
+
+نرخی ساختە = قەدەغە.
+
+News ـی ساختە = قەدەغە.
+
+Technical level ـی ساختە = قەدەغە.
+
+ALC™ Zone ـی ساختە = قەدەغە.
+
 `;
 
   // ==========================================================
-  // GEMINI MODEL LIST
+  // GEMINI MODELS
   // ==========================================================
 
   const GEMINI_MODELS = [
+
     "gemini-2.5-flash",
+
     "gemini-2.5-flash-lite"
+
   ];
 
   // ==========================================================
-  // BUILD GEMINI CONTENT
+  // BUILD GEMINI PARTS
   // ==========================================================
 
   function buildGeminiParts() {
+
     const parts = [];
 
     parts.push({
+
       text:
-        "داتای ڕاستەوخۆی ShahanFX:\n\n" +
+        "Live Context:\n\n" +
         JSON.stringify(
           liveContext,
           null,
           2
         )
+
     });
 
     parts.push({
+
       text:
-        "\n\nپرسیاری بەکارهێنەر:\n" +
+        "\n\nUser Message:\n" +
         (
           message ||
-          "ئەم Chart ـە بە وردی بە کوردیی سۆرانی شیکاربکە."
+          "ئەم Chart ـە بە وردی شیکاربکە."
         )
+
     });
 
     // ========================================================
@@ -912,206 +1091,207 @@ WAIT
     // ========================================================
 
     if (image) {
+
       const match =
         image.match(
           /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
         );
 
       if (match) {
+
         parts.push({
+
           inline_data: {
+
             mime_type:
               match[1],
+
             data:
               match[2]
+
           }
+
         });
+
       }
+
     }
 
     return parts;
+
   }
 
   // ==========================================================
-  // GEMINI CALL
+  // GEMINI SINGLE ATTEMPT
   // ==========================================================
 
-  async function callGemini() {
-    if (
-      GEMINI_KEYS.length === 0
-    ) {
-      return null;
-    }
+  async function callGeminiOnce(
+    apiKey,
+    model,
+    keyIndex
+  ) {
 
-    const parts =
-      buildGeminiParts();
+    try {
 
-    // Try every API key
-    for (
-      let keyIndex = 0;
-      keyIndex <
-      GEMINI_KEYS.length;
-      keyIndex++
-    ) {
-      const apiKey =
-        GEMINI_KEYS[keyIndex];
+      const url =
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
+        `?key=${encodeURIComponent(
+          apiKey
+        )}`;
 
-      // Try every supported model
-      for (
-        let modelIndex = 0;
-        modelIndex <
-        GEMINI_MODELS.length;
-        modelIndex++
-      ) {
-        if (
-          remainingTime() <=
-          3500
-        ) {
-          return null;
-        }
+      const response =
+        await fetchTimeout(
 
-        const model =
-          GEMINI_MODELS[
-            modelIndex
-          ];
+          url,
 
-        try {
-          const url =
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
-            `?key=${encodeURIComponent(
-              apiKey
-            )}`;
+          {
 
-          const response =
-            await fetchTimeout(
-              url,
-              {
-                method: "POST",
+            method:
+              "POST",
 
-                headers: {
-                  "Content-Type":
-                    "application/json"
+            headers: {
+
+              "Content-Type":
+                "application/json"
+
+            },
+
+            body:
+              JSON.stringify({
+
+                system_instruction: {
+
+                  parts: [
+
+                    {
+
+                      text:
+                        systemPrompt
+
+                    }
+
+                  ]
+
                 },
 
-                body:
-                  JSON.stringify({
-                    system_instruction: {
-                      parts: [
-                        {
-                          text:
-                            systemPrompt
-                        }
-                      ]
-                    },
+                contents: [
 
-                    contents: [
-                      {
-                        role:
-                          "user",
+                  {
 
-                        parts
-                      }
-                    ],
+                    role:
+                      "user",
 
-                    generationConfig: {
-                      maxOutputTokens:
-                        2200,
+                    parts:
+                      buildGeminiParts()
 
-                      temperature:
-                        0.3
-                    }
-                  })
-              },
+                  }
 
-              Math.min(
-                7000,
-                remainingTime()
-              )
-            );
+                ],
 
-          let data = null;
+                generationConfig: {
 
-          try {
-            data =
-              await response.json();
-          } catch {
-            data = null;
-          }
+                  maxOutputTokens:
+                    2200,
 
-          // =================================================
-          // SUCCESS
-          // =================================================
+                  temperature:
+                    0.3
 
-          if (
-            response.ok
-          ) {
-            const text =
-              data
-                ?.candidates?.[0]
-                ?.content?.parts
-                ?.map(
-                  (part) =>
-                    part.text ||
-                    ""
-                )
-                .join("")
-                .trim();
+                }
 
-            if (text) {
-              return {
-                provider:
-                  "gemini",
+              })
 
-                model,
+          },
 
-                key:
-                  `GEMINI_API_KEY${
-                    keyIndex === 0
-                      ? ""
-                      : keyIndex
-                  }`,
+          ATTEMPT_TIMEOUT
 
-                answer:
-                  clean(text)
-              };
-            }
-          }
+        );
 
-          // =================================================
-          // CONTINUE
-          // =================================================
+      let data = null;
 
-        } catch {
-          // Try next model / next API key
-        }
+      try {
+
+        data =
+          await response.json();
+
+      } catch {
+
+        data = null;
+
       }
+
+      if (!response.ok) {
+
+        return null;
+
+      }
+
+      const text =
+        data
+          ?.candidates?.[0]
+          ?.content?.parts
+          ?.map(
+            (part) =>
+              part.text ||
+              ""
+          )
+          .join("")
+          .trim();
+
+      if (!text) {
+
+        return null;
+
+      }
+
+      return {
+
+        provider:
+          "gemini",
+
+        model,
+
+        key:
+          `GEMINI_API_KEY${
+            keyIndex === 0
+              ? ""
+              : keyIndex
+          }`,
+
+        answer:
+          clean(text)
+
+      };
+
+    } catch {
+
+      return null;
+
     }
 
-    return null;
   }
 
   // ==========================================================
-  // OPENROUTER FALLBACK
+  // OPENROUTER SINGLE ATTEMPT
   // ==========================================================
 
-  async function callOpenRouter() {
+  async function callOpenRouterOnce() {
+
     if (
       !OPENROUTER_API_KEY
     ) {
-      return null;
-    }
 
-    if (
-      remainingTime() <=
-      3000
-    ) {
       return null;
+
     }
 
     try {
+
       const userContent =
+
         [
-          "داتای ڕاستەوخۆی ShahanFX:",
+
+          "Live Context:",
+
           JSON.stringify(
             liveContext,
             null,
@@ -1120,62 +1300,71 @@ WAIT
 
           "",
 
-          "پرسیاری بەکارهێنەر:",
+          "User Message:",
+
           (
             message ||
-            "ئەم Chart ـە بە وردی بە کوردیی سۆرانی شیکاربکە."
+            "ئەم Chart ـە بە وردی شیکاربکە."
           )
+
         ].join("\n");
 
       const response =
         await fetchTimeout(
+
           "https://openrouter.ai/api/v1/chat/completions",
+
           {
-            method: "POST",
+
+            method:
+              "POST",
 
             headers: {
+
               "Content-Type":
                 "application/json",
 
               Authorization:
-                `Bearer ${OPENROUTER_API_KEY}`,
+                `Bearer ${
+                  OPENROUTER_API_KEY
+                }`,
 
               "HTTP-Referer":
                 "https://shahanfx-backend-9576.vercel.app",
 
               "X-Title":
                 "ShahanFX AI Pro"
+
             },
 
             body:
               JSON.stringify({
+
                 model:
                   "openrouter/free",
 
                 messages: [
+
                   {
+
                     role:
                       "system",
 
                     content:
                       systemPrompt
+
                   },
 
                   {
-                    role:
-                      "system",
 
-                    content:
-                      "وەڵامی کۆتایی تەنها بە کوردیی سۆرانی بێت، جگە لە وشە تەکنیکییە پێویستەکان."
-                  },
-
-                  {
                     role:
                       "user",
 
                     content:
                       userContent
+
                   }
+
                 ],
 
                 max_tokens:
@@ -1183,28 +1372,32 @@ WAIT
 
                 temperature:
                   0.3
+
               })
+
           },
 
-          Math.min(
-            8000,
-            remainingTime()
-          )
+          ATTEMPT_TIMEOUT
+
         );
 
       let data = null;
 
       try {
+
         data =
           await response.json();
+
       } catch {
+
         data = null;
+
       }
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
+
         return null;
+
       }
 
       const text =
@@ -1215,10 +1408,13 @@ WAIT
           ?.trim();
 
       if (!text) {
+
         return null;
+
       }
 
       return {
+
         provider:
           "openrouter",
 
@@ -1228,41 +1424,200 @@ WAIT
 
         answer:
           clean(text)
+
       };
+
     } catch {
+
       return null;
+
     }
+
   }
 
   // ==========================================================
-  // AI EXECUTION
+  // FAILOVER SEQUENCE
   // ==========================================================
 
-  let aiResult =
-    await callGemini();
+  async function runFailover() {
 
-  // Gemini failed → OpenRouter
-  if (!aiResult) {
-    aiResult =
-      await callOpenRouter();
+    // --------------------------------------------------------
+    // Sequence:
+    //
+    // 0 → 1 → 2 → 3 → 4
+    // 0 → 1 → 2 → 3 → 4
+    // --------------------------------------------------------
+
+    const sequence = [
+
+      0,
+      1,
+      2,
+      3,
+      4,
+      0,
+      1,
+      2,
+      3,
+      4
+
+    ];
+
+    for (
+      let attempt = 0;
+      attempt <
+      sequence.length;
+      attempt++
+    ) {
+
+      const providerIndex =
+        sequence[attempt];
+
+      // ======================================================
+      // GEMINI
+      // ======================================================
+
+      if (
+        providerIndex >= 0 &&
+        providerIndex <= 3
+      ) {
+
+        const apiKey =
+          GEMINI_KEYS[
+            providerIndex
+          ];
+
+        if (
+          typeof apiKey ===
+            "string" &&
+          apiKey.trim()
+        ) {
+
+          // Try primary Gemini model
+
+          const result =
+            await callGeminiOnce(
+
+              apiKey,
+
+              GEMINI_MODELS[0],
+
+              providerIndex
+
+            );
+
+          if (result) {
+
+            return {
+
+              ...result,
+
+              attempt:
+                attempt + 1
+
+            };
+
+          }
+
+          // --------------------------------------------------
+          // If primary model failed,
+          // try lite model within same provider slot.
+          // --------------------------------------------------
+
+          const liteResult =
+            await callGeminiOnce(
+
+              apiKey,
+
+              GEMINI_MODELS[1],
+
+              providerIndex
+
+            );
+
+          if (liteResult) {
+
+            return {
+
+              ...liteResult,
+
+              attempt:
+                attempt + 1
+
+            };
+
+          }
+
+        }
+
+      }
+
+      // ======================================================
+      // OPENROUTER = SLOT 4
+      // ======================================================
+
+      if (
+        providerIndex === 4
+      ) {
+
+        const result =
+          await callOpenRouterOnce();
+
+        if (result) {
+
+          return {
+
+            ...result,
+
+            attempt:
+              attempt + 1
+
+          };
+
+        }
+
+      }
+
+    }
+
+    return null;
+
   }
+
+  // ==========================================================
+  // EXECUTE FAILOVER
+  // ==========================================================
+
+  const aiResult =
+    await runFailover();
 
   // ==========================================================
   // AI FAILURE
   // ==========================================================
 
   if (!aiResult) {
+
     return res.status(503).json({
+
       ok: false,
 
       success: false,
 
       error:
-        "هیچ یەکێک لە سیستەمەکانی AI وەڵامی نەدا. تکایە دووبارە هەوڵ بدەوە.",
+        "لە دوو خولی 0→1→2→3→4 هیچ AI ـیەک وەڵامی نەدا.",
+
+      retrySequence:
+        "0→1→2→3→4→0→1→2→3→4",
+
+      attempts:
+        10,
 
       diagnostics: {
+
         geminiKeys:
-          GEMINI_KEYS.length,
+          GEMINI_KEYS.filter(
+            Boolean
+          ).length,
 
         openrouter:
           Boolean(
@@ -1278,9 +1633,11 @@ WAIT
           Boolean(
             news?.available
           )
+
       },
 
       liveData: {
+
         market:
           market?.available ===
           true,
@@ -1288,8 +1645,11 @@ WAIT
         news:
           news?.available ===
           true
+
       }
+
     });
+
   }
 
   // ==========================================================
@@ -1297,6 +1657,7 @@ WAIT
   // ==========================================================
 
   return res.status(200).json({
+
     ok: true,
 
     success: true,
@@ -1310,12 +1671,23 @@ WAIT
     model:
       aiResult.model,
 
+    attempt:
+      aiResult.attempt,
+
+    retrySequence:
+      "0→1→2→3→4→0→1→2→3→4",
+
     image:
       Boolean(image),
 
-    liveData: true,
+    liveData:
+      true,
+
+    generatedAt:
+      liveContext.generatedAt,
 
     market: {
+
       available:
         Boolean(
           market?.available
@@ -1338,9 +1710,11 @@ WAIT
         market?.current
           ?.datetime ??
         null
+
     },
 
     news: {
+
       available:
         Boolean(
           news?.available
@@ -1352,6 +1726,9 @@ WAIT
         )
           ? news.events
           : []
+
     }
+
   });
+
 }
