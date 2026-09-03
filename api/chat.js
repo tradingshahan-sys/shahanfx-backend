@@ -1,7 +1,7 @@
 // api/chat.js
 // ============================================================
 // ShahanFX AI Pro Backend
-// Live Market + Economic News + Chart Image
+// Live Market + Economic News + Chart Image + SMC Analyzer
 // 4x Gemini Key Failover + OpenRouter
 //
 // Timezone:
@@ -26,8 +26,6 @@ import AI_CONFIG from "../config/ai-config.js";
 import { detectFairValueGaps, detectOrderBlocks } from '../config/smcAnalyzer.js';
 
 export default async function handler(req, res) {
-    // لێرەدا کۆدی سەرەکیی چات و وەرگرتنی داتاکان دەنووسرێت
-}
 
   // ==========================================================
   // CORS
@@ -140,14 +138,6 @@ export default async function handler(req, res) {
 
       let value =
         String(dateValue).trim();
-
-      /*
-       * Twelve Data / News APIs may return timestamps
-       * without timezone information.
-       *
-       * If there is no timezone:
-       * treat the timestamp as UTC.
-       */
 
       if (
         !/[zZ]$/.test(value) &&
@@ -499,7 +489,9 @@ export default async function handler(req, res) {
         reason:
           "TWELVE_DATA_API_KEY نەدۆزرایەوە.",
 
-        candles: []
+        candles: [],
+        fvgs: [],
+        orderBlocks: []
 
       };
     }
@@ -549,7 +541,9 @@ export default async function handler(req, res) {
           reason:
             `Market API HTTP ${response.status}`,
 
-          candles: []
+          candles: [],
+          fvgs: [],
+          orderBlocks: []
 
         };
       }
@@ -569,7 +563,9 @@ export default async function handler(req, res) {
             data?.message ||
             "داتای بازاڕ بەردەست نییە.",
 
-          candles: []
+          candles: [],
+          fvgs: [],
+          orderBlocks: []
 
         };
       }
@@ -585,7 +581,9 @@ export default async function handler(req, res) {
           reason:
             "هیچ کاندڵێک نەدۆزرایەوە.",
 
-          candles: []
+          candles: [],
+          fvgs: [],
+          orderBlocks: []
 
         };
       }
@@ -672,6 +670,10 @@ export default async function handler(req, res) {
 
           }));
 
+      // لێرەدا فانکشنەکانی FVG و Order Blocks بانگێشت دەکەین
+      const fvgs = detectFairValueGaps(recentCandles);
+      const orderBlocks = detectOrderBlocks(recentCandles);
+
       return {
 
         available: true,
@@ -739,6 +741,10 @@ export default async function handler(req, res) {
 
         direction,
 
+        fvgs,
+
+        orderBlocks,
+
         recentCandles
 
       };
@@ -758,7 +764,9 @@ export default async function handler(req, res) {
             : error?.message ||
               "Market API error",
 
-        candles: []
+        candles: [],
+        fvgs: [],
+        orderBlocks: []
 
       };
     }
@@ -774,10 +782,6 @@ export default async function handler(req, res) {
 
       const now =
         new Date();
-
-      // ------------------------------------------------------
-      // Date range
-      // ------------------------------------------------------
 
       const year =
         now.getUTCFullYear();
@@ -1236,10 +1240,6 @@ export default async function handler(req, res) {
 
     });
 
-    // ========================================================
-    // CHART IMAGE
-    // ========================================================
-
     if (image) {
 
       const match =
@@ -1595,10 +1595,6 @@ export default async function handler(req, res) {
       const providerIndex =
         sequence[attempt];
 
-      // ======================================================
-      // GEMINI
-      // ======================================================
-
       if (
         providerIndex >= 0 &&
         providerIndex <= 3
@@ -1638,10 +1634,6 @@ export default async function handler(req, res) {
             };
           }
 
-          // ==================================================
-          // GEMINI LITE FALLBACK
-          // ==================================================
-
           const liteResult =
             await callGeminiOnce(
 
@@ -1666,10 +1658,6 @@ export default async function handler(req, res) {
           }
         }
       }
-
-      // ======================================================
-      // OPENROUTER
-      // ======================================================
 
       if (
         providerIndex === 4
@@ -1850,7 +1838,13 @@ export default async function handler(req, res) {
       datetimeRaw:
         market?.current
           ?.datetimeRaw ??
-        null
+        null,
+
+      fvgs:
+        market?.fvgs || [],
+
+      orderBlocks:
+        market?.orderBlocks || []
 
     },
 
