@@ -11,7 +11,7 @@
 //
 // AI Config:
 // ../config/ai-config.js
-//
+// ../config/smcAnalyzer.js
 // RETRY ORDER:
 // 0 → 1 → 2 → 3 → 4 → 0 → 1 → 2 → 3 → 4
 //
@@ -23,6 +23,7 @@
 // ============================================================
 
 import AI_CONFIG from "../config/ai-config.js";
+import { detectFairValueGaps, detectOrderBlocks } from '../config/smcAnalyzer.js';
 
 export default async function handler(req, res) {
 
