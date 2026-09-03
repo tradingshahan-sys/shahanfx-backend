@@ -11,7 +11,8 @@
 //
 // AI Config:
 // ../config/ai-config.js
-// ../config/smcAnalyzer.js
+// SMC Analyzer:
+// ../utils/smcAnalyzer.js
 // RETRY ORDER:
 // 0 → 1 → 2 → 3 → 4 → 0 → 1 → 2 → 3 → 4
 //
@@ -23,7 +24,7 @@
 // ============================================================
 
 import AI_CONFIG from "../config/ai-config.js";
-import { detectFairValueGaps, detectOrderBlocks } from '../config/smcAnalyzer.js';
+import analyzeSMC from "../utils/smcAnalyzer.js";
 
 export default async function handler(req, res) {
 
@@ -491,7 +492,8 @@ export default async function handler(req, res) {
 
         candles: [],
         fvgs: [],
-        orderBlocks: []
+        orderBlocks: [],
+        smc: null
 
       };
     }
@@ -543,7 +545,8 @@ export default async function handler(req, res) {
 
           candles: [],
           fvgs: [],
-          orderBlocks: []
+          orderBlocks: [],
+          smc: null
 
         };
       }
@@ -565,7 +568,8 @@ export default async function handler(req, res) {
 
           candles: [],
           fvgs: [],
-          orderBlocks: []
+          orderBlocks: [],
+          smc: null
 
         };
       }
@@ -583,20 +587,33 @@ export default async function handler(req, res) {
 
           candles: [],
           fvgs: [],
-          orderBlocks: []
+          orderBlocks: [],
+          smc: null
 
         };
       }
 
+      // ========================================================
+      // IMPORTANT:
+      // TwelveData normally returns newest candle first.
+      // SMC Analyzer needs chronological order:
+      // oldest → newest
+      // ========================================================
+
       const candles =
-        data.values;
+        [...data.values].reverse();
+
+      // ========================================================
+      // CURRENT / PREVIOUS
+      // Keep TwelveData newest-first logic for current price.
+      // ========================================================
 
       const current =
-        candles[0];
+        data.values[0];
 
       const previous =
-        candles[1] ||
-        candles[0];
+        data.values[1] ||
+        data.values[0];
 
       const currentClose =
         Number(
@@ -638,8 +655,42 @@ export default async function handler(req, res) {
         }
       }
 
+      // ========================================================
+      // NORMALIZE ALL 120 CANDLES FOR SMC ENGINE
+      // ========================================================
+
+      const smcCandles =
+        candles.map((c) => ({
+
+          datetime:
+            c.datetime,
+
+          open:
+            Number(c.open),
+
+          high:
+            Number(c.high),
+
+          low:
+            Number(c.low),
+
+          close:
+            Number(c.close),
+
+          volume:
+            c.volume !== undefined
+              ? Number(c.volume)
+              : null
+
+        }));
+
+      // ========================================================
+      // RECENT 30 CANDLES FOR RESPONSE
+      // Newest 30, same general format as before.
+      // ========================================================
+
       const recentCandles =
-        candles
+        [...data.values]
           .slice(0, 30)
           .map((c) => ({
 
@@ -670,9 +721,86 @@ export default async function handler(req, res) {
 
           }));
 
-      // لێرەدا فانکشنەکانی FVG و Order Blocks بانگێشت دەکەین
-      const fvgs = detectFairValueGaps(recentCandles);
-      const orderBlocks = detectOrderBlocks(recentCandles);
+      // ========================================================
+      // SMC ANALYZER
+      //
+      // Includes:
+      // FVG
+      // Order Block
+      // Liquidity
+      // Liquidity Sweep
+      // Market Structure
+      // BOS
+      // CHOCH
+      // Displacement
+      // Premium / Discount
+      // Score / Setup
+      // ========================================================
+
+      let smc = null;
+
+      try {
+
+        smc =
+          analyzeSMC(
+            smcCandles
+          );
+
+      } catch (error) {
+
+        smc = {
+
+          available: false,
+
+          error:
+            error?.message ||
+            "SMC Analyzer error"
+
+        };
+      }
+
+      // ========================================================
+      // SMC-DERIVED FVG / OB
+      // ========================================================
+
+      const fvgs =
+        Array.isArray(
+          smc?.fvgs
+        )
+          ? smc.fvgs
+          : Array.isArray(
+              smc?.activeFVGs
+            )
+              ? smc.activeFVGs
+              : [];
+
+      const orderBlocks =
+        Array.isArray(
+          smc?.orderBlocks
+        )
+          ? smc.orderBlocks
+          : Array.isArray(
+              smc?.activeOBs
+            )
+              ? smc.activeOBs
+              : [];
+
+      // ========================================================
+      // SMC BIAS
+      // Use analyzer bias when available.
+      // Otherwise preserve old candle direction.
+      // ========================================================
+
+      const smcBias =
+        smc?.summary?.bias ||
+        smc?.setup?.direction ||
+        null;
+
+      const finalDirection =
+        typeof smcBias === "string" &&
+        smcBias.trim()
+          ? smcBias
+          : direction;
 
       return {
 
@@ -739,11 +867,62 @@ export default async function handler(req, res) {
 
         },
 
-        direction,
+        direction:
+          finalDirection,
+
+        // ======================================================
+        // SMC DATA
+        // ======================================================
+
+        smc,
+
+        marketStructure:
+          smc?.marketStructure ||
+          null,
+
+        bos:
+          smc?.bos ||
+          [],
+
+        choch:
+          smc?.choch ||
+          [],
+
+        displacement:
+          smc?.displacement ||
+          [],
+
+        liquidity:
+          smc?.liquidity ||
+          [],
+
+        liquiditySweeps:
+          smc?.liquiditySweeps ||
+          [],
+
+        premiumDiscount:
+          smc?.premiumDiscount ||
+          null,
+
+        setup:
+          smc?.setup ||
+          null,
+
+        summary:
+          smc?.summary ||
+          null,
+
+        // ======================================================
+        // FVG + ORDER BLOCK FROM SMC ENGINE
+        // ======================================================
 
         fvgs,
 
         orderBlocks,
+
+        // ======================================================
+        // RECENT CANDLES
+        // ======================================================
 
         recentCandles
 
@@ -766,7 +945,8 @@ export default async function handler(req, res) {
 
         candles: [],
         fvgs: [],
-        orderBlocks: []
+        orderBlocks: [],
+        smc: null
 
       };
     }
@@ -1091,7 +1271,10 @@ export default async function handler(req, res) {
           reason:
             "Market data error",
 
-          candles: []
+          candles: [],
+          fvgs: [],
+          orderBlocks: [],
+          smc: null
 
         };
 
@@ -1675,7 +1858,7 @@ export default async function handler(req, res) {
             attempt:
               attempt + 1
 
-          };
+            };
         }
       }
     }
@@ -1840,11 +2023,61 @@ export default async function handler(req, res) {
           ?.datetimeRaw ??
         null,
 
+      // ======================================================
+      // SMC DATA
+      // ======================================================
+
+      smc:
+        market?.smc ||
+        null,
+
+      marketStructure:
+        market?.marketStructure ||
+        null,
+
+      bos:
+        market?.bos ||
+        [],
+
+      choch:
+        market?.choch ||
+        [],
+
+      displacement:
+        market?.displacement ||
+        [],
+
+      liquidity:
+        market?.liquidity ||
+        [],
+
+      liquiditySweeps:
+        market?.liquiditySweeps ||
+        [],
+
+      premiumDiscount:
+        market?.premiumDiscount ||
+        null,
+
+      setup:
+        market?.setup ||
+        null,
+
+      summary:
+        market?.summary ||
+        null,
+
+      // ======================================================
+      // FVG + ORDER BLOCK
+      // ======================================================
+
       fvgs:
-        market?.fvgs || [],
+        market?.fvgs ||
+        [],
 
       orderBlocks:
-        market?.orderBlocks || []
+        market?.orderBlocks ||
+        []
 
     },
 
