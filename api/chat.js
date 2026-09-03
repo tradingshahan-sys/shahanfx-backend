@@ -26,6 +26,8 @@ import AI_CONFIG from "../config/ai-config.js";
 import { detectFairValueGaps, detectOrderBlocks } from '../config/smcAnalyzer.js';
 
 export default async function handler(req, res) {
+    // لێرەدا کۆدی سەرەکیی چات و وەرگرتنی داتاکان دەنووسرێت
+}
 
   // ==========================================================
   // CORS
