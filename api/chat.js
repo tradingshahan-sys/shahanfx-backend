@@ -2,6 +2,7 @@
 // ============================================================
 // ShahanFX AI Pro Backend
 // Live Market + Economic News + Chart Image + SMC Analyzer
+// + Trading Intelligence Engine
 // 4x Gemini Key Failover + OpenRouter
 //
 // Timezone:
@@ -13,6 +14,9 @@
 // ../config/ai-config.js
 // SMC Analyzer:
 // ../utils/smcAnalyzer.js
+// Trading Intelligence:
+// ../engine/tradingIntelligence.js
+//
 // RETRY ORDER:
 // 0 → 1 → 2 → 3 → 4 → 0 → 1 → 2 → 3 → 4
 //
@@ -25,6 +29,10 @@
 
 import AI_CONFIG from "../config/ai-config.js";
 import analyzeSMC from "../utils/smcAnalyzer.js";
+
+import analyzeTradingIntelligence, {
+  buildAITradingContext
+} from "../engine/tradingIntelligence.js";
 
 export default async function handler(req, res) {
 
@@ -225,6 +233,9 @@ export default async function handler(req, res) {
         "6.1",
 
       aiConfig:
+        true,
+
+      tradingIntelligence:
         true,
 
       timezone:
@@ -493,7 +504,9 @@ export default async function handler(req, res) {
         candles: [],
         fvgs: [],
         orderBlocks: [],
-        smc: null
+        smc: null,
+        intelligence: null,
+        tradingContext: null
 
       };
     }
@@ -546,7 +559,9 @@ export default async function handler(req, res) {
           candles: [],
           fvgs: [],
           orderBlocks: [],
-          smc: null
+          smc: null,
+          intelligence: null,
+          tradingContext: null
 
         };
       }
@@ -569,7 +584,9 @@ export default async function handler(req, res) {
           candles: [],
           fvgs: [],
           orderBlocks: [],
-          smc: null
+          smc: null,
+          intelligence: null,
+          tradingContext: null
 
         };
       }
@@ -588,7 +605,9 @@ export default async function handler(req, res) {
           candles: [],
           fvgs: [],
           orderBlocks: [],
-          smc: null
+          smc: null,
+          intelligence: null,
+          tradingContext: null
 
         };
       }
@@ -760,6 +779,95 @@ export default async function handler(req, res) {
       }
 
       // ========================================================
+      // TRADING INTELLIGENCE ENGINE
+      //
+      // This is the new layer:
+      //
+      // SMC DATA
+      //    ↓
+      // Confluence
+      //    ↓
+      // Bias
+      //    ↓
+      // Confirmation
+      //    ↓
+      // Score
+      //    ↓
+      // Confidence
+      //    ↓
+      // BUY / SELL / WAIT
+      // ========================================================
+
+      let intelligence = null;
+
+      try {
+
+        intelligence =
+          analyzeTradingIntelligence(
+            smc,
+            {
+              symbol,
+              interval,
+              currentPrice:
+                currentClose
+            }
+          );
+
+      } catch (error) {
+
+        intelligence = {
+
+          available: false,
+
+          engine:
+            "ShahanFX Trading Intelligence",
+
+          decision:
+            "WAIT",
+
+          bias:
+            "NEUTRAL",
+
+          score:
+            0,
+
+          confidence:
+            0,
+
+          reason:
+            error?.message ||
+            "Trading Intelligence Engine error"
+
+        };
+      }
+
+      // ========================================================
+      // BUILD COMPACT AI TRADING CONTEXT
+      // ========================================================
+
+      let tradingContext = null;
+
+      try {
+
+        tradingContext =
+          buildAITradingContext(
+            intelligence
+          );
+
+      } catch (error) {
+
+        tradingContext = {
+
+          available: false,
+
+          message:
+            error?.message ||
+            "Trading Context error"
+
+        };
+      }
+
+      // ========================================================
       // SMC-DERIVED FVG / OB
       // ========================================================
 
@@ -796,11 +904,26 @@ export default async function handler(req, res) {
         smc?.setup?.direction ||
         null;
 
+      // ========================================================
+      // INTELLIGENCE BIAS
+      // Intelligence Engine gets priority because it combines
+      // multiple SMC signals.
+      // ========================================================
+
+      const intelligenceBias =
+        intelligence?.bias ||
+        null;
+
       const finalDirection =
-        typeof smcBias === "string" &&
-        smcBias.trim()
-          ? smcBias
-          : direction;
+        typeof intelligenceBias === "string" &&
+        intelligenceBias.trim()
+          ? intelligenceBias
+          : (
+              typeof smcBias === "string" &&
+              smcBias.trim()
+                ? smcBias
+                : direction
+            );
 
       return {
 
@@ -921,6 +1044,15 @@ export default async function handler(req, res) {
         orderBlocks,
 
         // ======================================================
+        // NEW:
+        // TRADING INTELLIGENCE
+        // ======================================================
+
+        intelligence,
+
+        tradingContext,
+
+        // ======================================================
         // RECENT CANDLES
         // ======================================================
 
@@ -946,7 +1078,9 @@ export default async function handler(req, res) {
         candles: [],
         fvgs: [],
         orderBlocks: [],
-        smc: null
+        smc: null,
+        intelligence: null,
+        tradingContext: null
 
       };
     }
@@ -1274,7 +1408,9 @@ export default async function handler(req, res) {
           candles: [],
           fvgs: [],
           orderBlocks: [],
-          smc: null
+          smc: null,
+          intelligence: null,
+          tradingContext: null
 
         };
 
@@ -1340,6 +1476,15 @@ export default async function handler(req, res) {
     market,
 
     news,
+
+    // ========================================================
+    // NEW:
+    // Make Trading Intelligence explicitly available to AI.
+    // ========================================================
+
+    tradingIntelligence:
+      market?.tradingContext ||
+      null,
 
     dataPolicy: {
 
@@ -1858,7 +2003,7 @@ export default async function handler(req, res) {
             attempt:
               attempt + 1
 
-            };
+          };
         }
       }
     }
@@ -1916,6 +2061,11 @@ export default async function handler(req, res) {
         news:
           Boolean(
             news?.available
+          ),
+
+        tradingIntelligence:
+          Boolean(
+            market?.intelligence?.available
           )
 
       },
@@ -1926,7 +2076,10 @@ export default async function handler(req, res) {
           market?.available === true,
 
         news:
-          news?.available === true
+          news?.available === true,
+
+        tradingIntelligence:
+          market?.intelligence?.available === true
 
       },
 
@@ -2077,7 +2230,19 @@ export default async function handler(req, res) {
 
       orderBlocks:
         market?.orderBlocks ||
-        []
+        [],
+
+      // ======================================================
+      // TRADING INTELLIGENCE
+      // ======================================================
+
+      intelligence:
+        market?.intelligence ||
+        null,
+
+      tradingContext:
+        market?.tradingContext ||
+        null
 
     },
 
