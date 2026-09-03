@@ -166,7 +166,7 @@ function checkNewsProximity(smc, options) {
 
   const IRAQ_OFFSET_MS = 3 * 60 * 60 * 1000;
   const now = Date.now() + IRAQ_OFFSET_MS;
-
+  const todayStr = new Date(now).toISOString().slice(0, 10);
 
   for (const item of events) {
     if (!item) continue;
@@ -176,9 +176,12 @@ function checkNewsProximity(smc, options) {
     const eventTime = new Date(dateStr).getTime();
     if (isNaN(eventTime)) continue;
 
+    // دڵنیابوونەوە لەوەی هەواڵەکە تەنها هی هەمان ڕۆژی ئەمڕۆیە
+    const eventDateStr = new Date(eventTime + IRAQ_OFFSET_MS).toISOString().slice(0, 10);
+    if (eventDateStr !== todayStr) continue;
+
     const diffMinutes = (eventTime - now) / (1000 * 60);
 
-    // تەنها ئەگەر کاتی هەواڵەکە بەڕاستی لە نێوان 0 تا 30 دەقەی داهاتوودا بێت (نەک تێپەڕیوبێت یان چەندین سەعات ماوبێت)
     if (diffMinutes >= 0 && diffMinutes <= 30) {
       return {
         hasNews: true,
