@@ -26,9 +26,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const today = new Date()
-      .toISOString()
-      .slice(0, 10);
+    // وەرگرتنی بەرواری ئێستا بە کاتی عێراق (UTC+3)
+    const iraqTimeNow = new Date(new Date().getTime() + (3 * 60 * 60 * 1000));
+    const today = iraqTimeNow.toISOString().slice(0, 10);
 
     const from =
       req.query && req.query.from
@@ -88,12 +88,14 @@ export default async function handler(req, res) {
           : [];
 
     const events = rawEvents.map(function (item) {
+      const rawDate =
+        item.scheduledAt ||
+        item.datetime ||
+        item.date ||
+        null;
+
       return {
-        date:
-          item.scheduledAt ||
-          item.datetime ||
-          item.date ||
-          null,
+        date: rawDate, // ناردنی کاتەکە وەک خۆی (ISO String) بۆ ئەوەی لە فەنکشنی پشکنیندا بە یەک جار ڕێک بخرێت
 
         country:
           item.country ||
@@ -146,9 +148,7 @@ export default async function handler(req, res) {
       to,
       count: events.length,
       events,
-      updatedAt:
-        data?.updatedAt ||
-        new Date().toISOString()
+      updatedAt: iraqTimeNow.toISOString()
     });
 
   } catch (error) {
