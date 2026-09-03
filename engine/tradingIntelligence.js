@@ -164,7 +164,9 @@ function checkNewsProximity(smc, options) {
 
   if (events.length === 0) return { hasNews: false };
 
-  const now = Date.now();
+  const IRAQ_OFFSET_MS = 3 * 60 * 60 * 1000;
+  const now = Date.now() + IRAQ_OFFSET_MS;
+
 
   for (const item of events) {
     if (!item) continue;
