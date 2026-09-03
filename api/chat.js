@@ -12,9 +12,6 @@
 // 2 = GEMINI_API_KEY2
 // 3 = GEMINI_API_KEY3
 // 4 = OPENROUTER_API_KEY
-//
-// Each attempt: max 8 seconds
-// Total attempts: 10
 // ============================================================
 
 export default async function handler(req, res) {
@@ -23,25 +20,16 @@ export default async function handler(req, res) {
   // CORS
   // ==========================================================
 
-  res.setHeader(
-    "Access-Control-Allow-Origin",
-    "*"
-  );
-
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, OPTIONS"
   );
-
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization"
   );
-
-  res.setHeader(
-    "Cache-Control",
-    "no-store"
-  );
+  res.setHeader("Cache-Control", "no-store");
 
   // ==========================================================
   // OPTIONS
@@ -62,7 +50,7 @@ export default async function handler(req, res) {
       project: "ShahanFX AI Pro",
       status: "online",
       live: true,
-      version: "4.0",
+      version: "5.0",
       message: "ShahanFX Backend is working!"
     });
   }
@@ -102,19 +90,15 @@ export default async function handler(req, res) {
   let body = {};
 
   try {
-
     body =
       typeof req.body === "string"
         ? JSON.parse(req.body)
         : req.body || {};
-
   } catch {
-
     return res.status(400).json({
       ok: false,
       error: "داتای نێردراو دروست نییە."
     });
-
   }
 
   // ==========================================================
@@ -160,13 +144,11 @@ export default async function handler(req, res) {
   // ==========================================================
 
   if (!message && !image) {
-
     return res.status(400).json({
       ok: false,
       error:
         "تکایە پرسیارێک بنووسە یان وێنەی Chart بنێرە."
     });
-
   }
 
   // ==========================================================
@@ -174,7 +156,6 @@ export default async function handler(req, res) {
   // ==========================================================
 
   const ATTEMPT_TIMEOUT = 8000;
-
   const MAX_ATTEMPTS = 10;
 
   // ==========================================================
@@ -186,32 +167,20 @@ export default async function handler(req, res) {
     options = {},
     timeout = ATTEMPT_TIMEOUT
   ) {
+    const controller = new AbortController();
 
-    const controller =
-      new AbortController();
-
-    const timer =
-      setTimeout(() => {
-        controller.abort();
-      }, timeout);
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, timeout);
 
     try {
-
-      return await fetch(
-        url,
-        {
-          ...options,
-          signal:
-            controller.signal
-        }
-      );
-
+      return await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
     } finally {
-
       clearTimeout(timer);
-
     }
-
   }
 
   // ==========================================================
@@ -224,17 +193,41 @@ export default async function handler(req, res) {
       return "";
     }
 
-    return String(text)
+    let result = String(text);
+
+    // --------------------------------------------------------
+    // Remove unwanted system / safety text
+    // --------------------------------------------------------
+
+    result = result
       .replace(
         /User Safety:\s*safe/gi,
         ""
       )
       .replace(
-        /^System:\s*/i,
+        /^System:\s*/gim,
+        ""
+      )
+      .replace(
+        /^Assistant:\s*/gim,
         ""
       )
       .trim();
 
+    // --------------------------------------------------------
+    // Remove common English decision words if AI accidentally
+    // puts them next to Kurdish text.
+    // --------------------------------------------------------
+
+    result = result
+      .replace(/\bBUY\b/gi, "کڕین")
+      .replace(/\bSELL\b/gi, "فرۆشتن")
+      .replace(/\bWAIT\b/gi, "چاوەڕوان بە")
+      .replace(/\bBULLISH\b/gi, "بەرەو سەرەوە")
+      .replace(/\bBEARISH\b/gi, "بەرەو خوارەوە")
+      .replace(/\bNEUTRAL\b/gi, "بێ‌لایەن");
+
+    return result.trim();
   }
 
   // ==========================================================
@@ -244,14 +237,12 @@ export default async function handler(req, res) {
   async function getMarket() {
 
     if (!TWELVE_DATA_API_KEY) {
-
       return {
         available: false,
         reason:
           "TWELVE_DATA_API_KEY نەدۆزرایەوە.",
         candles: []
       };
-
     }
 
     try {
@@ -270,8 +261,7 @@ export default async function handler(req, res) {
           url,
           {
             headers: {
-              Accept:
-                "application/json"
+              Accept: "application/json"
             }
           },
           6500
@@ -280,32 +270,24 @@ export default async function handler(req, res) {
       let data = null;
 
       try {
-
-        data =
-          await response.json();
-
+        data = await response.json();
       } catch {
-
         data = null;
-
       }
 
       if (!response.ok) {
-
         return {
           available: false,
           reason:
             `Market API HTTP ${response.status}`,
           candles: []
         };
-
       }
 
       if (
         !data ||
         !Array.isArray(data.values)
       ) {
-
         return {
           available: false,
           reason:
@@ -313,105 +295,64 @@ export default async function handler(req, res) {
             "داتای بازاڕ بەردەست نییە.",
           candles: []
         };
-
       }
 
-      if (
-        data.values.length === 0
-      ) {
-
+      if (data.values.length === 0) {
         return {
           available: false,
           reason:
             "هیچ کاندڵێک نەدۆزرایەوە.",
           candles: []
         };
-
       }
 
-      const candles =
-        data.values;
+      const candles = data.values;
 
-      const current =
-        candles[0];
+      const current = candles[0];
 
       const previous =
-        candles[1] ||
-        candles[0];
+        candles[1] || candles[0];
 
       const currentClose =
-        Number(
-          current.close
-        );
+        Number(current.close);
 
       const previousClose =
-        Number(
-          previous.close
-        );
+        Number(previous.close);
 
-      let direction =
-        "neutral";
+      let direction = "neutral";
 
       if (
-        Number.isFinite(
-          currentClose
-        ) &&
-        Number.isFinite(
-          previousClose
-        )
+        Number.isFinite(currentClose) &&
+        Number.isFinite(previousClose)
       ) {
 
         if (
           currentClose >
           previousClose
         ) {
-
-          direction =
-            "bullish";
-
+          direction = "bullish";
         } else if (
           currentClose <
           previousClose
         ) {
-
-          direction =
-            "bearish";
-
+          direction = "bearish";
         }
-
       }
 
       const recentCandles =
         candles
           .slice(0, 30)
-          .map(
-            (c) => ({
-
-              datetime:
-                c.datetime,
-
-              open:
-                Number(c.open),
-
-              high:
-                Number(c.high),
-
-              low:
-                Number(c.low),
-
-              close:
-                Number(c.close),
-
-              volume:
-                c.volume !==
-                undefined
-                  ? Number(
-                      c.volume
-                    )
-                  : null
-
-            })
-          );
+          .map((c) => ({
+            datetime: c.datetime,
+            open: Number(c.open),
+            high: Number(c.high),
+            low: Number(c.low),
+            close: Number(c.close),
+            volume:
+              c.volume !== undefined
+                ? Number(c.volume)
+                : null
+          }));
 
       return {
 
@@ -427,24 +368,16 @@ export default async function handler(req, res) {
             current.datetime,
 
           open:
-            Number(
-              current.open
-            ),
+            Number(current.open),
 
           high:
-            Number(
-              current.high
-            ),
+            Number(current.high),
 
           low:
-            Number(
-              current.low
-            ),
+            Number(current.low),
 
           close:
-            Number(
-              current.close
-            )
+            Number(current.close)
 
         },
 
@@ -454,24 +387,16 @@ export default async function handler(req, res) {
             previous.datetime,
 
           open:
-            Number(
-              previous.open
-            ),
+            Number(previous.open),
 
           high:
-            Number(
-              previous.high
-            ),
+            Number(previous.high),
 
           low:
-            Number(
-              previous.low
-            ),
+            Number(previous.low),
 
           close:
-            Number(
-              previous.close
-            )
+            Number(previous.close)
 
         },
 
@@ -488,8 +413,7 @@ export default async function handler(req, res) {
         available: false,
 
         reason:
-          error?.name ===
-          "AbortError"
+          error?.name === "AbortError"
             ? "Market API timeout"
             : error?.message ||
               "Market API error",
@@ -497,9 +421,7 @@ export default async function handler(req, res) {
         candles: []
 
       };
-
     }
-
   }
 
   // ==========================================================
@@ -507,11 +429,6 @@ export default async function handler(req, res) {
   // ==========================================================
 
   async function getNews() {
-
-    // ========================================================
-    // IRAQ TIMEZONE
-    // UTC → Asia/Baghdad
-    // ========================================================
 
     function formatIraqTime(dateValue) {
 
@@ -524,22 +441,13 @@ export default async function handler(req, res) {
         let value =
           String(dateValue).trim();
 
-        // ----------------------------------------------------
-        // If API returns a datetime without timezone,
-        // treat it as UTC explicitly.
-        // ----------------------------------------------------
-
         if (
           !/[zZ]$/.test(value) &&
           !/[+-]\d{2}:\d{2}$/.test(value)
         ) {
-
           value =
-            value.replace(
-              " ",
-              "T"
-            ) + "Z";
-
+            value.replace(" ", "T") +
+            "Z";
         }
 
         const date =
@@ -550,9 +458,7 @@ export default async function handler(req, res) {
             date.getTime()
           )
         ) {
-
           return dateValue;
-
         }
 
         return new Intl.DateTimeFormat(
@@ -582,16 +488,9 @@ export default async function handler(req, res) {
         ).format(date);
 
       } catch {
-
         return dateValue;
-
       }
-
     }
-
-    // ========================================================
-    // DATE RANGE
-    // ========================================================
 
     try {
 
@@ -661,58 +560,26 @@ export default async function handler(req, res) {
       let data = null;
 
       try {
-
-        data =
-          await response.json();
-
+        data = await response.json();
       } catch {
-
         data = null;
-
       }
 
       if (!response.ok) {
-
         return {
-
           available: false,
-
           reason:
             `Xoomar News API HTTP ${response.status}`,
-
           events: []
-
         };
-
       }
 
       const rawEvents =
         Array.isArray(data)
           ? data
-          : Array.isArray(
-              data?.data
-            )
-              ? data.data
-              : [];
-
-      if (
-        !Array.isArray(
-          rawEvents
-        )
-      ) {
-
-        return {
-
-          available: false,
-
-          reason:
-            "Xoomar Economic Calendar داتای دروستی نەگەڕاندەوە.",
-
-          events: []
-
-        };
-
-      }
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
 
       const importantKeywords = [
 
@@ -737,106 +604,89 @@ export default async function handler(req, res) {
 
       const events =
         rawEvents
+          .map((item) => {
 
-          .map(
-            (item) => {
+            const rawDate =
+              item.scheduledAt ||
+              item.datetime ||
+              item.date ||
+              null;
 
-              const rawDate =
-                item.scheduledAt ||
-                item.datetime ||
-                item.date ||
-                null;
+            return {
 
-              return {
+              date:
+                formatIraqTime(
+                  rawDate
+                ),
 
-                // ==================================================
-                // IMPORTANT:
-                // News time is now converted to Iraq time
-                // ==================================================
+              country:
+                item.country ||
+                item.countryName ||
+                "United States",
 
-                date:
-                  formatIraqTime(
-                    rawDate
-                  ),
+              event:
+                item.eventName ||
+                item.event ||
+                item.name ||
+                item.title ||
+                "",
 
-                country:
-                  item.country ||
-                  item.countryName ||
-                  "United States",
+              impact:
+                item.importance ||
+                item.impact ||
+                "high",
 
-                event:
-                  item.eventName ||
-                  item.event ||
-                  item.name ||
-                  item.title ||
-                  "",
+              actual:
+                item.actual ??
+                null,
 
-                impact:
-                  item.importance ||
-                  item.impact ||
-                  "high",
+              estimate:
+                item.estimate ??
+                item.forecast ??
+                null,
 
-                actual:
-                  item.actual ??
-                  null,
+              previous:
+                item.previous ??
+                null,
 
-                estimate:
-                  item.estimate ??
-                  item.forecast ??
-                  null,
+              period:
+                item.periodLabel ||
+                item.period ||
+                null
+            };
+          })
+          .filter((item) => {
 
-                previous:
-                  item.previous ??
-                  null,
+            const country =
+              String(
+                item.country || ""
+              ).toLowerCase();
 
-                period:
-                  item.periodLabel ||
-                  item.period ||
-                  null
+            const eventName =
+              String(
+                item.event || ""
+              ).toLowerCase();
 
-              };
+            const isUS =
+              country.includes(
+                "united states"
+              ) ||
+              country === "us" ||
+              country === "usa";
 
-            }
-          )
-
-          .filter(
-            (item) => {
-
-              const country =
-                String(
-                  item.country ||
-                    ""
-                ).toLowerCase();
-
-              const eventName =
-                String(
-                  item.event ||
-                    ""
-                ).toLowerCase();
-
-              const isUS =
-                country.includes(
-                  "united states"
-                ) ||
-                country === "us" ||
-                country === "usa";
-
-              const isImportant =
-                importantKeywords.some(
-                  (keyword) =>
-                    eventName.includes(
-                      keyword
-                    )
-                );
-
-              return (
-                isUS ||
-                isImportant
+            const isImportant =
+              importantKeywords.some(
+                (keyword) =>
+                  eventName.includes(
+                    keyword
+                  )
               );
 
-            }
-          )
-
+            return (
+              isUS ||
+              isImportant
+            );
+          })
           .slice(0, 50);
 
       return {
@@ -872,8 +722,7 @@ export default async function handler(req, res) {
         available: false,
 
         reason:
-          error?.name ===
-          "AbortError"
+          error?.name === "AbortError"
             ? "Xoomar News API timeout"
             : error?.message ||
               "Xoomar News API error",
@@ -881,9 +730,7 @@ export default async function handler(req, res) {
         events: []
 
       };
-
     }
-
   }
 
   // ==========================================================
@@ -900,8 +747,7 @@ export default async function handler(req, res) {
     ]);
 
   const market =
-    marketResult.status ===
-    "fulfilled"
+    marketResult.status === "fulfilled"
       ? marketResult.value
       : {
           available: false,
@@ -911,8 +757,7 @@ export default async function handler(req, res) {
         };
 
   const news =
-    newsResult.status ===
-    "fulfilled"
+    newsResult.status === "fulfilled"
       ? newsResult.value
       : {
           available: false,
@@ -964,7 +809,7 @@ export default async function handler(req, res) {
 
 تۆ ShahanFX AI ـیت.
 
-ڕاوێژکاری پیشەیی بۆ:
+تۆ ڕاوێژکاری زیرەکی ShahanFX ـیت بۆ شیکردنەوەی:
 
 Forex
 Gold
@@ -973,195 +818,333 @@ SMC
 ALC™
 
 ━━━━━━━━━━━━━━━━━━━━
-زمان
+🟢 یاسای زمانی سەرەکی
 ━━━━━━━━━━━━━━━━━━━━
 
-هەموو وەڵام بە کوردی سۆرانی بنووسە.
+هەموو وەڵامەکەت تەنها بە کوردی سۆرانی بنووسە.
 
-وشە تەکنیکییەکان بە کوردی سۆرانی بنووسە:
+بە فارسی و عەرەبی و ئینگلیزی وەڵام مەدە.
 
-Forex
-Gold
+هەموو شیکارییەکان بە شێوەیەکی
+کورت، ڕوون و ڕێکخراو بن.
+
+ناوی ئەو سیستەمانەی خوارەوە دەتوانیت وەک ناوی تایبەتی بەکاربهێنیت:
+
 XAU/USD
+EUR/USD
+GBP/USD
+USD/JPY
 ICT
 SMC
 ALC™
-FVG
-BOS
-CHOCH
-Liquidity
-Order Block
-Breaker Block
-Fair Value Gap
-Entry
-Stop Loss
-Take Profit
-Risk/Reward
-BUY
-SELL
-WAIT
+
+بەڵام ناوی بابەتەکانی شیکاری بە کوردی بنووسە.
 
 ━━━━━━━━━━━━━━━━━━━━
-LIVE DATA
+📚 وەرگێڕانی وشەکان
 ━━━━━━━━━━━━━━━━━━━━
 
-تەنها ئەو داتایە بەکاربهێنە کە لە live context ـەوە دراوە.
+BUY = کڕین
+SELL = فرۆشتن
+WAIT = چاوەڕوان بە
+
+Bullish = بەرەو سەرەوە
+Bearish = بەرەو خوارەوە
+Neutral = بێ‌لایەن
+
+Market Structure = پێکهاتەی بازاڕ
+Liquidity = لیکویدیتی
+Order Block = ئۆردەر بلۆک
+Fair Value Gap = فەیر ڤالیو گەپ
+Break of Structure = بۆس
+Change of Character = گۆڕینی کەسایەتی
+
+Entry = خاڵی چوونەژوورەوە
+Stop Loss = سنووری زیان
+Take Profit = خاڵی قازانج
+Confirmation = پشتڕاستکردنەوە
+Risk/Reward = ڕێژەی مەترسی بۆ قازانج
+Confidence = ئاستی دڵنیایی
+
+━━━━━━━━━━━━━━━━━━━━
+🚨 یاسای داتای ڕاستەوخۆ
+━━━━━━━━━━━━━━━━━━━━
+
+تەنها Live Context ـی پێدراو بەکاربهێنە.
 
 هیچ نرخێک خۆت مەدروستکە.
 
-هیچ هەواڵێک خۆت مەدروستکە.
-
 هیچ کاتێک خۆت مەدروستکە.
 
-ئەگەر داتا بەردەست نەبوو، بە ڕوونی بڵێ.
+هیچ هەواڵێک خۆت مەدروستکە.
 
-━━━━━━━━━━━━━━━━━━━━
-IMPORTANT
-━━━━━━━━━━━━━━━━━━━━
+هیچ ئاستێک خۆت مەدروستکە.
 
-Market Structure
-Liquidity
-FVG
-Order Block
-BOS
-CHOCH
-Entry
-SL
-TP
+هیچ FVG ـێک خۆت مەدروستکە.
 
-تەنها کاتێک باس بکە کە داتا لە Live Context ـدا پشتگیریی بکات.
+هیچ ئۆردەر بلۆکێک خۆت مەدروستکە.
 
-ئەگەر دڵنیانیت نییە:
+هیچ لیکویدیتییەک خۆت مەدروستکە.
 
-"Confirmation کافی نییە."
+هیچ بۆسێک خۆت مەدروستکە.
 
-بڵێ.
-
-━━━━━━━━━━━━━━━━━━━━
-ALC™
-━━━━━━━━━━━━━━━━━━━━
-
-ALC™ سیستەمێکی جیاوازە.
-
-ALC™ بە ICT و SMC تێکەڵ مەکە.
+هیچ گۆڕینی کەسایەتییەک خۆت مەدروستکە.
 
 هیچ Zone ـێکی ALC™ خۆت مەدروستکە.
 
-ئەگەر داتای پێویست بۆ ALC™ نەبوو:
+ئەگەر داتا کافی نییە، بنووسە:
 
-"داتای کافی بۆ Confirmation ـی ALC™ نییە."
+"داتا کافی نییە."
 
-بڵێ.
+یان:
 
-━━━━━━━━━━━━━━━━━━━━
-NEWS
-━━━━━━━━━━━━━━━━━━━━
-
-تەنها ئەو News ـە باس بکە کە لە live context ـدا هەیە.
-
-کاتی News لە live context ـدا بە:
-
-Asia/Baghdad
-کاتی عێراق
-
-پیشان دەدرێت.
-
-ئەگەر News list بەتاڵە:
-
-هیچ event ـێکی خۆت مەدروستکە.
+"پشتڕاستکردنەوەی کافی نییە."
 
 ━━━━━━━━━━━━━━━━━━━━
-BUY / SELL
+🟢 کڕین یان فرۆشتن
 ━━━━━━━━━━━━━━━━━━━━
 
-BUY یان SELL بەبێ Confirmation مەدە.
+هیچکات تەنها بە Bias ـەوە بڕیاری کڕین یان فرۆشتن مەدە.
 
-ئەگەر Setup تەواو نەبوو:
+تەنها ئەگەر نیشانەکان پشتگیری بکەن:
 
-WAIT
+کڕین
 
-بەکاربهێنە.
+یان
+
+فرۆشتن
+
+ئەگەر پشتڕاستکردنەوە تەواو نەبوو:
+
+چاوەڕوان بە
+
+━━━━━━━━━━━━━━━━━━━━
+📊 فۆرماتی وەڵام
+━━━━━━━━━━━━━━━━━━━━
+
+کاتێک بەکارهێنەر داوای شیکردنەوەی بازاڕ دەکات،
+هەموو بابەتەکان بە جیاوازی و بە هەمان ڕیزبەندی خوارەوە بنووسە.
+
+━━━━━━━━━━━━━━━━━━━━
+
+📊 بازاڕ:
+[ناوی بازاڕ]
+
+⏱ کاتی شیکاری:
+[کاتی شیکاری]
+
+💰 نرخی ئێستا:
+[نرخی Live]
+
+━━━━━━━━━━━━━━━━━━━━
+
+🟢 کڕین یان فرۆشتن:
+[کڕین / فرۆشتن / گونجاو نییە]
+
+هۆکار:
+[هۆکاری کورت]
+
+━━━━━━━━━━━━━━━━━━━━
+
+📈 پێکهاتەی بازاڕ:
+[بەرەو سەرەوە / بەرەو خوارەوە / بێ‌لایەن]
+
+دۆخ:
+[هەیە / نییە]
+
+هۆکار:
+[شیکاریی کورت]
+
+━━━━━━━━━━━━━━━━━━━━
+
+💧 لیکویدیتی:
+[هەیە / نییە]
+
+شوێن:
+[تەنها ئەگەر لە داتا دیار بێت]
+
+جۆر:
+[سەرەوە / خوارەوە]
+
+━━━━━━━━━━━━━━━━━━━━
+
+🧱 ئۆردەر بلۆک:
+[هەیە / نییە]
+
+جۆر:
+[کڕین / فرۆشتن]
+
+ناوچە:
+[تەنها ئەگەر داتا پشتگیری بکات]
+
+━━━━━━━━━━━━━━━━━━━━
+
+🔨 بۆس:
+[هەیە / نییە]
+
+جۆر:
+[بەرەو سەرەوە / بەرەو خوارەوە]
+
+ئاست:
+[تەنها ئەگەر داتا پشتگیری بکات]
+
+━━━━━━━━━━━━━━━━━━━━
+
+🔄 گۆڕینی کەسایەتی:
+[هەیە / نییە]
+
+جۆر:
+[بەرەو سەرەوە / بەرەو خوارەوە]
+
+━━━━━━━━━━━━━━━━━━━━
+
+🟨 فەیر ڤالیو گەپ:
+[هەیە / نییە]
+
+جۆر:
+[کڕین / فرۆشتن]
+
+ناوچە:
+[تەنها ئەگەر داتا پشتگیری بکات]
+
+━━━━━━━━━━━━━━━━━━━━
+
+🧠 ICT / SMC:
+[گونجاوە / گونجاو نییە]
+
+نیشانە:
+[تەنها ئەو نیشانانەی داتا پشتگیرییان دەکات]
+
+━━━━━━━━━━━━━━━━━━━━
+
+⚡ ALC™:
+[گونجاوە / گونجاو نییە]
+
+ناوچە:
+[تەنها ئەگەر داتا کافی هەبێت]
+
+هۆکار:
+[کورت]
+
+ALC™ بە ICT و SMC تێکەڵ مەکە.
+
+ئەگەر داتای کافی بۆ ALC™ نییە:
+
+"داتا کافی بۆ پشتڕاستکردنەوەی ALC™ نییە."
+
+━━━━━━━━━━━━━━━━━━━━
+
+📰 هەواڵ:
+[هەیە / نییە]
+
+ئەگەر هەواڵ هەیە:
+
+ناوی هەواڵ:
+[ناوی ڕووداو]
+
+کات:
+[کاتی عێراق]
+
+کاریگەری:
+[بەرز / مامناوەند / کەم]
+
+هیچ هەواڵێک خۆت مەدروستکە.
+
+━━━━━━━━━━━━━━━━━━━━
+
+🔎 پشتڕاستکردنەوە:
+[هەیە / نییە]
+
+هۆکار:
+[هۆکارەکانی پشتڕاستکردنەوە]
+
+━━━━━━━━━━━━━━━━━━━━
+
+📍 خاڵی چوونەژوورەوە:
+[تەنها ئەگەر پشتڕاستکراوە]
+
+ئەگەر پشتڕاست نەکراوە:
+
+"خاڵی چوونەژوورەوە دیاری نەکراوە."
+
+━━━━━━━━━━━━━━━━━━━━
+
+🛑 سنووری زیان:
+[تەنها ئەگەر داتا پشتگیری بکات]
+
+ئەگەر داتا کافی نییە:
+
+"سنووری زیان دیاری نەکراوە."
+
+━━━━━━━━━━━━━━━━━━━━
+
+🎯 خاڵی قازانج:
+[تەنها ئەگەر داتا پشتگیری بکات]
+
+ئەگەر داتا کافی نییە:
+
+"خاڵی قازانج دیاری نەکراوە."
+
+━━━━━━━━━━━━━━━━━━━━
+
+⚖️ ڕێژەی مەترسی بۆ قازانج:
+[تەنها ئەگەر Entry + SL + TP هەبن]
+
+ئەگەر نەبن:
+
+"ڕێژەکە دیاری نەکراوە."
+
+━━━━━━━━━━━━━━━━━━━━
+
+🧠 ئاستی دڵنیایی:
+[کەم / مامناوەند / بەرز]
 
 هیچکات 100% دڵنیایی مەدە.
 
 ━━━━━━━━━━━━━━━━━━━━
-OUTPUT
-━━━━━━━━━━━━━━━━━━━━
 
-کاتێک شیکردنەوەی Trade داواکرا:
-
-📊 بازاڕ:
-[Symbol]
-
-⏱ کاتی Chart:
-[Timeframe]
-
-💵 نرخی ئێستا:
-[نرخ]
-
-📈 Bias:
-[Bullish / Bearish / Neutral]
-
-🧱 Market Structure:
-[شیکردنەوە]
-
-💧 Liquidity:
-[شیکردنەوە]
-
-🟦 Order Block:
-[شیکردنەوە]
-
-🟨 FVG:
-[شیکردنەوە]
-
-🧠 ICT / SMC:
-[شیکردنەوە]
-
-⚡ ALC™:
-[شیکردنەوە]
-
-📰 News:
-[تەنها ئەو event ـانەی لە داتا هەن]
-
-🎯 Setup:
-[شیکردنەوە]
-
-📍 Entry:
-[تەنها ئەگەر Confirmation هەبێت]
-
-🛑 Stop Loss:
-[تەنها ئەگەر Confirmation هەبێت]
-
-💰 Take Profit:
-[تەنها ئەگەر Confirmation هەبێت]
-
-⚖️ Risk/Reward:
-[ڕێژە]
-
-🔎 Confirmation:
-[هۆکار]
-
-🧠 Confidence:
-[ڕێژەی گونجاو]
-
-⏳ Decision:
-[BUY / SELL / WAIT]
+🎯 بڕیاری کۆتایی:
+[🟢 کڕین / 🔴 فرۆشتن / 🟡 چاوەڕوان بە]
 
 ━━━━━━━━━━━━━━━━━━━━
-FINAL RULE
+🔴 یاسای کۆتایی
 ━━━━━━━━━━━━━━━━━━━━
 
-هیچ شتێک مەخەیتە ناو وەڵامەکە کە Live Context پشتگیریی نەکات.
+هەر بابەتێک بە جیاوازی وەڵام بدە.
 
-داتای ساختە = قەدەغە.
+بەتایبەتی:
 
-نرخی ساختە = قەدەغە.
+کڕین یان فرۆشتن
+پێکهاتەی بازاڕ
+لیکویدیتی
+ئۆردەر بلۆک
+بۆس
+گۆڕینی کەسایەتی
+فەیر ڤالیو گەپ
+ICT / SMC
+ALC™
+هەواڵ
+پشتڕاستکردنەوە
+خاڵی چوونەژوورەوە
+سنووری زیان
+خاڵی قازانج
+ڕێژەی مەترسی بۆ قازانج
+ئاستی دڵنیایی
+بڕیاری کۆتایی
 
-News ـی ساختە = قەدەغە.
+هیچ شتێک خۆت مەدروستکە.
 
-Technical level ـی ساختە = قەدەغە.
+داتای ساختە قەدەغەیە.
 
-ALC™ Zone ـی ساختە = قەدەغە.
+ئەگەر داتا کافی نییە، بە ڕوونی بڵێ:
+
+"داتا کافی نییە."
+
+ئەگەر پشتڕاستکردنەوە نییە:
+
+"چاوەڕوان بە."
+
+هەموو وەڵامەکان تەنها بە کوردی سۆرانی بن.
 
 `;
 
@@ -1170,11 +1153,8 @@ ALC™ Zone ـی ساختە = قەدەغە.
   // ==========================================================
 
   const GEMINI_MODELS = [
-
     "gemini-2.5-flash",
-
     "gemini-2.5-flash-lite"
-
   ];
 
   // ==========================================================
@@ -1208,10 +1188,6 @@ ALC™ Zone ـی ساختە = قەدەغە.
 
     });
 
-    // ========================================================
-    // IMAGE
-    // ========================================================
-
     if (image) {
 
       const match =
@@ -1236,11 +1212,9 @@ ALC™ Zone ـی ساختە = قەدەغە.
         });
 
       }
-
     }
 
     return parts;
-
   }
 
   // ==========================================================
@@ -1263,19 +1237,13 @@ ALC™ Zone ـی ساختە = قەدەغە.
 
       const response =
         await fetchTimeout(
-
           url,
-
           {
-
-            method:
-              "POST",
+            method: "POST",
 
             headers: {
-
               "Content-Type":
                 "application/json"
-
             },
 
             body:
@@ -1284,14 +1252,10 @@ ALC™ Zone ـی ساختە = قەدەغە.
                 system_instruction: {
 
                   parts: [
-
                     {
-
                       text:
                         systemPrompt
-
                     }
-
                   ]
 
                 },
@@ -1299,13 +1263,10 @@ ALC™ Zone ـی ساختە = قەدەغە.
                 contents: [
 
                   {
-
-                    role:
-                      "user",
+                    role: "user",
 
                     parts:
                       buildGeminiParts()
-
                   }
 
                 ],
@@ -1316,35 +1277,26 @@ ALC™ Zone ـی ساختە = قەدەغە.
                     2200,
 
                   temperature:
-                    0.3
+                    0.2
 
                 }
 
               })
-
           },
-
           ATTEMPT_TIMEOUT
-
         );
 
       let data = null;
 
       try {
-
         data =
           await response.json();
-
       } catch {
-
         data = null;
-
       }
 
       if (!response.ok) {
-
         return null;
-
       }
 
       const text =
@@ -1353,16 +1305,13 @@ ALC™ Zone ـی ساختە = قەدەغە.
           ?.content?.parts
           ?.map(
             (part) =>
-              part.text ||
-              ""
+              part.text || ""
           )
           .join("")
           .trim();
 
       if (!text) {
-
         return null;
-
       }
 
       return {
@@ -1387,9 +1336,7 @@ ALC™ Zone ـی ساختە = قەدەغە.
     } catch {
 
       return null;
-
     }
-
   }
 
   // ==========================================================
@@ -1398,48 +1345,38 @@ ALC™ Zone ـی ساختە = قەدەغە.
 
   async function callOpenRouterOnce() {
 
-    if (
-      !OPENROUTER_API_KEY
-    ) {
-
+    if (!OPENROUTER_API_KEY) {
       return null;
-
     }
 
     try {
 
-      const userContent =
+      const userContent = [
 
-        [
+        "Live Context:",
 
-          "Live Context:",
+        JSON.stringify(
+          liveContext,
+          null,
+          2
+        ),
 
-          JSON.stringify(
-            liveContext,
-            null,
-            2
-          ),
+        "",
 
-          "",
+        "User Message:",
 
-          "User Message:",
+        (
+          message ||
+          "ئەم Chart ـە بە وردی شیکاربکە."
+        )
 
-          (
-            message ||
-            "ئەم Chart ـە بە وردی شیکاربکە."
-          )
-
-        ].join("\n");
+      ].join("\n");
 
       const response =
         await fetchTimeout(
-
           "https://openrouter.ai/api/v1/chat/completions",
-
           {
-
-            method:
-              "POST",
+            method: "POST",
 
             headers: {
 
@@ -1469,8 +1406,7 @@ ALC™ Zone ـی ساختە = قەدەغە.
 
                   {
 
-                    role:
-                      "system",
+                    role: "system",
 
                     content:
                       systemPrompt
@@ -1479,8 +1415,7 @@ ALC™ Zone ـی ساختە = قەدەغە.
 
                   {
 
-                    role:
-                      "user",
+                    role: "user",
 
                     content:
                       userContent
@@ -1493,33 +1428,24 @@ ALC™ Zone ـی ساختە = قەدەغە.
                   2200,
 
                 temperature:
-                  0.3
+                  0.2
 
               })
-
           },
-
           ATTEMPT_TIMEOUT
-
         );
 
       let data = null;
 
       try {
-
         data =
           await response.json();
-
       } catch {
-
         data = null;
-
       }
 
       if (!response.ok) {
-
         return null;
-
       }
 
       const text =
@@ -1530,9 +1456,7 @@ ALC™ Zone ـی ساختە = قەدەغە.
           ?.trim();
 
       if (!text) {
-
         return null;
-
       }
 
       return {
@@ -1552,9 +1476,7 @@ ALC™ Zone ـی ساختە = قەدەغە.
     } catch {
 
       return null;
-
     }
-
   }
 
   // ==========================================================
@@ -1564,7 +1486,6 @@ ALC™ Zone ـی ساختە = قەدەغە.
   async function runFailover() {
 
     const sequence = [
-
       0,
       1,
       2,
@@ -1575,13 +1496,11 @@ ALC™ Zone ـی ساختە = قەدەغە.
       2,
       3,
       4
-
     ];
 
     for (
       let attempt = 0;
-      attempt <
-      sequence.length;
+      attempt < MAX_ATTEMPTS;
       attempt++
     ) {
 
@@ -1603,20 +1522,15 @@ ALC™ Zone ـی ساختە = قەدەغە.
           ];
 
         if (
-          typeof apiKey ===
-            "string" &&
+          typeof apiKey === "string" &&
           apiKey.trim()
         ) {
 
           const result =
             await callGeminiOnce(
-
               apiKey,
-
               GEMINI_MODELS[0],
-
               providerIndex
-
             );
 
           if (result) {
@@ -1629,18 +1543,13 @@ ALC™ Zone ـی ساختە = قەدەغە.
                 attempt + 1
 
             };
-
           }
 
           const liteResult =
             await callGeminiOnce(
-
               apiKey,
-
               GEMINI_MODELS[1],
-
               providerIndex
-
             );
 
           if (liteResult) {
@@ -1653,20 +1562,15 @@ ALC™ Zone ـی ساختە = قەدەغە.
                 attempt + 1
 
             };
-
           }
-
         }
-
       }
 
       // ======================================================
-      // OPENROUTER = SLOT 4
+      // OPENROUTER
       // ======================================================
 
-      if (
-        providerIndex === 4
-      ) {
+      if (providerIndex === 4) {
 
         const result =
           await callOpenRouterOnce();
@@ -1681,15 +1585,11 @@ ALC™ Zone ـی ساختە = قەدەغە.
               attempt + 1
 
           };
-
         }
-
       }
-
     }
 
     return null;
-
   }
 
   // ==========================================================
@@ -1718,7 +1618,7 @@ ALC™ Zone ـی ساختە = قەدەغە.
         "0→1→2→3→4→0→1→2→3→4",
 
       attempts:
-        10,
+        MAX_ATTEMPTS,
 
       diagnostics: {
 
@@ -1747,17 +1647,14 @@ ALC™ Zone ـی ساختە = قەدەغە.
       liveData: {
 
         market:
-          market?.available ===
-          true,
+          market?.available === true,
 
         news:
-          news?.available ===
-          true
+          news?.available === true
 
       }
 
     });
-
   }
 
   // ==========================================================
