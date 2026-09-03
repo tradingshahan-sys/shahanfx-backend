@@ -4,8 +4,13 @@
 // Live Market + Economic News + Chart Image
 // 4x Gemini Key Failover + OpenRouter
 //
-// AI Personality / Conversation / Trading Format:
-// ./config/ai-config.js
+// Timezone:
+// Asia/Baghdad
+// Clock:
+// 12-hour AM / PM
+//
+// AI Config:
+// ../config/ai-config.js
 //
 // RETRY ORDER:
 // 0 → 1 → 2 → 3 → 4 → 0 → 1 → 2 → 3 → 4
@@ -25,7 +30,10 @@ export default async function handler(req, res) {
   // CORS
   // ==========================================================
 
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "*"
+  );
 
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -37,7 +45,10 @@ export default async function handler(req, res) {
     "Content-Type, Authorization"
   );
 
-  res.setHeader("Cache-Control", "no-store");
+  res.setHeader(
+    "Cache-Control",
+    "no-store"
+  );
 
   // ==========================================================
   // OPTIONS
@@ -48,10 +59,158 @@ export default async function handler(req, res) {
   }
 
   // ==========================================================
+  // TIMEZONE HELPERS
+  // ==========================================================
+
+  function getIraqDateTime(dateValue = new Date()) {
+
+    try {
+
+      const parts =
+        new Intl.DateTimeFormat(
+          "en-US",
+          {
+            timeZone: "Asia/Baghdad",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true
+          }
+        ).formatToParts(dateValue);
+
+      const get = (type) =>
+        parts.find(
+          (part) => part.type === type
+        )?.value || "";
+
+      return {
+
+        date:
+          `${get("year")}-${get("month")}-${get("day")}`,
+
+        time:
+          `${get("hour")}:${get("minute")}:${get("second")} ${get("dayPeriod")}`,
+
+        formatted:
+          `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")} ${get("dayPeriod")}`,
+
+        timezone:
+          "Asia/Baghdad",
+
+        timezoneLabel:
+          "کاتی عێراق",
+
+        clock:
+          "12-hour"
+
+      };
+
+    } catch {
+
+      return {
+
+        date: null,
+        time: null,
+        formatted: null,
+        timezone: "Asia/Baghdad",
+        timezoneLabel: "کاتی عێراق",
+        clock: "12-hour"
+
+      };
+    }
+  }
+
+  // ==========================================================
+  // FORMAT DATE → IRAQ TIME / 12-HOUR
+  // ==========================================================
+
+  function formatIraqTime(dateValue) {
+
+    if (!dateValue) {
+      return null;
+    }
+
+    try {
+
+      let value =
+        String(dateValue).trim();
+
+      /*
+       * Twelve Data / News APIs may return timestamps
+       * without timezone information.
+       *
+       * If there is no timezone:
+       * treat the timestamp as UTC.
+       */
+
+      if (
+        !/[zZ]$/.test(value) &&
+        !/[+-]\d{2}:\d{2}$/.test(value)
+      ) {
+
+        value =
+          value.replace(
+            " ",
+            "T"
+          ) + "Z";
+      }
+
+      const date =
+        new Date(value);
+
+      if (
+        Number.isNaN(
+          date.getTime()
+        )
+      ) {
+
+        return dateValue;
+      }
+
+      const parts =
+        new Intl.DateTimeFormat(
+          "en-US",
+          {
+            timeZone: "Asia/Baghdad",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true
+          }
+        ).formatToParts(date);
+
+      const get = (type) =>
+        parts.find(
+          (part) => part.type === type
+        )?.value || "";
+
+      return (
+        `${get("year")}-${get("month")}-${get("day")} ` +
+        `${get("hour")}:${get("minute")}:${get("second")} ` +
+        `${get("dayPeriod")}`
+      );
+
+    } catch {
+
+      return dateValue;
+
+    }
+  }
+
+  // ==========================================================
   // HEALTH CHECK
   // ==========================================================
 
   if (req.method === "GET") {
+
+    const iraqTime =
+      getIraqDateTime();
 
     return res.status(200).json({
 
@@ -69,10 +228,22 @@ export default async function handler(req, res) {
         true,
 
       version:
-        "6.0",
+        "6.1",
 
       aiConfig:
         true,
+
+      timezone:
+        "Asia/Baghdad",
+
+      timezoneLabel:
+        "کاتی عێراق",
+
+      clock:
+        "12-hour",
+
+      currentIraqTime:
+        iraqTime,
 
       message:
         "ShahanFX Backend is working!"
@@ -201,9 +372,11 @@ export default async function handler(req, res) {
   // RETRY SETTINGS
   // ==========================================================
 
-  const ATTEMPT_TIMEOUT = 8000;
+  const ATTEMPT_TIMEOUT =
+    8000;
 
-  const MAX_ATTEMPTS = 10;
+  const MAX_ATTEMPTS =
+    10;
 
   // ==========================================================
   // FETCH WITH TIMEOUT
@@ -318,14 +491,12 @@ export default async function handler(req, res) {
 
       return {
 
-        available:
-          false,
+        available: false,
 
         reason:
           "TWELVE_DATA_API_KEY نەدۆزرایەوە.",
 
-        candles:
-          []
+        candles: []
 
       };
     }
@@ -370,14 +541,12 @@ export default async function handler(req, res) {
 
         return {
 
-          available:
-            false,
+          available: false,
 
           reason:
             `Market API HTTP ${response.status}`,
 
-          candles:
-            []
+          candles: []
 
         };
       }
@@ -391,15 +560,13 @@ export default async function handler(req, res) {
 
         return {
 
-          available:
-            false,
+          available: false,
 
           reason:
             data?.message ||
             "داتای بازاڕ بەردەست نییە.",
 
-          candles:
-            []
+          candles: []
 
         };
       }
@@ -410,14 +577,12 @@ export default async function handler(req, res) {
 
         return {
 
-          available:
-            false,
+          available: false,
 
           reason:
             "هیچ کاندڵێک نەدۆزرایەوە.",
 
-          candles:
-            []
+          candles: []
 
         };
       }
@@ -478,6 +643,11 @@ export default async function handler(req, res) {
           .map((c) => ({
 
             datetime:
+              formatIraqTime(
+                c.datetime
+              ),
+
+            datetimeRaw:
               c.datetime,
 
             open:
@@ -501,16 +671,29 @@ export default async function handler(req, res) {
 
       return {
 
-        available:
-          true,
+        available: true,
 
         symbol,
 
         interval,
 
+        timezone:
+          "Asia/Baghdad",
+
+        timezoneLabel:
+          "کاتی عێراق",
+
+        clock:
+          "12-hour",
+
         current: {
 
           datetime:
+            formatIraqTime(
+              current.datetime
+            ),
+
+          datetimeRaw:
             current.datetime,
 
           open:
@@ -530,6 +713,11 @@ export default async function handler(req, res) {
         previous: {
 
           datetime:
+            formatIraqTime(
+              previous.datetime
+            ),
+
+          datetimeRaw:
             previous.datetime,
 
           open:
@@ -556,8 +744,7 @@ export default async function handler(req, res) {
 
       return {
 
-        available:
-          false,
+        available: false,
 
         reason:
           error?.name ===
@@ -568,8 +755,7 @@ export default async function handler(req, res) {
             : error?.message ||
               "Market API error",
 
-        candles:
-          []
+        candles: []
 
       };
     }
@@ -581,84 +767,14 @@ export default async function handler(req, res) {
 
   async function getNews() {
 
-    function formatIraqTime(
-      dateValue
-    ) {
-
-      if (!dateValue) {
-        return null;
-      }
-
-      try {
-
-        let value =
-          String(
-            dateValue
-          ).trim();
-
-        if (
-          !/[zZ]$/.test(value) &&
-          !/[+-]\d{2}:\d{2}$/.test(value)
-        ) {
-
-          value =
-            value.replace(
-              " ",
-              "T"
-            ) + "Z";
-        }
-
-        const date =
-          new Date(value);
-
-        if (
-          Number.isNaN(
-            date.getTime()
-          )
-        ) {
-
-          return dateValue;
-        }
-
-        return new Intl.DateTimeFormat(
-          "ku-IQ",
-          {
-
-            timeZone:
-              "Asia/Baghdad",
-
-            year:
-              "numeric",
-
-            month:
-              "2-digit",
-
-            day:
-              "2-digit",
-
-            hour:
-              "2-digit",
-
-            minute:
-              "2-digit",
-
-            hour12:
-              false
-
-          }
-        ).format(date);
-
-      } catch {
-
-        return dateValue;
-
-      }
-    }
-
     try {
 
       const now =
         new Date();
+
+      // ------------------------------------------------------
+      // Date range
+      // ------------------------------------------------------
 
       const year =
         now.getUTCFullYear();
@@ -749,14 +865,12 @@ export default async function handler(req, res) {
 
         return {
 
-          available:
-            false,
+          available: false,
 
           reason:
             `Xoomar News API HTTP ${response.status}`,
 
-          events:
-            []
+          events: []
 
         };
       }
@@ -806,6 +920,9 @@ export default async function handler(req, res) {
                 formatIraqTime(
                   rawDate
                 ),
+
+              dateRaw:
+                rawDate,
 
               country:
                 item.country ||
@@ -888,8 +1005,7 @@ export default async function handler(req, res) {
 
       return {
 
-        available:
-          true,
+        available: true,
 
         date:
           today,
@@ -911,6 +1027,9 @@ export default async function handler(req, res) {
         timezoneLabel:
           "کاتی عێراق",
 
+        clock:
+          "12-hour",
+
         events
 
       };
@@ -919,8 +1038,7 @@ export default async function handler(req, res) {
 
       return {
 
-        available:
-          false,
+        available: false,
 
         reason:
           error?.name ===
@@ -931,8 +1049,7 @@ export default async function handler(req, res) {
             : error?.message ||
               "Xoomar News API error",
 
-        events:
-          []
+        events: []
 
       };
     }
@@ -962,14 +1079,12 @@ export default async function handler(req, res) {
 
       : {
 
-          available:
-            false,
+          available: false,
 
           reason:
             "Market data error",
 
-          candles:
-            []
+          candles: []
 
         };
 
@@ -981,16 +1096,21 @@ export default async function handler(req, res) {
 
       : {
 
-          available:
-            false,
+          available: false,
 
           reason:
             "News data error",
 
-          events:
-            []
+          events: []
 
         };
+
+  // ==========================================================
+  // CURRENT IRAQ TIME
+  // ==========================================================
+
+  const iraqTime =
+    getIraqDateTime();
 
   // ==========================================================
   // BUILD AI CONFIG
@@ -1006,7 +1126,22 @@ export default async function handler(req, res) {
   const liveContext = {
 
     generatedAt:
+      iraqTime.formatted,
+
+    generatedAtISO:
       new Date().toISOString(),
+
+    timezone:
+      "Asia/Baghdad",
+
+    timezoneLabel:
+      "کاتی عێراق",
+
+    clock:
+      "12-hour",
+
+    currentIraqTime:
+      iraqTime,
 
     symbol,
 
@@ -1500,9 +1635,9 @@ export default async function handler(req, res) {
             };
           }
 
-          // --------------------------------------------------
-          // Gemini Lite fallback
-          // --------------------------------------------------
+          // ==================================================
+          // GEMINI LITE FALLBACK
+          // ==================================================
 
           const liteResult =
             await callGeminiOnce(
@@ -1619,7 +1754,19 @@ export default async function handler(req, res) {
         news:
           news?.available === true
 
-      }
+      },
+
+      timezone:
+        "Asia/Baghdad",
+
+      timezoneLabel:
+        "کاتی عێراق",
+
+      clock:
+        "12-hour",
+
+      currentIraqTime:
+        iraqTime
 
     });
   }
@@ -1660,6 +1807,18 @@ export default async function handler(req, res) {
     generatedAt:
       liveContext.generatedAt,
 
+    timezone:
+      "Asia/Baghdad",
+
+    timezoneLabel:
+      "کاتی عێراق",
+
+    clock:
+      "12-hour",
+
+    currentIraqTime:
+      iraqTime,
+
     market: {
 
       available:
@@ -1683,6 +1842,11 @@ export default async function handler(req, res) {
       datetime:
         market?.current
           ?.datetime ??
+        null,
+
+      datetimeRaw:
+        market?.current
+          ?.datetimeRaw ??
         null
 
     },
@@ -1699,6 +1863,9 @@ export default async function handler(req, res) {
 
       timezoneLabel:
         "کاتی عێراق",
+
+      clock:
+        "12-hour",
 
       events:
         Array.isArray(
