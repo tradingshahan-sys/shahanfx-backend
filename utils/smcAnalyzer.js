@@ -15,29 +15,29 @@ const CONFIG = {
     swingLookback: 2,
 
     // Minimum candles required for meaningful analysis
-    minCandles: 20,
+    minCandles: 10,
 
     // FVG
-    minFVGPercent: 0.03,
+    minFVGPercent: 0.005,
     maxFVGs: 20,
 
     // Order Block
-    obImpulseMultiplier: 1.5,
-    obLookForward: 8,
+    obImpulseMultiplier: 1.1,
+    obLookForward: 12,
     maxOrderBlocks: 20,
 
     // Displacement
-    displacementMultiplier: 1.5,
+    displacementMultiplier: 1.1,
     displacementLookback: 10,
 
     // Liquidity
-    liquidityTolerancePercent: 0.08,
+    liquidityTolerancePercent: 0.15,
     liquidityLookback: 50,
 
     // Scoring
-    strongScore: 80,
-    goodScore: 65,
-    moderateScore: 50
+    strongScore: 70,
+    goodScore: 50,
+    moderateScore: 35
 };
 
 // ============================================================
@@ -51,10 +51,10 @@ function isValidNumber(value) {
 function normalizeCandle(candle, index) {
     if (!candle) return null;
 
-    const open = Number(candle.open);
-    const high = Number(candle.high);
-    const low = Number(candle.low);
-    const close = Number(candle.close);
+    const open = Number(candle.open ?? candle.OPEN ?? candle.Open);
+    const high = Number(candle.high ?? candle.HIGH ?? candle.High);
+    const low = Number(candle.low ?? candle.LOW ?? candle.Low);
+    const close = Number(candle.close ?? candle.CLOSE ?? candle.Close);
 
     if (
         !isValidNumber(open) ||
@@ -202,7 +202,7 @@ function detectMarketStructure(candles) {
         .filter(s => s.type === "SWING_LOW")
         .sort((a, b) => a.index - b.index);
 
-    let trend = "NEUTRAL";
+    let trend = "BULLISH";
 
     const lastHigh = highs[highs.length - 1];
     const previousHigh = highs[highs.length - 2];
@@ -402,7 +402,7 @@ function detectDisplacement(candles) {
             bodyRatio >= CONFIG.displacementMultiplier;
 
         const strongClose =
-            bodyPercentage >= 0.65;
+            bodyPercentage >= 0.45;
 
         if (strongBody && strongClose) {
             results.push({
@@ -654,8 +654,7 @@ function detectFairValueGaps(candles) {
         // ----------------------------------------------------
 
         if (
-            c3.low > c1.high &&
-            c2.bullish
+            c3.low > c1.high
         ) {
             const bottom = c1.high;
             const top = c3.low;
@@ -687,8 +686,7 @@ function detectFairValueGaps(candles) {
         // ----------------------------------------------------
 
         if (
-            c3.high < c1.low &&
-            c2.bearish
+            c3.high < c1.low
         ) {
             const top = c1.low;
             const bottom = c3.high;
@@ -898,7 +896,7 @@ function calculateOrderBlockScore(
     if (
         averageBody > 0 &&
         candles[impulse.index].bodySize >
-        averageBody * 2
+        averageBody * 1.5
     ) {
         score += 20;
     }
@@ -914,7 +912,7 @@ function calculateOrderBlockScore(
         impulseCandle &&
         impulseCandle.range > 0 &&
         impulseCandle.bodySize /
-        impulseCandle.range >= 0.7
+        impulseCandle.range >= 0.5
     ) {
         score += 15;
     }
@@ -1593,7 +1591,7 @@ function analyzeSMC(inputCandles) {
 
         engine: "ShahanFX SMC Engine",
 
-        version: "2.0.0",
+        version: "2.1.0",
 
         candlesAnalyzed:
             candles.length,
