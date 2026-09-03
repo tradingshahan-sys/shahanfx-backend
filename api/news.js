@@ -35,16 +35,10 @@ export default async function handler(req, res) {
         ? String(req.query.from)
         : today;
 
-    const defaultTo = new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000
-    )
-      .toISOString()
-      .slice(0, 10);
-
     const to =
       req.query && req.query.to
         ? String(req.query.to)
-        : defaultTo;
+        : today;
 
     const url =
       "https://xoomar.com/api/markets/calendar" +
