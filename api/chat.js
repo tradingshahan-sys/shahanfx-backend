@@ -1,8 +1,11 @@
 // api/chat.js
 // ============================================================
 // ShahanFX AI Pro Backend
-// Kurdish Sorani + Live Market + Economic News + Chart Image
+// Live Market + Economic News + Chart Image
 // 4x Gemini Key Failover + OpenRouter
+//
+// AI Personality / Conversation / Trading Format:
+// ./config/ai-config.js
 //
 // RETRY ORDER:
 // 0 → 1 → 2 → 3 → 4 → 0 → 1 → 2 → 3 → 4
@@ -14,6 +17,8 @@
 // 4 = OPENROUTER_API_KEY
 // ============================================================
 
+import AI_CONFIG from "../config/ai-config.js";
+
 export default async function handler(req, res) {
 
   // ==========================================================
@@ -21,14 +26,17 @@ export default async function handler(req, res) {
   // ==========================================================
 
   res.setHeader("Access-Control-Allow-Origin", "*");
+
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, OPTIONS"
   );
+
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization"
   );
+
   res.setHeader("Cache-Control", "no-store");
 
   // ==========================================================
@@ -44,14 +52,31 @@ export default async function handler(req, res) {
   // ==========================================================
 
   if (req.method === "GET") {
+
     return res.status(200).json({
+
       ok: true,
+
       success: true,
-      project: "ShahanFX AI Pro",
-      status: "online",
-      live: true,
-      version: "5.0",
-      message: "ShahanFX Backend is working!"
+
+      project:
+        "ShahanFX AI Pro",
+
+      status:
+        "online",
+
+      live:
+        true,
+
+      version:
+        "6.0",
+
+      aiConfig:
+        true,
+
+      message:
+        "ShahanFX Backend is working!"
+
     });
   }
 
@@ -60,9 +85,14 @@ export default async function handler(req, res) {
   // ==========================================================
 
   if (req.method !== "POST") {
+
     return res.status(405).json({
+
       ok: false,
-      error: "تەنها POST ڕێگەپێدراوە."
+
+      error:
+        "تەنها POST ڕێگەپێدراوە."
+
     });
   }
 
@@ -71,10 +101,15 @@ export default async function handler(req, res) {
   // ==========================================================
 
   const GEMINI_KEYS = [
+
     process.env.GEMINI_API_KEY,
+
     process.env.GEMINI_API_KEY1,
+
     process.env.GEMINI_API_KEY2,
+
     process.env.GEMINI_API_KEY3
+
   ];
 
   const OPENROUTER_API_KEY =
@@ -90,14 +125,21 @@ export default async function handler(req, res) {
   let body = {};
 
   try {
+
     body =
       typeof req.body === "string"
         ? JSON.parse(req.body)
         : req.body || {};
+
   } catch {
+
     return res.status(400).json({
+
       ok: false,
-      error: "داتای نێردراو دروست نییە."
+
+      error:
+        "داتای نێردراو دروست نییە."
+
     });
   }
 
@@ -144,10 +186,14 @@ export default async function handler(req, res) {
   // ==========================================================
 
   if (!message && !image) {
+
     return res.status(400).json({
+
       ok: false,
+
       error:
         "تکایە پرسیارێک بنووسە یان وێنەی Chart بنێرە."
+
     });
   }
 
@@ -156,6 +202,7 @@ export default async function handler(req, res) {
   // ==========================================================
 
   const ATTEMPT_TIMEOUT = 8000;
+
   const MAX_ATTEMPTS = 10;
 
   // ==========================================================
@@ -167,19 +214,31 @@ export default async function handler(req, res) {
     options = {},
     timeout = ATTEMPT_TIMEOUT
   ) {
-    const controller = new AbortController();
 
-    const timer = setTimeout(() => {
-      controller.abort();
-    }, timeout);
+    const controller =
+      new AbortController();
+
+    const timer =
+      setTimeout(
+        () => controller.abort(),
+        timeout
+      );
 
     try {
-      return await fetch(url, {
-        ...options,
-        signal: controller.signal
-      });
+
+      return await fetch(
+        url,
+        {
+          ...options,
+          signal:
+            controller.signal
+        }
+      );
+
     } finally {
+
       clearTimeout(timer);
+
     }
   }
 
@@ -193,41 +252,60 @@ export default async function handler(req, res) {
       return "";
     }
 
-    let result = String(text);
+    let result =
+      String(text);
 
-    // --------------------------------------------------------
-    // Remove unwanted system / safety text
-    // --------------------------------------------------------
+    result =
+      result
 
-    result = result
-      .replace(
-        /User Safety:\s*safe/gi,
-        ""
-      )
-      .replace(
-        /^System:\s*/gim,
-        ""
-      )
-      .replace(
-        /^Assistant:\s*/gim,
-        ""
-      )
-      .trim();
+        .replace(
+          /User Safety:\s*safe/gi,
+          ""
+        )
 
-    // --------------------------------------------------------
-    // Remove common English decision words if AI accidentally
-    // puts them next to Kurdish text.
-    // --------------------------------------------------------
+        .replace(
+          /^System:\s*/gim,
+          ""
+        )
 
-    result = result
-      .replace(/\bBUY\b/gi, "کڕین")
-      .replace(/\bSELL\b/gi, "فرۆشتن")
-      .replace(/\bWAIT\b/gi, "چاوەڕوان بە")
-      .replace(/\bBULLISH\b/gi, "بەرەو سەرەوە")
-      .replace(/\bBEARISH\b/gi, "بەرەو خوارەوە")
-      .replace(/\bNEUTRAL\b/gi, "بێ‌لایەن");
+        .replace(
+          /^Assistant:\s*/gim,
+          ""
+        )
 
-    return result.trim();
+        .replace(
+          /\bBUY\b/gi,
+          "کڕین"
+        )
+
+        .replace(
+          /\bSELL\b/gi,
+          "فرۆشتن"
+        )
+
+        .replace(
+          /\bWAIT\b/gi,
+          "چاوەڕوان بە"
+        )
+
+        .replace(
+          /\bBULLISH\b/gi,
+          "بەرەو سەرەوە"
+        )
+
+        .replace(
+          /\bBEARISH\b/gi,
+          "بەرەو خوارەوە"
+        )
+
+        .replace(
+          /\bNEUTRAL\b/gi,
+          "بێ‌لایەن"
+        )
+
+        .trim();
+
+    return result;
   }
 
   // ==========================================================
@@ -237,11 +315,18 @@ export default async function handler(req, res) {
   async function getMarket() {
 
     if (!TWELVE_DATA_API_KEY) {
+
       return {
-        available: false,
+
+        available:
+          false,
+
         reason:
           "TWELVE_DATA_API_KEY نەدۆزرایەوە.",
-        candles: []
+
+        candles:
+          []
+
       };
     }
 
@@ -261,7 +346,8 @@ export default async function handler(req, res) {
           url,
           {
             headers: {
-              Accept: "application/json"
+              Accept:
+                "application/json"
             }
           },
           6500
@@ -270,72 +356,119 @@ export default async function handler(req, res) {
       let data = null;
 
       try {
-        data = await response.json();
+
+        data =
+          await response.json();
+
       } catch {
+
         data = null;
+
       }
 
       if (!response.ok) {
+
         return {
-          available: false,
+
+          available:
+            false,
+
           reason:
             `Market API HTTP ${response.status}`,
-          candles: []
+
+          candles:
+            []
+
         };
       }
 
       if (
         !data ||
-        !Array.isArray(data.values)
+        !Array.isArray(
+          data.values
+        )
       ) {
+
         return {
-          available: false,
+
+          available:
+            false,
+
           reason:
             data?.message ||
             "داتای بازاڕ بەردەست نییە.",
-          candles: []
+
+          candles:
+            []
+
         };
       }
-
-      if (data.values.length === 0) {
-        return {
-          available: false,
-          reason:
-            "هیچ کاندڵێک نەدۆزرایەوە.",
-          candles: []
-        };
-      }
-
-      const candles = data.values;
-
-      const current = candles[0];
-
-      const previous =
-        candles[1] || candles[0];
-
-      const currentClose =
-        Number(current.close);
-
-      const previousClose =
-        Number(previous.close);
-
-      let direction = "neutral";
 
       if (
-        Number.isFinite(currentClose) &&
-        Number.isFinite(previousClose)
+        data.values.length === 0
+      ) {
+
+        return {
+
+          available:
+            false,
+
+          reason:
+            "هیچ کاندڵێک نەدۆزرایەوە.",
+
+          candles:
+            []
+
+        };
+      }
+
+      const candles =
+        data.values;
+
+      const current =
+        candles[0];
+
+      const previous =
+        candles[1] ||
+        candles[0];
+
+      const currentClose =
+        Number(
+          current.close
+        );
+
+      const previousClose =
+        Number(
+          previous.close
+        );
+
+      let direction =
+        "neutral";
+
+      if (
+        Number.isFinite(
+          currentClose
+        ) &&
+        Number.isFinite(
+          previousClose
+        )
       ) {
 
         if (
           currentClose >
           previousClose
         ) {
-          direction = "bullish";
+
+          direction =
+            "bullish";
+
         } else if (
           currentClose <
           previousClose
         ) {
-          direction = "bearish";
+
+          direction =
+            "bearish";
         }
       }
 
@@ -343,20 +476,33 @@ export default async function handler(req, res) {
         candles
           .slice(0, 30)
           .map((c) => ({
-            datetime: c.datetime,
-            open: Number(c.open),
-            high: Number(c.high),
-            low: Number(c.low),
-            close: Number(c.close),
+
+            datetime:
+              c.datetime,
+
+            open:
+              Number(c.open),
+
+            high:
+              Number(c.high),
+
+            low:
+              Number(c.low),
+
+            close:
+              Number(c.close),
+
             volume:
               c.volume !== undefined
                 ? Number(c.volume)
                 : null
+
           }));
 
       return {
 
-        available: true,
+        available:
+          true,
 
         symbol,
 
@@ -410,15 +556,20 @@ export default async function handler(req, res) {
 
       return {
 
-        available: false,
+        available:
+          false,
 
         reason:
-          error?.name === "AbortError"
+          error?.name ===
+          "AbortError"
+
             ? "Market API timeout"
+
             : error?.message ||
               "Market API error",
 
-        candles: []
+        candles:
+          []
 
       };
     }
@@ -430,7 +581,9 @@ export default async function handler(req, res) {
 
   async function getNews() {
 
-    function formatIraqTime(dateValue) {
+    function formatIraqTime(
+      dateValue
+    ) {
 
       if (!dateValue) {
         return null;
@@ -439,15 +592,20 @@ export default async function handler(req, res) {
       try {
 
         let value =
-          String(dateValue).trim();
+          String(
+            dateValue
+          ).trim();
 
         if (
           !/[zZ]$/.test(value) &&
           !/[+-]\d{2}:\d{2}$/.test(value)
         ) {
+
           value =
-            value.replace(" ", "T") +
-            "Z";
+            value.replace(
+              " ",
+              "T"
+            ) + "Z";
         }
 
         const date =
@@ -458,12 +616,14 @@ export default async function handler(req, res) {
             date.getTime()
           )
         ) {
+
           return dateValue;
         }
 
         return new Intl.DateTimeFormat(
           "ku-IQ",
           {
+
             timeZone:
               "Asia/Baghdad",
 
@@ -484,11 +644,14 @@ export default async function handler(req, res) {
 
             hour12:
               false
+
           }
         ).format(date);
 
       } catch {
+
         return dateValue;
+
       }
     }
 
@@ -503,12 +666,18 @@ export default async function handler(req, res) {
       const month =
         String(
           now.getUTCMonth() + 1
-        ).padStart(2, "0");
+        ).padStart(
+          2,
+          "0"
+        );
 
       const day =
         String(
           now.getUTCDate()
-        ).padStart(2, "0");
+        ).padStart(
+          2,
+          "0"
+        );
 
       const today =
         `${year}-${month}-${day}`;
@@ -529,12 +698,18 @@ export default async function handler(req, res) {
       const futureMonth =
         String(
           futureDate.getUTCMonth() + 1
-        ).padStart(2, "0");
+        ).padStart(
+          2,
+          "0"
+        );
 
       const futureDay =
         String(
           futureDate.getUTCDate()
-        ).padStart(2, "0");
+        ).padStart(
+          2,
+          "0"
+        );
 
       const to =
         `${futureYear}-${futureMonth}-${futureDay}`;
@@ -560,17 +735,29 @@ export default async function handler(req, res) {
       let data = null;
 
       try {
-        data = await response.json();
+
+        data =
+          await response.json();
+
       } catch {
+
         data = null;
+
       }
 
       if (!response.ok) {
+
         return {
-          available: false,
+
+          available:
+            false,
+
           reason:
             `Xoomar News API HTTP ${response.status}`,
-          events: []
+
+          events:
+            []
+
         };
       }
 
@@ -604,6 +791,7 @@ export default async function handler(req, res) {
 
       const events =
         rawEvents
+
           .map((item) => {
 
             const rawDate =
@@ -653,18 +841,22 @@ export default async function handler(req, res) {
                 item.periodLabel ||
                 item.period ||
                 null
+
             };
           })
+
           .filter((item) => {
 
             const country =
               String(
-                item.country || ""
+                item.country ||
+                ""
               ).toLowerCase();
 
             const eventName =
               String(
-                item.event || ""
+                item.event ||
+                ""
               ).toLowerCase();
 
             const isUS =
@@ -686,16 +878,24 @@ export default async function handler(req, res) {
               isUS ||
               isImportant
             );
+
           })
-          .slice(0, 50);
+
+          .slice(
+            0,
+            50
+          );
 
       return {
 
-        available: true,
+        available:
+          true,
 
-        date: today,
+        date:
+          today,
 
-        from: today,
+        from:
+          today,
 
         to,
 
@@ -719,15 +919,20 @@ export default async function handler(req, res) {
 
       return {
 
-        available: false,
+        available:
+          false,
 
         reason:
-          error?.name === "AbortError"
+          error?.name ===
+          "AbortError"
+
             ? "Xoomar News API timeout"
+
             : error?.message ||
               "Xoomar News API error",
 
-        events: []
+        events:
+          []
 
       };
     }
@@ -742,29 +947,57 @@ export default async function handler(req, res) {
     newsResult
   ] =
     await Promise.allSettled([
+
       getMarket(),
+
       getNews()
+
     ]);
 
   const market =
-    marketResult.status === "fulfilled"
+    marketResult.status ===
+    "fulfilled"
+
       ? marketResult.value
+
       : {
-          available: false,
+
+          available:
+            false,
+
           reason:
             "Market data error",
-          candles: []
+
+          candles:
+            []
+
         };
 
   const news =
-    newsResult.status === "fulfilled"
+    newsResult.status ===
+    "fulfilled"
+
       ? newsResult.value
+
       : {
-          available: false,
+
+          available:
+            false,
+
           reason:
             "News data error",
-          events: []
+
+          events:
+            []
+
         };
+
+  // ==========================================================
+  // BUILD AI CONFIG
+  // ==========================================================
+
+  const systemPrompt =
+    AI_CONFIG.buildPrompt();
 
   // ==========================================================
   // LIVE CONTEXT
@@ -785,13 +1018,34 @@ export default async function handler(req, res) {
 
     dataPolicy: {
 
-      liveDataOnly: true,
+      liveDataOnly:
+        true,
 
-      doNotInventPrice: true,
+      doNotInventPrice:
+        true,
 
-      doNotInventNews: true,
+      doNotInventNews:
+        true,
 
       doNotInventTechnicalLevels:
+        true,
+
+      doNotInventFVG:
+        true,
+
+      doNotInventOrderBlock:
+        true,
+
+      doNotInventLiquidity:
+        true,
+
+      doNotInventBOS:
+        true,
+
+      doNotInventCHOCH:
+        true,
+
+      doNotInventALC:
         true,
 
       doNotClaimCertainty:
@@ -802,359 +1056,15 @@ export default async function handler(req, res) {
   };
 
   // ==========================================================
-  // SYSTEM PROMPT
-  // ==========================================================
-
-  const systemPrompt = `
-
-تۆ ShahanFX AI ـیت.
-
-تۆ ڕاوێژکاری زیرەکی ShahanFX ـیت بۆ شیکردنەوەی:
-
-Forex
-Gold
-ICT
-SMC
-ALC™
-
-━━━━━━━━━━━━━━━━━━━━
-🟢 یاسای زمانی سەرەکی
-━━━━━━━━━━━━━━━━━━━━
-
-هەموو وەڵامەکەت تەنها بە کوردی سۆرانی بنووسە.
-
-بە فارسی و عەرەبی و ئینگلیزی وەڵام مەدە.
-
-هەموو شیکارییەکان بە شێوەیەکی
-کورت، ڕوون و ڕێکخراو بن.
-
-ناوی ئەو سیستەمانەی خوارەوە دەتوانیت وەک ناوی تایبەتی بەکاربهێنیت:
-
-XAU/USD
-EUR/USD
-GBP/USD
-USD/JPY
-ICT
-SMC
-ALC™
-
-بەڵام ناوی بابەتەکانی شیکاری بە کوردی بنووسە.
-
-━━━━━━━━━━━━━━━━━━━━
-📚 وەرگێڕانی وشەکان
-━━━━━━━━━━━━━━━━━━━━
-
-BUY = کڕین
-SELL = فرۆشتن
-WAIT = چاوەڕوان بە
-
-Bullish = بەرەو سەرەوە
-Bearish = بەرەو خوارەوە
-Neutral = بێ‌لایەن
-
-Market Structure = پێکهاتەی بازاڕ
-Liquidity = لیکویدیتی
-Order Block = ئۆردەر بلۆک
-Fair Value Gap = فەیر ڤالیو گەپ
-Break of Structure = بۆس
-Change of Character = گۆڕینی کەسایەتی
-
-Entry = خاڵی چوونەژوورەوە
-Stop Loss = سنووری زیان
-Take Profit = خاڵی قازانج
-Confirmation = پشتڕاستکردنەوە
-Risk/Reward = ڕێژەی مەترسی بۆ قازانج
-Confidence = ئاستی دڵنیایی
-
-━━━━━━━━━━━━━━━━━━━━
-🚨 یاسای داتای ڕاستەوخۆ
-━━━━━━━━━━━━━━━━━━━━
-
-تەنها Live Context ـی پێدراو بەکاربهێنە.
-
-هیچ نرخێک خۆت مەدروستکە.
-
-هیچ کاتێک خۆت مەدروستکە.
-
-هیچ هەواڵێک خۆت مەدروستکە.
-
-هیچ ئاستێک خۆت مەدروستکە.
-
-هیچ FVG ـێک خۆت مەدروستکە.
-
-هیچ ئۆردەر بلۆکێک خۆت مەدروستکە.
-
-هیچ لیکویدیتییەک خۆت مەدروستکە.
-
-هیچ بۆسێک خۆت مەدروستکە.
-
-هیچ گۆڕینی کەسایەتییەک خۆت مەدروستکە.
-
-هیچ Zone ـێکی ALC™ خۆت مەدروستکە.
-
-ئەگەر داتا کافی نییە، بنووسە:
-
-"داتا کافی نییە."
-
-یان:
-
-"پشتڕاستکردنەوەی کافی نییە."
-
-━━━━━━━━━━━━━━━━━━━━
-🟢 کڕین یان فرۆشتن
-━━━━━━━━━━━━━━━━━━━━
-
-هیچکات تەنها بە Bias ـەوە بڕیاری کڕین یان فرۆشتن مەدە.
-
-تەنها ئەگەر نیشانەکان پشتگیری بکەن:
-
-کڕین
-
-یان
-
-فرۆشتن
-
-ئەگەر پشتڕاستکردنەوە تەواو نەبوو:
-
-چاوەڕوان بە
-
-━━━━━━━━━━━━━━━━━━━━
-📊 فۆرماتی وەڵام
-━━━━━━━━━━━━━━━━━━━━
-
-کاتێک بەکارهێنەر داوای شیکردنەوەی بازاڕ دەکات،
-هەموو بابەتەکان بە جیاوازی و بە هەمان ڕیزبەندی خوارەوە بنووسە.
-
-━━━━━━━━━━━━━━━━━━━━
-
-📊 بازاڕ:
-[ناوی بازاڕ]
-
-⏱ کاتی شیکاری:
-[کاتی شیکاری]
-
-💰 نرخی ئێستا:
-[نرخی Live]
-
-━━━━━━━━━━━━━━━━━━━━
-
-🟢 کڕین یان فرۆشتن:
-[کڕین / فرۆشتن / گونجاو نییە]
-
-هۆکار:
-[هۆکاری کورت]
-
-━━━━━━━━━━━━━━━━━━━━
-
-📈 پێکهاتەی بازاڕ:
-[بەرەو سەرەوە / بەرەو خوارەوە / بێ‌لایەن]
-
-دۆخ:
-[هەیە / نییە]
-
-هۆکار:
-[شیکاریی کورت]
-
-━━━━━━━━━━━━━━━━━━━━
-
-💧 لیکویدیتی:
-[هەیە / نییە]
-
-شوێن:
-[تەنها ئەگەر لە داتا دیار بێت]
-
-جۆر:
-[سەرەوە / خوارەوە]
-
-━━━━━━━━━━━━━━━━━━━━
-
-🧱 ئۆردەر بلۆک:
-[هەیە / نییە]
-
-جۆر:
-[کڕین / فرۆشتن]
-
-ناوچە:
-[تەنها ئەگەر داتا پشتگیری بکات]
-
-━━━━━━━━━━━━━━━━━━━━
-
-🔨 بۆس:
-[هەیە / نییە]
-
-جۆر:
-[بەرەو سەرەوە / بەرەو خوارەوە]
-
-ئاست:
-[تەنها ئەگەر داتا پشتگیری بکات]
-
-━━━━━━━━━━━━━━━━━━━━
-
-🔄 گۆڕینی کەسایەتی:
-[هەیە / نییە]
-
-جۆر:
-[بەرەو سەرەوە / بەرەو خوارەوە]
-
-━━━━━━━━━━━━━━━━━━━━
-
-🟨 فەیر ڤالیو گەپ:
-[هەیە / نییە]
-
-جۆر:
-[کڕین / فرۆشتن]
-
-ناوچە:
-[تەنها ئەگەر داتا پشتگیری بکات]
-
-━━━━━━━━━━━━━━━━━━━━
-
-🧠 ICT / SMC:
-[گونجاوە / گونجاو نییە]
-
-نیشانە:
-[تەنها ئەو نیشانانەی داتا پشتگیرییان دەکات]
-
-━━━━━━━━━━━━━━━━━━━━
-
-⚡ ALC™:
-[گونجاوە / گونجاو نییە]
-
-ناوچە:
-[تەنها ئەگەر داتا کافی هەبێت]
-
-هۆکار:
-[کورت]
-
-ALC™ بە ICT و SMC تێکەڵ مەکە.
-
-ئەگەر داتای کافی بۆ ALC™ نییە:
-
-"داتا کافی بۆ پشتڕاستکردنەوەی ALC™ نییە."
-
-━━━━━━━━━━━━━━━━━━━━
-
-📰 هەواڵ:
-[هەیە / نییە]
-
-ئەگەر هەواڵ هەیە:
-
-ناوی هەواڵ:
-[ناوی ڕووداو]
-
-کات:
-[کاتی عێراق]
-
-کاریگەری:
-[بەرز / مامناوەند / کەم]
-
-هیچ هەواڵێک خۆت مەدروستکە.
-
-━━━━━━━━━━━━━━━━━━━━
-
-🔎 پشتڕاستکردنەوە:
-[هەیە / نییە]
-
-هۆکار:
-[هۆکارەکانی پشتڕاستکردنەوە]
-
-━━━━━━━━━━━━━━━━━━━━
-
-📍 خاڵی چوونەژوورەوە:
-[تەنها ئەگەر پشتڕاستکراوە]
-
-ئەگەر پشتڕاست نەکراوە:
-
-"خاڵی چوونەژوورەوە دیاری نەکراوە."
-
-━━━━━━━━━━━━━━━━━━━━
-
-🛑 سنووری زیان:
-[تەنها ئەگەر داتا پشتگیری بکات]
-
-ئەگەر داتا کافی نییە:
-
-"سنووری زیان دیاری نەکراوە."
-
-━━━━━━━━━━━━━━━━━━━━
-
-🎯 خاڵی قازانج:
-[تەنها ئەگەر داتا پشتگیری بکات]
-
-ئەگەر داتا کافی نییە:
-
-"خاڵی قازانج دیاری نەکراوە."
-
-━━━━━━━━━━━━━━━━━━━━
-
-⚖️ ڕێژەی مەترسی بۆ قازانج:
-[تەنها ئەگەر Entry + SL + TP هەبن]
-
-ئەگەر نەبن:
-
-"ڕێژەکە دیاری نەکراوە."
-
-━━━━━━━━━━━━━━━━━━━━
-
-🧠 ئاستی دڵنیایی:
-[کەم / مامناوەند / بەرز]
-
-هیچکات 100% دڵنیایی مەدە.
-
-━━━━━━━━━━━━━━━━━━━━
-
-🎯 بڕیاری کۆتایی:
-[🟢 کڕین / 🔴 فرۆشتن / 🟡 چاوەڕوان بە]
-
-━━━━━━━━━━━━━━━━━━━━
-🔴 یاسای کۆتایی
-━━━━━━━━━━━━━━━━━━━━
-
-هەر بابەتێک بە جیاوازی وەڵام بدە.
-
-بەتایبەتی:
-
-کڕین یان فرۆشتن
-پێکهاتەی بازاڕ
-لیکویدیتی
-ئۆردەر بلۆک
-بۆس
-گۆڕینی کەسایەتی
-فەیر ڤالیو گەپ
-ICT / SMC
-ALC™
-هەواڵ
-پشتڕاستکردنەوە
-خاڵی چوونەژوورەوە
-سنووری زیان
-خاڵی قازانج
-ڕێژەی مەترسی بۆ قازانج
-ئاستی دڵنیایی
-بڕیاری کۆتایی
-
-هیچ شتێک خۆت مەدروستکە.
-
-داتای ساختە قەدەغەیە.
-
-ئەگەر داتا کافی نییە، بە ڕوونی بڵێ:
-
-"داتا کافی نییە."
-
-ئەگەر پشتڕاستکردنەوە نییە:
-
-"چاوەڕوان بە."
-
-هەموو وەڵامەکان تەنها بە کوردی سۆرانی بن.
-
-`;
-
-  // ==========================================================
   // GEMINI MODELS
   // ==========================================================
 
   const GEMINI_MODELS = [
+
     "gemini-2.5-flash",
+
     "gemini-2.5-flash-lite"
+
   ];
 
   // ==========================================================
@@ -1187,6 +1097,10 @@ ALC™
         )
 
     });
+
+    // ========================================================
+    // CHART IMAGE
+    // ========================================================
 
     if (image) {
 
@@ -1237,13 +1151,19 @@ ALC™
 
       const response =
         await fetchTimeout(
+
           url,
+
           {
-            method: "POST",
+
+            method:
+              "POST",
 
             headers: {
+
               "Content-Type":
                 "application/json"
+
             },
 
             body:
@@ -1252,10 +1172,14 @@ ALC™
                 system_instruction: {
 
                   parts: [
+
                     {
+
                       text:
                         systemPrompt
+
                     }
+
                   ]
 
                 },
@@ -1263,10 +1187,13 @@ ALC™
                 contents: [
 
                   {
-                    role: "user",
+
+                    role:
+                      "user",
 
                     parts:
                       buildGeminiParts()
+
                   }
 
                 ],
@@ -1282,17 +1209,24 @@ ALC™
                 }
 
               })
+
           },
+
           ATTEMPT_TIMEOUT
+
         );
 
       let data = null;
 
       try {
+
         data =
           await response.json();
+
       } catch {
+
         data = null;
+
       }
 
       if (!response.ok) {
@@ -1336,6 +1270,7 @@ ALC™
     } catch {
 
       return null;
+
     }
   }
 
@@ -1374,9 +1309,13 @@ ALC™
 
       const response =
         await fetchTimeout(
+
           "https://openrouter.ai/api/v1/chat/completions",
+
           {
-            method: "POST",
+
+            method:
+              "POST",
 
             headers: {
 
@@ -1384,9 +1323,7 @@ ALC™
                 "application/json",
 
               Authorization:
-                `Bearer ${
-                  OPENROUTER_API_KEY
-                }`,
+                `Bearer ${OPENROUTER_API_KEY}`,
 
               "HTTP-Referer":
                 "https://shahanfx-backend-9576.vercel.app",
@@ -1406,7 +1343,8 @@ ALC™
 
                   {
 
-                    role: "system",
+                    role:
+                      "system",
 
                     content:
                       systemPrompt
@@ -1415,7 +1353,8 @@ ALC™
 
                   {
 
-                    role: "user",
+                    role:
+                      "user",
 
                     content:
                       userContent
@@ -1431,17 +1370,24 @@ ALC™
                   0.2
 
               })
+
           },
+
           ATTEMPT_TIMEOUT
+
         );
 
       let data = null;
 
       try {
+
         data =
           await response.json();
+
       } catch {
+
         data = null;
+
       }
 
       if (!response.ok) {
@@ -1476,6 +1422,7 @@ ALC™
     } catch {
 
       return null;
+
     }
   }
 
@@ -1486,16 +1433,19 @@ ALC™
   async function runFailover() {
 
     const sequence = [
+
       0,
       1,
       2,
       3,
       4,
+
       0,
       1,
       2,
       3,
       4
+
     ];
 
     for (
@@ -1522,15 +1472,20 @@ ALC™
           ];
 
         if (
-          typeof apiKey === "string" &&
+          typeof apiKey ===
+            "string" &&
           apiKey.trim()
         ) {
 
           const result =
             await callGeminiOnce(
+
               apiKey,
+
               GEMINI_MODELS[0],
+
               providerIndex
+
             );
 
           if (result) {
@@ -1545,11 +1500,19 @@ ALC™
             };
           }
 
+          // --------------------------------------------------
+          // Gemini Lite fallback
+          // --------------------------------------------------
+
           const liteResult =
             await callGeminiOnce(
+
               apiKey,
+
               GEMINI_MODELS[1],
+
               providerIndex
+
             );
 
           if (liteResult) {
@@ -1570,7 +1533,9 @@ ALC™
       // OPENROUTER
       // ======================================================
 
-      if (providerIndex === 4) {
+      if (
+        providerIndex === 4
+      ) {
 
         const result =
           await callOpenRouterOnce();
@@ -1607,9 +1572,11 @@ ALC™
 
     return res.status(503).json({
 
-      ok: false,
+      ok:
+        false,
 
-      success: false,
+      success:
+        false,
 
       error:
         "لە دوو خولی 0→1→2→3→4 هیچ AI ـیەک وەڵامی نەدا.",
@@ -1663,9 +1630,11 @@ ALC™
 
   return res.status(200).json({
 
-    ok: true,
+    ok:
+      true,
 
-    success: true,
+    success:
+      true,
 
     answer:
       aiResult.answer,
