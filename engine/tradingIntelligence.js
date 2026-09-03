@@ -154,7 +154,6 @@ function getDirectionFromObject(object) {
 // ============================================================
 
 function checkNewsProximity(smc, options) {
-function checkNewsProximity(smc, options) {
   const events = Array.isArray(smc?.news)
     ? smc.news
     : Array.isArray(smc?.events)
@@ -165,19 +164,22 @@ function checkNewsProximity(smc, options) {
 
   if (events.length === 0) return { hasNews: false };
 
-  const now = Date.now();
+  const now = new Date().getTime();
 
   for (const item of events) {
     if (!item) continue;
     const dateStr = item.scheduledAt || item.datetime || item.date || item.time;
     if (!dateStr) continue;
 
-    const eventTime = new Date(dateStr).getTime();
+    // دروستکردنی کاتی هەواڵ بە شێوازێک کە لەگەڵ کاتی لۆکاڵیدا بگونجێت
+    let cleanDateStr = String(dateStr).trim();
+    // ئەگەر کاتەکە کاتی تێدا نەبێت یان کێشەی فۆرماتی هەبێت ڕاستی دەکەینەوە
+    const eventTime = new Date(cleanDateStr).getTime();
     if (isNaN(eventTime)) continue;
 
     const diffMinutes = (eventTime - now) / (1000 * 60);
 
-    // تەنها ئەگەر کاتی هەواڵەکە بەڕاستی لە نێوان 0 تا 30 دەقەی داهاتوودا بێت (نەک تێپەڕیوبێت یان چەندین سەعات ماوبێت)
+    // تەنها و تەنها ئەگەر لە نێوان 0 تا 30 دەقەی داهاتوودا بێت
     if (diffMinutes >= 0 && diffMinutes <= 30) {
       return {
         hasNews: true,
@@ -189,6 +191,7 @@ function checkNewsProximity(smc, options) {
 
   return { hasNews: false };
 }
+
 
 
 // ============================================================
