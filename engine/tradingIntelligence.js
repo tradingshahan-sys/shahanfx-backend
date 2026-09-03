@@ -154,6 +154,7 @@ function getDirectionFromObject(object) {
 // ============================================================
 
 function checkNewsProximity(smc, options) {
+function checkNewsProximity(smc, options) {
   const events = Array.isArray(smc?.news)
     ? smc.news
     : Array.isArray(smc?.events)
@@ -176,7 +177,7 @@ function checkNewsProximity(smc, options) {
 
     const diffMinutes = (eventTime - now) / (1000 * 60);
 
-    // تەنها ئەگەر لە نێوان 0 تا 30 دەقەی داهاتوودا بێت
+    // تەنها ئەگەر کاتی هەواڵەکە بەڕاستی لە نێوان 0 تا 30 دەقەی داهاتوودا بێت (نەک تێپەڕیوبێت یان چەندین سەعات ماوبێت)
     if (diffMinutes >= 0 && diffMinutes <= 30) {
       return {
         hasNews: true,
@@ -188,6 +189,7 @@ function checkNewsProximity(smc, options) {
 
   return { hasNews: false };
 }
+
 
 // ============================================================
 // Market Structure
