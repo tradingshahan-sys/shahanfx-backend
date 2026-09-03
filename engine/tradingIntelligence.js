@@ -150,6 +150,46 @@ function getDirectionFromObject(object) {
 }
 
 // ============================================================
+// News Proximity Check (30 Minutes Window)
+// ============================================================
+
+function checkNewsProximity(smc, options) {
+  const events = Array.isArray(smc?.news)
+    ? smc.news
+    : Array.isArray(smc?.events)
+      ? smc.events
+      : Array.isArray(options?.news)
+        ? options.news
+        : [];
+
+  if (events.length === 0) return { hasNews: false };
+
+  const now = Date.now();
+
+  for (const item of events) {
+    if (!item) continue;
+    const dateStr = item.scheduledAt || item.datetime || item.date || item.time;
+    if (!dateStr) continue;
+
+    const eventTime = new Date(dateStr).getTime();
+    if (isNaN(eventTime)) continue;
+
+    const diffMinutes = (eventTime - now) / (1000 * 60);
+
+    // تەنها ئەگەر لە نێوان 0 تا 30 دەقەی داهاتوودا بێت
+    if (diffMinutes >= 0 && diffMinutes <= 30) {
+      return {
+        hasNews: true,
+        eventTitle: item.event || item.title || "High Impact News",
+        diffMinutes: Math.round(diffMinutes)
+      };
+    }
+  }
+
+  return { hasNews: false };
+}
+
+// ============================================================
 // Market Structure
 // ============================================================
 
@@ -695,8 +735,18 @@ function buildDecision({
   confluenceScore,
   confirmationScore,
   conflict,
-  premiumDiscount
+  premiumDiscount,
+  newsStatus
 }) {
+  // پشکنینی هەواڵ: ئەگەر لە ماوەی 30 دەقەی داهاتوودا هەواڵ هەبێت
+  if (newsStatus && newsStatus.hasNews) {
+    return {
+      decision: "WAIT",
+      setup: "NEWS_WAIT",
+      reason: `High-impact news (${newsStatus.eventTitle}) is coming up in ${newsStatus.diffMinutes} minutes.`
+    };
+  }
+
   if (
     direction === "NEUTRAL"
   ) {
@@ -881,6 +931,9 @@ function analyzeTradingIntelligence(smc, options = {}) {
   const premiumDiscount =
     analyzePremiumDiscount(smc);
 
+  // پشکنینی کاتی هەواڵ (30 دەقەی پێش ڕووداو)
+  const newsStatus = checkNewsProximity(smc, options);
+
   const components = [
     structure,
     bos,
@@ -943,7 +996,8 @@ function analyzeTradingIntelligence(smc, options = {}) {
       confluenceScore,
       confirmationScore,
       conflict: conflict.conflict,
-      premiumDiscount
+      premiumDiscount,
+      newsStatus
     });
 
   const confidence =
@@ -1016,6 +1070,8 @@ function analyzeTradingIntelligence(smc, options = {}) {
     displacement,
 
     premiumDiscount,
+
+    newsStatus, // زیادکردنی باری هەواڵ بۆ ئاگاداری
 
     confirmation: {
       required:
@@ -1145,6 +1201,9 @@ function buildAITradingContext(intelligence) {
 
     premiumDiscount:
       intelligence.premiumDiscount,
+
+    newsStatus:
+      intelligence.newsStatus,
 
     confirmation:
       intelligence.confirmation
