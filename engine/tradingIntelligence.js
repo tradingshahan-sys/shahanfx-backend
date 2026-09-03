@@ -164,22 +164,19 @@ function checkNewsProximity(smc, options) {
 
   if (events.length === 0) return { hasNews: false };
 
-  const now = new Date().getTime();
+  const now = Date.now();
 
   for (const item of events) {
     if (!item) continue;
     const dateStr = item.scheduledAt || item.datetime || item.date || item.time;
     if (!dateStr) continue;
 
-    // دروستکردنی کاتی هەواڵ بە شێوازێک کە لەگەڵ کاتی لۆکاڵیدا بگونجێت
-    let cleanDateStr = String(dateStr).trim();
-    // ئەگەر کاتەکە کاتی تێدا نەبێت یان کێشەی فۆرماتی هەبێت ڕاستی دەکەینەوە
-    const eventTime = new Date(cleanDateStr).getTime();
+    const eventTime = new Date(dateStr).getTime();
     if (isNaN(eventTime)) continue;
 
     const diffMinutes = (eventTime - now) / (1000 * 60);
 
-    // تەنها و تەنها ئەگەر لە نێوان 0 تا 30 دەقەی داهاتوودا بێت
+    // تەنها ئەگەر کاتی هەواڵەکە بەڕاستی لە نێوان 0 تا 30 دەقەی داهاتوودا بێت (نەک تێپەڕیوبێت یان چەندین سەعات ماوبێت)
     if (diffMinutes >= 0 && diffMinutes <= 30) {
       return {
         hasNews: true,
@@ -188,6 +185,10 @@ function checkNewsProximity(smc, options) {
       };
     }
   }
+
+  return { hasNews: false };
+}
+
 
   return { hasNews: false };
 }
