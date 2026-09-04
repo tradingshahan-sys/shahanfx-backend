@@ -170,35 +170,49 @@ function checkNewsProximity(smc, options) {
 
   for (const item of events) {
     if (!item) continue;
-    const dateStr = item.scheduledAt || item.datetime || item.date || item.time;
+
+    const dateStr =
+      item.scheduledAt ||
+      item.datetime ||
+      item.date ||
+      item.time;
+
     if (!dateStr) continue;
 
-    const eventTime = new Date(dateStr).getTime();
+    const eventTime =
+      new Date(dateStr).getTime();
+
     if (isNaN(eventTime)) continue;
 
     // دڵنیابوونەوە لەوەی هەواڵەکە تەنها هی هەمان ڕۆژی ئەمڕۆیە
-    const eventDateStr = new Date(eventTime + IRAQ_OFFSET_MS).toISOString().slice(0, 10);
+    const eventDateStr =
+      new Date(
+        eventTime + IRAQ_OFFSET_MS
+      ).toISOString().slice(0, 10);
+
     if (eventDateStr !== todayStr) continue;
 
-    const diffMinutes = (eventTime - now) / (1000 * 60);
+    const diffMinutes =
+      (eventTime - now) / (1000 * 60);
 
-    if (diffMinutes >= 0 && diffMinutes <= 30) {
+    if (
+      diffMinutes >= 0 &&
+      diffMinutes <= 30
+    ) {
       return {
         hasNews: true,
-        eventTitle: item.event || item.title || "High Impact News",
-        diffMinutes: Math.round(diffMinutes)
+        eventTitle:
+          item.event ||
+          item.title ||
+          "High Impact News",
+        diffMinutes:
+          Math.round(diffMinutes)
       };
     }
   }
 
   return { hasNews: false };
 }
-
-
-  return { hasNews: false };
-}
-
-
 
 // ============================================================
 // Market Structure
@@ -210,12 +224,14 @@ function analyzeMarketStructure(smc) {
     smc?.structure ||
     null;
 
-  const direction = getDirectionFromObject(structure);
+  const direction =
+    getDirectionFromObject(structure);
 
   if (direction) {
     return {
       direction,
-      score: CONFIG.weights.marketStructure,
+      score:
+        CONFIG.weights.marketStructure,
       status: "CONFIRMED",
       source: "marketStructure"
     };
@@ -238,10 +254,14 @@ function analyzeBOS(smc) {
     ? smc.bos
     : [];
 
-  const recent = getRecent(bos, 5);
+  const recent =
+    getRecent(bos, 5);
 
-  const bullish = hasBullish(recent);
-  const bearish = hasBearish(recent);
+  const bullish =
+    hasBullish(recent);
+
+  const bearish =
+    hasBearish(recent);
 
   if (bullish && !bearish) {
     return {
@@ -283,14 +303,19 @@ function analyzeBOS(smc) {
 // ============================================================
 
 function analyzeCHOCH(smc) {
-  const choch = Array.isArray(smc?.choch)
-    ? smc.choch
-    : [];
+  const choch =
+    Array.isArray(smc?.choch)
+      ? smc.choch
+      : [];
 
-  const recent = getRecent(choch, 3);
-  const latest = getLatest(recent);
+  const recent =
+    getRecent(choch, 3);
 
-  const direction = getDirectionFromObject(latest);
+  const latest =
+    getLatest(recent);
+
+  const direction =
+    getDirectionFromObject(latest);
 
   if (!direction) {
     return {
@@ -312,30 +337,45 @@ function analyzeCHOCH(smc) {
 // ============================================================
 
 function analyzeLiquidity(smc) {
-  const liquidity = Array.isArray(smc?.liquidity)
-    ? smc.liquidity
-    : [];
+  const liquidity =
+    Array.isArray(smc?.liquidity)
+      ? smc.liquidity
+      : [];
 
-  const sweeps = Array.isArray(smc?.liquiditySweeps)
-    ? smc.liquiditySweeps
-    : [];
+  const sweeps =
+    Array.isArray(smc?.liquiditySweeps)
+      ? smc.liquiditySweeps
+      : [];
 
-  const recentLiquidity = getRecent(liquidity, 10);
-  const recentSweeps = getRecent(sweeps, 5);
+  const recentLiquidity =
+    getRecent(liquidity, 10);
 
-  const bullishSweep = hasBullish(recentSweeps);
-  const bearishSweep = hasBearish(recentSweeps);
+  const recentSweeps =
+    getRecent(sweeps, 5);
+
+  const bullishSweep =
+    hasBullish(recentSweeps);
+
+  const bearishSweep =
+    hasBearish(recentSweeps);
 
   let sweepDirection = "NEUTRAL";
 
-  if (bullishSweep && !bearishSweep) {
+  if (
+    bullishSweep &&
+    !bearishSweep
+  ) {
     sweepDirection = "BULLISH";
-  } else if (bearishSweep && !bullishSweep) {
+  } else if (
+    bearishSweep &&
+    !bullishSweep
+  ) {
     sweepDirection = "BEARISH";
   }
 
   return {
-    liquidityCount: recentLiquidity.length,
+    liquidityCount:
+      recentLiquidity.length,
 
     sweepDirection,
 
@@ -368,43 +408,61 @@ function analyzeFVG(smc) {
         ? smc.fvgs
         : [];
 
-  const active = fvgs.filter(fvg => {
-    if (!fvg) return false;
+  const active =
+    fvgs.filter(fvg => {
+      if (!fvg) return false;
 
-    if (
-      fvg.mitigated === true ||
-      fvg.filled === true
-    ) {
-      return false;
-    }
+      if (
+        fvg.mitigated === true ||
+        fvg.filled === true
+      ) {
+        return false;
+      }
 
-    return true;
-  });
+      return true;
+    });
 
-  const bullish = active.filter(fvg =>
-    normalizeDirection(fvg?.direction || fvg?.type) === "BULLISH"
-  );
+  const bullish =
+    active.filter(fvg =>
+      normalizeDirection(
+        fvg?.direction ||
+        fvg?.type
+      ) === "BULLISH"
+    );
 
-  const bearish = active.filter(fvg =>
-    normalizeDirection(fvg?.direction || fvg?.type) === "BEARISH"
-  );
+  const bearish =
+    active.filter(fvg =>
+      normalizeDirection(
+        fvg?.direction ||
+        fvg?.type
+      ) === "BEARISH"
+    );
 
   let direction = "NEUTRAL";
 
-  if (bullish.length > bearish.length) {
+  if (
+    bullish.length >
+    bearish.length
+  ) {
     direction = "BULLISH";
-  } else if (bearish.length > bullish.length) {
+  } else if (
+    bearish.length >
+    bullish.length
+  ) {
     direction = "BEARISH";
   }
 
   return {
     direction,
 
-    activeCount: active.length,
+    activeCount:
+      active.length,
 
-    bullishCount: bullish.length,
+    bullishCount:
+      bullish.length,
 
-    bearishCount: bearish.length,
+    bearishCount:
+      bearish.length,
 
     score:
       direction === "NEUTRAL"
@@ -430,49 +488,61 @@ function analyzeOrderBlocks(smc) {
         ? smc.orderBlocks
         : [];
 
-  const active = obs.filter(ob => {
-    if (!ob) return false;
+  const active =
+    obs.filter(ob => {
+      if (!ob) return false;
 
-    if (
-      ob.mitigated === true ||
-      ob.invalidated === true
-    ) {
-      return false;
-    }
+      if (
+        ob.mitigated === true ||
+        ob.invalidated === true
+      ) {
+        return false;
+      }
 
-    return true;
-  });
+      return true;
+    });
 
-  const bullish = active.filter(ob =>
-    normalizeDirection(
-      ob?.direction ||
-      ob?.type
-    ) === "BULLISH"
-  );
+  const bullish =
+    active.filter(ob =>
+      normalizeDirection(
+        ob?.direction ||
+        ob?.type
+      ) === "BULLISH"
+    );
 
-  const bearish = active.filter(ob =>
-    normalizeDirection(
-      ob?.direction ||
-      ob?.type
-    ) === "BEARISH"
-  );
+  const bearish =
+    active.filter(ob =>
+      normalizeDirection(
+        ob?.direction ||
+        ob?.type
+      ) === "BEARISH"
+    );
 
   let direction = "NEUTRAL";
 
-  if (bullish.length > bearish.length) {
+  if (
+    bullish.length >
+    bearish.length
+  ) {
     direction = "BULLISH";
-  } else if (bearish.length > bullish.length) {
+  } else if (
+    bearish.length >
+    bullish.length
+  ) {
     direction = "BEARISH";
   }
 
   return {
     direction,
 
-    activeCount: active.length,
+    activeCount:
+      active.length,
 
-    bullishCount: bullish.length,
+    bullishCount:
+      bullish.length,
 
-    bearishCount: bearish.length,
+    bearishCount:
+      bearish.length,
 
     score:
       direction === "NEUTRAL"
@@ -491,27 +561,40 @@ function analyzeOrderBlocks(smc) {
 // ============================================================
 
 function analyzeDisplacement(smc) {
-  const displacement = Array.isArray(smc?.displacement)
-    ? smc.displacement
-    : [];
+  const displacement =
+    Array.isArray(smc?.displacement)
+      ? smc.displacement
+      : [];
 
-  const recent = getRecent(displacement, 5);
+  const recent =
+    getRecent(displacement, 5);
 
-  const bullish = hasBullish(recent);
-  const bearish = hasBearish(recent);
+  const bullish =
+    hasBullish(recent);
 
-  if (bullish && !bearish) {
+  const bearish =
+    hasBearish(recent);
+
+  if (
+    bullish &&
+    !bearish
+  ) {
     return {
       direction: "BULLISH",
-      score: CONFIG.weights.displacement,
+      score:
+        CONFIG.weights.displacement,
       status: "CONFIRMED"
     };
   }
 
-  if (bearish && !bullish) {
+  if (
+    bearish &&
+    !bullish
+  ) {
     return {
       direction: "BEARISH",
-      score: CONFIG.weights.displacement,
+      score:
+        CONFIG.weights.displacement,
       status: "CONFIRMED"
     };
   }
@@ -531,9 +614,13 @@ function analyzeDisplacement(smc) {
 // ============================================================
 
 function analyzePremiumDiscount(smc) {
-  const pd = smc?.premiumDiscount;
+  const pd =
+    smc?.premiumDiscount;
 
-  if (!pd || typeof pd !== "object") {
+  if (
+    !pd ||
+    typeof pd !== "object"
+  ) {
     return {
       zone: "UNKNOWN",
       direction: "NEUTRAL",
@@ -541,14 +628,17 @@ function analyzePremiumDiscount(smc) {
     };
   }
 
-  const zone = String(
-    pd.zone ||
-    pd.position ||
-    pd.status ||
-    ""
-  ).toUpperCase();
+  const zone =
+    String(
+      pd.zone ||
+      pd.position ||
+      pd.status ||
+      ""
+    ).toUpperCase();
 
-  if (zone.includes("DISCOUNT")) {
+  if (
+    zone.includes("DISCOUNT")
+  ) {
     return {
       zone: "DISCOUNT",
       direction: "BULLISH",
@@ -556,7 +646,9 @@ function analyzePremiumDiscount(smc) {
     };
   }
 
-  if (zone.includes("PREMIUM")) {
+  if (
+    zone.includes("PREMIUM")
+  ) {
     return {
       zone: "PREMIUM",
       direction: "BEARISH",
@@ -582,26 +674,39 @@ function buildVotes(components) {
     NEUTRAL: 0
   };
 
-  for (const component of components) {
+  for (
+    const component of components
+  ) {
     if (!component) continue;
 
     const direction =
-      normalizeDirection(component.direction);
+      normalizeDirection(
+        component.direction
+      );
 
     if (!direction) continue;
 
     const score =
-      safeNumber(component.score, 0);
+      safeNumber(
+        component.score,
+        0
+      );
 
-    if (direction === "BULLISH") {
+    if (
+      direction === "BULLISH"
+    ) {
       votes.BULLISH += score;
     }
 
-    if (direction === "BEARISH") {
+    if (
+      direction === "BEARISH"
+    ) {
       votes.BEARISH += score;
     }
 
-    if (direction === "NEUTRAL") {
+    if (
+      direction === "NEUTRAL"
+    ) {
       votes.NEUTRAL += score;
     }
   }
@@ -617,23 +722,37 @@ function detectConflict(components) {
   let bullish = 0;
   let bearish = 0;
 
-  for (const component of components) {
+  for (
+    const component of components
+  ) {
     const direction =
-      normalizeDirection(component?.direction);
+      normalizeDirection(
+        component?.direction
+      );
 
-    if (direction === "BULLISH") {
+    if (
+      direction === "BULLISH"
+    ) {
       bullish++;
     }
 
-    if (direction === "BEARISH") {
+    if (
+      direction === "BEARISH"
+    ) {
       bearish++;
     }
   }
 
   return {
-    conflict: bullish > 0 && bearish > 0,
-    bullishSignals: bullish,
-    bearishSignals: bearish
+    conflict:
+      bullish > 0 &&
+      bearish > 0,
+
+    bullishSignals:
+      bullish,
+
+    bearishSignals:
+      bearish
   };
 }
 
@@ -649,14 +768,19 @@ function calculateConfluenceScore({
 }) {
   let score = 0;
 
-  for (const component of components) {
+  for (
+    const component of components
+  ) {
     if (!component) continue;
 
     const componentDirection =
-      normalizeDirection(component.direction);
+      normalizeDirection(
+        component.direction
+      );
 
     if (
-      componentDirection === direction
+      componentDirection ===
+      direction
     ) {
       score += safeNumber(
         component.score,
@@ -667,24 +791,31 @@ function calculateConfluenceScore({
 
   // Conflict penalty
   if (conflict) {
-    score -= CONFIG.penalties.conflict;
+    score -=
+      CONFIG.penalties.conflict;
   }
 
   // Premium / Discount logic
   if (
     premiumDiscount &&
     direction === "BULLISH" &&
-    premiumDiscount.zone === "PREMIUM"
+    premiumDiscount.zone ===
+      "PREMIUM"
   ) {
-    score -= CONFIG.penalties.premiumDiscountConflict;
+    score -=
+      CONFIG.penalties
+        .premiumDiscountConflict;
   }
 
   if (
     premiumDiscount &&
     direction === "BEARISH" &&
-    premiumDiscount.zone === "DISCOUNT"
+    premiumDiscount.zone ===
+      "DISCOUNT"
   ) {
-    score -= CONFIG.penalties.premiumDiscountConflict;
+    score -=
+      CONFIG.penalties
+        .premiumDiscountConflict;
   }
 
   return clamp(
@@ -720,14 +851,17 @@ function calculateConfirmation({
   }
 
   if (
-    liquidity.sweepDirection === direction
+    liquidity.sweepDirection ===
+    direction
   ) {
     score += 30;
   }
 
   if (
-    displacement.direction === direction &&
-    displacement.status === "CONFIRMED"
+    displacement.direction ===
+      direction &&
+    displacement.status ===
+      "CONFIRMED"
   ) {
     score += 25;
   }
@@ -750,11 +884,15 @@ function buildDecision({
   newsStatus
 }) {
   // پشکنینی هەواڵ: ئەگەر لە ماوەی 30 دەقەی داهاتوودا هەواڵ هەبێت
-  if (newsStatus && newsStatus.hasNews) {
+  if (
+    newsStatus &&
+    newsStatus.hasNews
+  ) {
     return {
       decision: "WAIT",
       setup: "NEWS_WAIT",
-      reason: `High-impact news (${newsStatus.eventTitle}) is coming up in ${newsStatus.diffMinutes} minutes.`
+      reason:
+        `High-impact news (${newsStatus.eventTitle}) is coming up in ${newsStatus.diffMinutes} minutes.`
     };
   }
 
@@ -764,7 +902,8 @@ function buildDecision({
     return {
       decision: "WAIT",
       setup: "NO_CLEAR_SETUP",
-      reason: "No clear directional bias."
+      reason:
+        "No clear directional bias."
     };
   }
 
@@ -772,7 +911,8 @@ function buildDecision({
     return {
       decision: "WAIT",
       setup: "CONFLICTING_SETUP",
-      reason: "Bullish and bearish signals are conflicting."
+      reason:
+        "Bullish and bearish signals are conflicting."
     };
   }
 
@@ -783,7 +923,8 @@ function buildDecision({
     return {
       decision: "WAIT",
       setup: "WEAK_SETUP",
-      reason: "Confluence is not strong enough."
+      reason:
+        "Confluence is not strong enough."
     };
   }
 
@@ -797,29 +938,34 @@ function buildDecision({
         direction === "BULLISH"
           ? "BUY_WATCH"
           : "SELL_WATCH",
-      reason: "Confirmation is insufficient."
+      reason:
+        "Confirmation is insufficient."
     };
   }
 
   if (
     direction === "BULLISH" &&
-    premiumDiscount?.zone === "PREMIUM"
+    premiumDiscount?.zone ===
+      "PREMIUM"
   ) {
     return {
       decision: "WAIT",
       setup: "BUY_WATCH",
-      reason: "Bullish bias is inside premium."
+      reason:
+        "Bullish bias is inside premium."
     };
   }
 
   if (
     direction === "BEARISH" &&
-    premiumDiscount?.zone === "DISCOUNT"
+    premiumDiscount?.zone ===
+      "DISCOUNT"
   ) {
     return {
       decision: "WAIT",
       setup: "SELL_WATCH",
-      reason: "Bearish bias is inside discount."
+      reason:
+        "Bearish bias is inside discount."
     };
   }
 
@@ -871,15 +1017,21 @@ function calculateConfidence({
 // ============================================================
 
 function getScoreLabel(score) {
-  if (score >= CONFIG.strongScore) {
+  if (
+    score >= CONFIG.strongScore
+  ) {
     return "STRONG";
   }
 
-  if (score >= CONFIG.goodScore) {
+  if (
+    score >= CONFIG.goodScore
+  ) {
     return "GOOD";
   }
 
-  if (score >= CONFIG.moderateScore) {
+  if (
+    score >= CONFIG.moderateScore
+  ) {
     return "MODERATE";
   }
 
@@ -890,7 +1042,10 @@ function getScoreLabel(score) {
 // Main Intelligence Engine
 // ============================================================
 
-function analyzeTradingIntelligence(smc, options = {}) {
+function analyzeTradingIntelligence(
+  smc,
+  options = {}
+) {
   if (
     !smc ||
     typeof smc !== "object"
@@ -898,7 +1053,8 @@ function analyzeTradingIntelligence(smc, options = {}) {
     return {
       available: false,
 
-      engine: "ShahanFX Trading Intelligence",
+      engine:
+        "ShahanFX Trading Intelligence",
 
       version: "1.0.0",
 
@@ -914,7 +1070,8 @@ function analyzeTradingIntelligence(smc, options = {}) {
 
       setup: "NO_DATA",
 
-      reason: "SMC data is unavailable."
+      reason:
+        "SMC data is unavailable."
     };
   }
 
@@ -943,7 +1100,11 @@ function analyzeTradingIntelligence(smc, options = {}) {
     analyzePremiumDiscount(smc);
 
   // پشکنینی کاتی هەواڵ (30 دەقەی پێش ڕووداو)
-  const newsStatus = checkNewsProximity(smc, options);
+  const newsStatus =
+    checkNewsProximity(
+      smc,
+      options
+    );
 
   const components = [
     structure,
@@ -969,14 +1130,14 @@ function analyzeTradingIntelligence(smc, options = {}) {
 
   if (
     votes.BULLISH >
-      votes.BEARISH
+    votes.BEARISH
   ) {
     direction = "BULLISH";
   }
 
   if (
     votes.BEARISH >
-      votes.BULLISH
+    votes.BULLISH
   ) {
     direction = "BEARISH";
   }
@@ -988,7 +1149,8 @@ function analyzeTradingIntelligence(smc, options = {}) {
     calculateConfluenceScore({
       direction,
       components,
-      conflict: conflict.conflict,
+      conflict:
+        conflict.conflict,
       premiumDiscount
     });
 
@@ -1006,7 +1168,8 @@ function analyzeTradingIntelligence(smc, options = {}) {
       direction,
       confluenceScore,
       confirmationScore,
-      conflict: conflict.conflict,
+      conflict:
+        conflict.conflict,
       premiumDiscount,
       newsStatus
     });
@@ -1015,7 +1178,8 @@ function analyzeTradingIntelligence(smc, options = {}) {
     calculateConfidence({
       confluenceScore,
       confirmationScore,
-      conflict: conflict.conflict,
+      conflict:
+        conflict.conflict,
       decision:
         decisionData.decision
     });
@@ -1066,15 +1230,19 @@ function analyzeTradingIntelligence(smc, options = {}) {
 
     conflict,
 
-    marketStructure: structure,
+    marketStructure:
+      structure,
 
-    BOS: bos,
+    BOS:
+      bos,
 
-    CHOCH: choch,
+    CHOCH:
+      choch,
 
     liquidity,
 
-    FVG: fvg,
+    FVG:
+      fvg,
 
     orderBlock,
 
@@ -1082,11 +1250,12 @@ function analyzeTradingIntelligence(smc, options = {}) {
 
     premiumDiscount,
 
-    newsStatus, // زیادکردنی باری هەواڵ بۆ ئاگاداری
+    newsStatus,
 
     confirmation: {
       required:
-        decisionData.decision === "WAIT",
+        decisionData.decision ===
+        "WAIT",
 
       status:
         confirmationScore >=
@@ -1143,7 +1312,9 @@ function analyzeTradingIntelligence(smc, options = {}) {
 // This converts the intelligence result into a compact object
 // that can be safely added to the Gemini/OpenRouter prompt.
 
-function buildAITradingContext(intelligence) {
+function buildAITradingContext(
+  intelligence
+) {
   if (
     !intelligence ||
     intelligence.available === false
@@ -1217,7 +1388,52 @@ function buildAITradingContext(intelligence) {
       intelligence.newsStatus,
 
     confirmation:
-      intelligence.confirmation
+      intelligence.confirmation,
+
+    // ========================================================
+    // STRICT AI RESPONSE FORMAT
+    // ========================================================
+    responseFormat: {
+      mandatory: true,
+      strict: true,
+      fixedOrder: true,
+      allSectionsRequired: true,
+
+      language:
+        "Kurdish Sorani",
+
+      instruction:
+        "هەموو وەڵامەکانی شیکاری ShahanFX AI دەبێت بە شێوەی ڕێکخراو، بەش بەش و بە هەمان ڕیزبەندی خوارەوە بنووسرێن. هەموو زانیارییەکان لە یەک پاراگراف مەنووسە.",
+
+      requiredSections: [
+        "🟡 XAU/USD — Live Analysis",
+        "🟢 1. ALC™",
+        "🔵 2. ICT",
+        "🟣 3. SMC",
+        "🟠 4. Confirmation",
+        "🎯 5. Risk / Reward",
+        "📰 6. Economic News",
+        "🧠 7. Final Decision"
+      ],
+
+      rules: [
+        "هەر بەشێک دەبێت بە سەردێڕی جیاواز دەست پێبکات.",
+        "لە نێوان بەشەکاندا بۆشایی هەبێت.",
+        "زانیارییەکان بە bullet point پیشان بدرێن.",
+        "ALC™، ICT و SMC نابێت تێکەڵ بکرێن.",
+        "Confirmation دەبێت بەشی جیاواز بێت.",
+        "Risk / Reward دەبێت بەشی جیاواز بێت.",
+        "Economic News دەبێت بەشی جیاواز بێت.",
+        "Final Decision دەبێت تەنها لە کۆتایی وەڵامەکە بێت.",
+        "ئەگەر Confirmation کافی نەبێت، بنووسە: ⏳ WAIT FOR CONFIRMATION.",
+        "هیچ داتایەکی نەبوو دروست مەکە؛ بنووسە: داتا بەردەست نییە.",
+        "هەموو وەڵامەکە مەکە بە یەک پاراگراف.",
+        "ڕیزبەندیی بەشەکان مەگۆڕە.",
+        "ALC™ → ICT → SMC → Confirmation → Risk / Reward → Economic News → Final Decision هەمیشە هەمان ڕیزبەندی بێت.",
+        "ئەگەر داواکاریی بەکارهێنەر شیکاری XAU/USD یان Forex بێت، ئەم format ـە بەکاربهێنە.",
+        "وەڵامەکە دەبێت پاک، ڕوون، کورت و بەش‌بەش بێت."
+      ]
+    }
   };
 }
 
