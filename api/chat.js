@@ -18,13 +18,12 @@
 // ../engine/tradingIntelligence.js
 //
 // RETRY ORDER:
-// 0 → 1 → 2 → 3 → 4 → 0 → 1 → 2 → 3 → 4
+// 0 → 1 → 0 → 1 
 //
 // 0 = GEMINI_API_KEY
 // 1 = GEMINI_API_KEY1
-// 2 = GEMINI_API_KEY2
-// 3 = GEMINI_API_KEY3
-// 4 = OPENROUTER_API_KEY
+// 2 = OPENROUTER_API_KEY
+// 3 = FMP_API_KEY=
 // ============================================================
 
 import AI_CONFIG from "../config/ai-config.js";
