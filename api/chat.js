@@ -216,6 +216,9 @@ export default async function handler(req, res) {
 
   const startedAt = Date.now();
 
+  // Collects why each AI attempt failed (shown in API response as debug)
+  const errors = [];
+
   // ==========================================================
   // FETCH WITH TIMEOUT
   // ==========================================================
@@ -240,7 +243,8 @@ export default async function handler(req, res) {
     if (!text) return "";
 
     return String(text)
-      .replace(/User Safety:\s*safe/gi, "")
+      .replace(/^\s*User Safety:.*$/gim, "")
+      .replace(/^\s*Safety Categories:.*$/gim, "")
       .replace(/^System:\s*/gim, "")
       .replace(/^Assistant:\s*/gim, "")
       .replace(/\n{3,}/g, "\n\n")
@@ -598,48 +602,10 @@ export default async function handler(req, res) {
   const iraqTime = getIraqDateTime();
 
   // ==========================================================
-  // SYSTEM PROMPT  (AI_CONFIG + KURDISH FORMAT RULES)
+  // SYSTEM PROMPT  (all rules live in config/ai-config.js)
   // ==========================================================
 
-  const FORMAT_RULES = `
-
-=== ڕێنمایی زمان و ڕیزبەندی (زۆر گرنگ) ===
-
-زمان:
-- هەمیشە بە کوردی سۆرانی ڕەوان و ئاسان وەڵام بدەرەوە.
-- تەنها ئەم زاراوانە بە ئینگلیزی بهێڵەرەوە: XAU/USD, BOS, CHOCH, ICT, SMC, Order Block, FVG, Liquidity, Premium, Discount, CPI, PPI, NFP, FOMC.
-- هەرگیز پاراگرافی ئینگلیزی مەنووسە.
-- ناوی کلیلەکانی JSON (وەک strength, mitigated, equilibrium, displacement) وەک خۆی مەهێنەرەوە؛ بە کوردی ڕوونیان بکەرەوە.
-- ژمارە و نرخ و بەروار و کات بە ژمارەی ئینگلیزی (0-9) بنووسە، کاتیش بە سیستەمی 12 کاتژمێری (AM / PM) و بە کاتی عێراق.
-
-فۆرمات (هەمیشە بەم ڕیزبەندییە، هەر بەشێک لە دێڕێکی نوێدا):
-
-📊 **بارودۆخی بازاڕ**
-- هێما، تایمفرەیم، نرخی ئێستا، ئاڕاستە
-
-🧠 **شیکاری تەکنیکی**
-- پێکهاتەی بازاڕ:
-- ناوچەی نرخ (Premium / Discount):
-- Order Block:
-- Liquidity:
-
-✅ **پشتڕاستکردنەوە**
-- ئایا مەرجەکان تەواون یان نا، بە کورتی
-
-📰 **هەواڵە ئابوورییەکان**
-- هەر هەواڵێک لە دێڕێکی جیا: بەروار – ناو – کاریگەری
-
-🎯 **ئەنجامی کۆتایی**
-- کڕین / فرۆشتن / چاوەڕوان بە، لەگەڵ هۆکارێکی کورت
-
-ڕێساکان:
-- لەنێوان هەر بەشێک دێڕێکی بەتاڵ بهێڵەرەوە.
-- لیست بەکاربێنە، پاراگرافی درێژ مەنووسە.
-- هیچ نرخ و هەواڵ و ئاستێک دروست مەکە؛ تەنها داتای Live Context بەکاربێنە.
-- لە کۆتاییدا بنووسە: "ئەمە ڕاوێژە و ئامۆژگاری دارایی نییە."
-`;
-
-  const systemPrompt = AI_CONFIG.buildPrompt() + FORMAT_RULES;
+  const systemPrompt = AI_CONFIG.buildPrompt();
 
   // ==========================================================
   // LIVE CONTEXT
@@ -742,14 +708,28 @@ export default async function handler(req, res) {
       let data = null;
       try { data = await response.json(); } catch { data = null; }
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        errors.push(
+          `gemini key${keyIndex} ${model} HTTP ${response.status}: ` +
+          String(data?.error?.message || "").slice(0, 160)
+        );
+        return null;
+      }
 
       const text = data?.candidates?.[0]?.content?.parts
         ?.map((part) => part.text || "")
         .join("")
         .trim();
 
-      if (!text) return null;
+      if (!text) {
+        errors.push(
+          `gemini key${keyIndex} ${model} empty: ` +
+          (data?.promptFeedback?.blockReason ||
+           data?.candidates?.[0]?.finishReason ||
+           "no text")
+        );
+        return null;
+      }
 
       return {
         provider: "gemini",
@@ -758,7 +738,10 @@ export default async function handler(req, res) {
         answer: clean(text)
       };
 
-    } catch {
+    } catch (error) {
+      errors.push(
+        `gemini key${keyIndex} ${model} ${error?.name === "AbortError" ? "timeout" : error?.message || "error"}`
+      );
       return null;
     }
   }
@@ -807,11 +790,26 @@ export default async function handler(req, res) {
       let data = null;
       try { data = await response.json(); } catch { data = null; }
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        errors.push(
+          `openrouter HTTP ${response.status}: ` +
+          String(data?.error?.message || "").slice(0, 160)
+        );
+        return null;
+      }
 
       const text = data?.choices?.[0]?.message?.content?.trim();
 
-      if (!text) return null;
+      if (!text) {
+        errors.push("openrouter empty response");
+        return null;
+      }
+
+      // openrouter/free may route to a safety-classifier model
+      if (/User Safety:|Safety Categories:/i.test(text) && text.length < 400) {
+        errors.push(`openrouter returned safety-classifier output (${data?.model || "unknown model"})`);
+        return null;
+      }
 
       return {
         provider: "openrouter",
@@ -819,7 +817,10 @@ export default async function handler(req, res) {
         answer: clean(text)
       };
 
-    } catch {
+    } catch (error) {
+      errors.push(
+        `openrouter ${error?.name === "AbortError" ? "timeout" : error?.message || "error"}`
+      );
       return null;
     }
   }
@@ -879,6 +880,7 @@ export default async function handler(req, res) {
       error: "لە دوو خولی 0→1→2→3→4 هیچ AI ـیەک وەڵامی نەدا.",
       retrySequence: "0→1→2→3→4→0→1→2→3→4",
       attempts: MAX_ATTEMPTS,
+      errors,
       diagnostics: {
         geminiKeys: GEMINI_KEYS.filter(Boolean).length,
         openrouter: Boolean(OPENROUTER_API_KEY),
@@ -912,6 +914,8 @@ export default async function handler(req, res) {
     retrySequence: "0→1→2→3→4→0→1→2→3→4",
     image: Boolean(image),
     liveData: true,
+    // debug: remove after everything works
+    debug: { errors },
     generatedAt: liveContext.generatedAt,
     timezone: "Asia/Baghdad",
     timezoneLabel: "کاتی عێراق",
