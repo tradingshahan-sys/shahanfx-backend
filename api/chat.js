@@ -1,34 +1,23 @@
 // api/chat.js
 // ============================================================
-// ShahanFX AI Pro Backend
+// ShahanFX AI Pro Backend  (v6.2)
 // Live Market + Economic News + Chart Image + SMC Analyzer
 // + Trading Intelligence Engine
-// 4x Gemini Key Failover + OpenRouter
+// Gemini Key Failover + OpenRouter
 //
-// Timezone:
-// Asia/Baghdad
-// Clock:
-// 12-hour AM / PM
+// Timezone: Asia/Baghdad  |  Clock: 12-hour AM / PM
 //
-// AI Config:
-// ../config/ai-config.js
-// SMC Analyzer:
-// ../utils/smcAnalyzer.js
-// Trading Intelligence:
-// ../engine/tradingIntelligence.js
+// ENV KEYS:
+//   GEMINI_API_KEY, GEMINI_API_KEY1, GEMINI_API_KEY2, GEMINI_API_KEY3
+//   OPENROUTER_API_KEY
+//   TWELVE_DATA_API_KEY
 //
-// RETRY ORDER:
-// 0 → 1 → 0 → 1 
-//
-// 0 = GEMINI_API_KEY
-// 1 = GEMINI_API_KEY1
-// 2 = OPENROUTER_API_KEY
-// 3 = FMP_API_KEY=
+// RETRY ORDER: 0 → 1 → 2 → 3 → 4 → 0 → 1 → 2 → 3 → 4
+//   0-3 = Gemini keys, 4 = OpenRouter
 // ============================================================
 
 import AI_CONFIG from "../config/ai-config.js";
 import analyzeSMC from "../utils/smcAnalyzer.js";
-
 import analyzeTradingIntelligence, {
   buildAITradingContext
 } from "../engine/tradingIntelligence.js";
@@ -39,29 +28,10 @@ export default async function handler(req, res) {
   // CORS
   // ==========================================================
 
-  res.setHeader(
-    "Access-Control-Allow-Origin",
-    "*"
-  );
-
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, OPTIONS"
-  );
-
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
-  );
-
-  res.setHeader(
-    "Cache-Control",
-    "no-store"
-  );
-
-  // ==========================================================
-  // OPTIONS
-  // ==========================================================
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Cache-Control", "no-store");
 
   if (req.method === "OPTIONS") {
     return res.status(204).end();
@@ -72,135 +42,75 @@ export default async function handler(req, res) {
   // ==========================================================
 
   function getIraqDateTime(dateValue = new Date()) {
-
     try {
-
-      const parts =
-        new Intl.DateTimeFormat(
-          "en-US",
-          {
-            timeZone: "Asia/Baghdad",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true
-          }
-        ).formatToParts(dateValue);
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Baghdad",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      }).formatToParts(dateValue);
 
       const get = (type) =>
-        parts.find(
-          (part) => part.type === type
-        )?.value || "";
+        parts.find((part) => part.type === type)?.value || "";
 
       return {
-
-        date:
-          `${get("year")}-${get("month")}-${get("day")}`,
-
-        time:
-          `${get("hour")}:${get("minute")}:${get("second")} ${get("dayPeriod")}`,
-
-        formatted:
-          `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")} ${get("dayPeriod")}`,
-
-        timezone:
-          "Asia/Baghdad",
-
-        timezoneLabel:
-          "کاتی عێراق",
-
-        clock:
-          "12-hour"
-
+        date: `${get("year")}-${get("month")}-${get("day")}`,
+        time: `${get("hour")}:${get("minute")}:${get("second")} ${get("dayPeriod")}`,
+        formatted: `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")} ${get("dayPeriod")}`,
+        timezone: "Asia/Baghdad",
+        timezoneLabel: "کاتی عێراق",
+        clock: "12-hour"
       };
-
     } catch {
-
       return {
-
         date: null,
         time: null,
         formatted: null,
         timezone: "Asia/Baghdad",
         timezoneLabel: "کاتی عێراق",
         clock: "12-hour"
-
       };
     }
   }
 
-  // ==========================================================
-  // FORMAT DATE → IRAQ TIME / 12-HOUR
-  // ==========================================================
-
   function formatIraqTime(dateValue) {
-
-    if (!dateValue) {
-      return null;
-    }
+    if (!dateValue) return null;
 
     try {
+      let value = String(dateValue).trim();
 
-      let value =
-        String(dateValue).trim();
-
-      if (
-        !/[zZ]$/.test(value) &&
-        !/[+-]\d{2}:\d{2}$/.test(value)
-      ) {
-
-        value =
-          value.replace(
-            " ",
-            "T"
-          ) + "Z";
+      if (!/[zZ]$/.test(value) && !/[+-]\d{2}:\d{2}$/.test(value)) {
+        value = value.replace(" ", "T") + "Z";
       }
 
-      const date =
-        new Date(value);
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return dateValue;
 
-      if (
-        Number.isNaN(
-          date.getTime()
-        )
-      ) {
-
-        return dateValue;
-      }
-
-      const parts =
-        new Intl.DateTimeFormat(
-          "en-US",
-          {
-            timeZone: "Asia/Baghdad",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true
-          }
-        ).formatToParts(date);
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Baghdad",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      }).formatToParts(date);
 
       const get = (type) =>
-        parts.find(
-          (part) => part.type === type
-        )?.value || "";
+        parts.find((part) => part.type === type)?.value || "";
 
       return (
         `${get("year")}-${get("month")}-${get("day")} ` +
         `${get("hour")}:${get("minute")}:${get("second")} ` +
         `${get("dayPeriod")}`
       );
-
     } catch {
-
       return dateValue;
-
     }
   }
 
@@ -209,49 +119,20 @@ export default async function handler(req, res) {
   // ==========================================================
 
   if (req.method === "GET") {
-
-    const iraqTime =
-      getIraqDateTime();
-
     return res.status(200).json({
-
       ok: true,
-
       success: true,
-
-      project:
-        "ShahanFX AI Pro",
-
-      status:
-        "online",
-
-      live:
-        true,
-
-      version:
-        "6.1",
-
-      aiConfig:
-        true,
-
-      tradingIntelligence:
-        true,
-
-      timezone:
-        "Asia/Baghdad",
-
-      timezoneLabel:
-        "کاتی عێراق",
-
-      clock:
-        "12-hour",
-
-      currentIraqTime:
-        iraqTime,
-
-      message:
-        "ShahanFX Backend is working!"
-
+      project: "ShahanFX AI Pro",
+      status: "online",
+      live: true,
+      version: "6.2",
+      aiConfig: true,
+      tradingIntelligence: true,
+      timezone: "Asia/Baghdad",
+      timezoneLabel: "کاتی عێراق",
+      clock: "12-hour",
+      currentIraqTime: getIraqDateTime(),
+      message: "ShahanFX Backend is working!"
     });
   }
 
@@ -260,14 +141,9 @@ export default async function handler(req, res) {
   // ==========================================================
 
   if (req.method !== "POST") {
-
     return res.status(405).json({
-
       ok: false,
-
-      error:
-        "تەنها POST ڕێگەپێدراوە."
-
+      error: "تەنها POST ڕێگەپێدراوە."
     });
   }
 
@@ -276,22 +152,14 @@ export default async function handler(req, res) {
   // ==========================================================
 
   const GEMINI_KEYS = [
-
     process.env.GEMINI_API_KEY,
-
     process.env.GEMINI_API_KEY1,
-
     process.env.GEMINI_API_KEY2,
-
     process.env.GEMINI_API_KEY3
-
   ];
 
-  const OPENROUTER_API_KEY =
-    process.env.OPENROUTER_API_KEY || "";
-
-  const TWELVE_DATA_API_KEY =
-    process.env.TWELVE_DATA_API_KEY || "";
+  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
+  const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY || "";
 
   // ==========================================================
   // REQUEST BODY
@@ -300,75 +168,37 @@ export default async function handler(req, res) {
   let body = {};
 
   try {
-
     body =
       typeof req.body === "string"
         ? JSON.parse(req.body)
         : req.body || {};
-
   } catch {
-
     return res.status(400).json({
-
       ok: false,
-
-      error:
-        "داتای نێردراو دروست نییە."
-
+      error: "داتای نێردراو دروست نییە."
     });
   }
 
-  // ==========================================================
-  // MESSAGE
-  // ==========================================================
-
   const message =
-    typeof body.message === "string"
-      ? body.message.trim()
-      : "";
-
-  // ==========================================================
-  // IMAGE
-  // ==========================================================
+    typeof body.message === "string" ? body.message.trim() : "";
 
   const image =
-    typeof body.image === "string"
-      ? body.image
-      : null;
-
-  // ==========================================================
-  // SYMBOL
-  // ==========================================================
+    typeof body.image === "string" ? body.image : null;
 
   const symbol =
-    typeof body.symbol === "string" &&
-    body.symbol.trim()
+    typeof body.symbol === "string" && body.symbol.trim()
       ? body.symbol.trim()
       : "XAU/USD";
 
-  // ==========================================================
-  // TIMEFRAME
-  // ==========================================================
-
   const interval =
-    typeof body.interval === "string" &&
-    body.interval.trim()
+    typeof body.interval === "string" && body.interval.trim()
       ? body.interval.trim()
       : "5min";
 
-  // ==========================================================
-  // VALIDATION
-  // ==========================================================
-
   if (!message && !image) {
-
     return res.status(400).json({
-
       ok: false,
-
-      error:
-        "تکایە پرسیارێک بنووسە یان وێنەی Chart بنێرە."
-
+      error: "تکایە پرسیارێک بنووسە یان وێنەی Chart بنێرە."
     });
   }
 
@@ -376,138 +206,68 @@ export default async function handler(req, res) {
   // RETRY SETTINGS
   // ==========================================================
 
-  const ATTEMPT_TIMEOUT =
-    8000;
+  // Gemini needs more time for long Kurdish answers
+  const ATTEMPT_TIMEOUT = 20000;
 
-  const MAX_ATTEMPTS =
-    10;
+  const MAX_ATTEMPTS = 10;
+
+  // Stop retrying after this many ms (protect Vercel function limit)
+  const TOTAL_BUDGET_MS = 50000;
+
+  const startedAt = Date.now();
 
   // ==========================================================
   // FETCH WITH TIMEOUT
   // ==========================================================
 
-  async function fetchTimeout(
-    url,
-    options = {},
-    timeout = ATTEMPT_TIMEOUT
-  ) {
-
-    const controller =
-      new AbortController();
-
-    const timer =
-      setTimeout(
-        () => controller.abort(),
-        timeout
-      );
+  async function fetchTimeout(url, options = {}, timeout = ATTEMPT_TIMEOUT) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
 
     try {
-
-      return await fetch(
-        url,
-        {
-          ...options,
-          signal:
-            controller.signal
-        }
-      );
-
+      return await fetch(url, { ...options, signal: controller.signal });
     } finally {
-
       clearTimeout(timer);
-
     }
   }
 
   // ==========================================================
   // CLEAN AI TEXT
+  // (no word replacement anymore — the prompt controls language)
   // ==========================================================
 
   function clean(text) {
+    if (!text) return "";
 
-    if (!text) {
-      return "";
-    }
-
-    let result =
-      String(text);
-
-    result =
-      result
-
-        .replace(
-          /User Safety:\s*safe/gi,
-          ""
-        )
-
-        .replace(
-          /^System:\s*/gim,
-          ""
-        )
-
-        .replace(
-          /^Assistant:\s*/gim,
-          ""
-        )
-
-        .replace(
-          /\bBUY\b/gi,
-          "کڕین"
-        )
-
-        .replace(
-          /\bSELL\b/gi,
-          "فرۆشتن"
-        )
-
-        .replace(
-          /\bWAIT\b/gi,
-          "چاوەڕوان بە"
-        )
-
-        .replace(
-          /\bBULLISH\b/gi,
-          "بەرەو سەرەوە"
-        )
-
-        .replace(
-          /\bBEARISH\b/gi,
-          "بەرەو خوارەوە"
-        )
-
-        .replace(
-          /\bNEUTRAL\b/gi,
-          "بێ‌لایەن"
-        )
-
-        .trim();
-
-    return result;
+    return String(text)
+      .replace(/User Safety:\s*safe/gi, "")
+      .replace(/^System:\s*/gim, "")
+      .replace(/^Assistant:\s*/gim, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   }
 
   // ==========================================================
   // LIVE MARKET DATA
   // ==========================================================
 
+  function emptyMarket(reason) {
+    return {
+      available: false,
+      reason,
+      candles: [],
+      fvgs: [],
+      orderBlocks: [],
+      smc: null,
+      intelligence: null,
+      tradingContext: null
+    };
+  }
+
   async function getMarket() {
 
     if (!TWELVE_DATA_API_KEY) {
-
-      return {
-
-        available: false,
-
-        reason:
-          "TWELVE_DATA_API_KEY نەدۆزرایەوە.",
-
-        candles: [],
-        fvgs: [],
-        orderBlocks: [],
-        smc: null,
-        intelligence: null,
-        tradingContext: null
-
-      };
+      return emptyMarket("TWELVE_DATA_API_KEY نەدۆزرایەوە.");
     }
 
     try {
@@ -517,571 +277,190 @@ export default async function handler(req, res) {
         `?symbol=${encodeURIComponent(symbol)}` +
         `&interval=${encodeURIComponent(interval)}` +
         "&outputsize=120" +
-        `&apikey=${encodeURIComponent(
-          TWELVE_DATA_API_KEY
-        )}`;
+        `&apikey=${encodeURIComponent(TWELVE_DATA_API_KEY)}`;
 
-      const response =
-        await fetchTimeout(
-          url,
-          {
-            headers: {
-              Accept:
-                "application/json"
-            }
-          },
-          6500
-        );
+      const response = await fetchTimeout(
+        url,
+        { headers: { Accept: "application/json" } },
+        6500
+      );
 
       let data = null;
-
-      try {
-
-        data =
-          await response.json();
-
-      } catch {
-
-        data = null;
-
-      }
+      try { data = await response.json(); } catch { data = null; }
 
       if (!response.ok) {
-
-        return {
-
-          available: false,
-
-          reason:
-            `Market API HTTP ${response.status}`,
-
-          candles: [],
-          fvgs: [],
-          orderBlocks: [],
-          smc: null,
-          intelligence: null,
-          tradingContext: null
-
-        };
+        return emptyMarket(`Market API HTTP ${response.status}`);
       }
 
-      if (
-        !data ||
-        !Array.isArray(
-          data.values
-        )
-      ) {
-
-        return {
-
-          available: false,
-
-          reason:
-            data?.message ||
-            "داتای بازاڕ بەردەست نییە.",
-
-          candles: [],
-          fvgs: [],
-          orderBlocks: [],
-          smc: null,
-          intelligence: null,
-          tradingContext: null
-
-        };
+      if (!data || !Array.isArray(data.values)) {
+        return emptyMarket(data?.message || "داتای بازاڕ بەردەست نییە.");
       }
 
-      if (
-        data.values.length === 0
-      ) {
-
-        return {
-
-          available: false,
-
-          reason:
-            "هیچ کاندڵێک نەدۆزرایەوە.",
-
-          candles: [],
-          fvgs: [],
-          orderBlocks: [],
-          smc: null,
-          intelligence: null,
-          tradingContext: null
-
-        };
+      if (data.values.length === 0) {
+        return emptyMarket("هیچ کاندڵێک نەدۆزرایەوە.");
       }
 
-      // ========================================================
-      // IMPORTANT:
-      // TwelveData normally returns newest candle first.
-      // SMC Analyzer needs chronological order:
-      // oldest → newest
-      // ========================================================
+      // TwelveData returns newest first; SMC needs oldest → newest
+      const candles = [...data.values].reverse();
 
-      const candles =
-        [...data.values].reverse();
+      const current = data.values[0];
+      const previous = data.values[1] || data.values[0];
 
-      // ========================================================
-      // CURRENT / PREVIOUS
-      // Keep TwelveData newest-first logic for current price.
-      // ========================================================
+      const currentClose = Number(current.close);
+      const previousClose = Number(previous.close);
 
-      const current =
-        data.values[0];
+      let direction = "neutral";
 
-      const previous =
-        data.values[1] ||
-        data.values[0];
-
-      const currentClose =
-        Number(
-          current.close
-        );
-
-      const previousClose =
-        Number(
-          previous.close
-        );
-
-      let direction =
-        "neutral";
-
-      if (
-        Number.isFinite(
-          currentClose
-        ) &&
-        Number.isFinite(
-          previousClose
-        )
-      ) {
-
-        if (
-          currentClose >
-          previousClose
-        ) {
-
-          direction =
-            "bullish";
-
-        } else if (
-          currentClose <
-          previousClose
-        ) {
-
-          direction =
-            "bearish";
-        }
+      if (Number.isFinite(currentClose) && Number.isFinite(previousClose)) {
+        if (currentClose > previousClose) direction = "bullish";
+        else if (currentClose < previousClose) direction = "bearish";
       }
 
-      // ========================================================
-      // NORMALIZE ALL 120 CANDLES FOR SMC ENGINE
-      // ========================================================
+      const smcCandles = candles.map((c) => ({
+        datetime: c.datetime,
+        open: Number(c.open),
+        high: Number(c.high),
+        low: Number(c.low),
+        close: Number(c.close),
+        volume: c.volume !== undefined ? Number(c.volume) : null
+      }));
 
-      const smcCandles =
-        candles.map((c) => ({
+      const recentCandles = [...data.values].slice(0, 30).map((c) => ({
+        datetime: formatIraqTime(c.datetime),
+        datetimeRaw: c.datetime,
+        open: Number(c.open),
+        high: Number(c.high),
+        low: Number(c.low),
+        close: Number(c.close),
+        volume: c.volume !== undefined ? Number(c.volume) : null
+      }));
 
-          datetime:
-            c.datetime,
-
-          open:
-            Number(c.open),
-
-          high:
-            Number(c.high),
-
-          low:
-            Number(c.low),
-
-          close:
-            Number(c.close),
-
-          volume:
-            c.volume !== undefined
-              ? Number(c.volume)
-              : null
-
-        }));
-
-      // ========================================================
-      // RECENT 30 CANDLES FOR RESPONSE
-      // Newest 30, same general format as before.
-      // ========================================================
-
-      const recentCandles =
-        [...data.values]
-          .slice(0, 30)
-          .map((c) => ({
-
-            datetime:
-              formatIraqTime(
-                c.datetime
-              ),
-
-            datetimeRaw:
-              c.datetime,
-
-            open:
-              Number(c.open),
-
-            high:
-              Number(c.high),
-
-            low:
-              Number(c.low),
-
-            close:
-              Number(c.close),
-
-            volume:
-              c.volume !== undefined
-                ? Number(c.volume)
-                : null
-
-          }));
-
-      // ========================================================
+      // ------------------------------------------------------
       // SMC ANALYZER
-      //
-      // Includes:
-      // FVG
-      // Order Block
-      // Liquidity
-      // Liquidity Sweep
-      // Market Structure
-      // BOS
-      // CHOCH
-      // Displacement
-      // Premium / Discount
-      // Score / Setup
-      // ========================================================
+      // ------------------------------------------------------
 
       let smc = null;
 
       try {
-
-        smc =
-          analyzeSMC(
-            smcCandles
-          );
-
+        smc = analyzeSMC(smcCandles);
       } catch (error) {
-
         smc = {
-
           available: false,
-
-          error:
-            error?.message ||
-            "SMC Analyzer error"
-
+          error: error?.message || "SMC Analyzer error"
         };
       }
 
-      // ========================================================
+      // ------------------------------------------------------
       // TRADING INTELLIGENCE ENGINE
-      //
-      // This is the new layer:
-      //
-      // SMC DATA
-      //    ↓
-      // Confluence
-      //    ↓
-      // Bias
-      //    ↓
-      // Confirmation
-      //    ↓
-      // Score
-      //    ↓
-      // Confidence
-      //    ↓
-      // BUY / SELL / WAIT
-      // ========================================================
+      // ------------------------------------------------------
 
       let intelligence = null;
 
       try {
-
-        intelligence =
-          analyzeTradingIntelligence(
-            smc,
-            {
-              symbol,
-              interval,
-              currentPrice:
-                currentClose
-            }
-          );
-
+        intelligence = analyzeTradingIntelligence(smc, {
+          symbol,
+          interval,
+          currentPrice: currentClose
+        });
       } catch (error) {
-
         intelligence = {
-
           available: false,
-
-          engine:
-            "ShahanFX Trading Intelligence",
-
-          decision:
-            "WAIT",
-
-          bias:
-            "NEUTRAL",
-
-          score:
-            0,
-
-          confidence:
-            0,
-
-          reason:
-            error?.message ||
-            "Trading Intelligence Engine error"
-
+          engine: "ShahanFX Trading Intelligence",
+          decision: "WAIT",
+          bias: "NEUTRAL",
+          score: 0,
+          confidence: 0,
+          reason: error?.message || "Trading Intelligence Engine error"
         };
       }
-
-      // ========================================================
-      // BUILD COMPACT AI TRADING CONTEXT
-      // ========================================================
 
       let tradingContext = null;
 
       try {
-
-        tradingContext =
-          buildAITradingContext(
-            intelligence
-          );
-
+        tradingContext = buildAITradingContext(intelligence);
       } catch (error) {
-
         tradingContext = {
-
           available: false,
-
-          message:
-            error?.message ||
-            "Trading Context error"
-
+          message: error?.message || "Trading Context error"
         };
       }
 
-      // ========================================================
-      // SMC-DERIVED FVG / OB
-      // ========================================================
+      const fvgs = Array.isArray(smc?.fvgs)
+        ? smc.fvgs
+        : Array.isArray(smc?.activeFVGs)
+          ? smc.activeFVGs
+          : [];
 
-      const fvgs =
-        Array.isArray(
-          smc?.fvgs
-        )
-          ? smc.fvgs
-          : Array.isArray(
-              smc?.activeFVGs
-            )
-              ? smc.activeFVGs
-              : [];
+      const orderBlocks = Array.isArray(smc?.orderBlocks)
+        ? smc.orderBlocks
+        : Array.isArray(smc?.activeOBs)
+          ? smc.activeOBs
+          : [];
 
-      const orderBlocks =
-        Array.isArray(
-          smc?.orderBlocks
-        )
-          ? smc.orderBlocks
-          : Array.isArray(
-              smc?.activeOBs
-            )
-              ? smc.activeOBs
-              : [];
-
-      // ========================================================
-      // SMC BIAS
-      // Use analyzer bias when available.
-      // Otherwise preserve old candle direction.
-      // ========================================================
-
-      const smcBias =
-        smc?.summary?.bias ||
-        smc?.setup?.direction ||
-        null;
-
-      // ========================================================
-      // INTELLIGENCE BIAS
-      // Intelligence Engine gets priority because it combines
-      // multiple SMC signals.
-      // ========================================================
-
-      const intelligenceBias =
-        intelligence?.bias ||
-        null;
+      const smcBias = smc?.summary?.bias || smc?.setup?.direction || null;
+      const intelligenceBias = intelligence?.bias || null;
 
       const finalDirection =
-        typeof intelligenceBias === "string" &&
-        intelligenceBias.trim()
+        typeof intelligenceBias === "string" && intelligenceBias.trim()
           ? intelligenceBias
-          : (
-              typeof smcBias === "string" &&
-              smcBias.trim()
-                ? smcBias
-                : direction
-            );
+          : typeof smcBias === "string" && smcBias.trim()
+            ? smcBias
+            : direction;
 
       return {
-
         available: true,
-
         symbol,
-
         interval,
-
-        timezone:
-          "Asia/Baghdad",
-
-        timezoneLabel:
-          "کاتی عێراق",
-
-        clock:
-          "12-hour",
+        timezone: "Asia/Baghdad",
+        timezoneLabel: "کاتی عێراق",
+        clock: "12-hour",
 
         current: {
-
-          datetime:
-            formatIraqTime(
-              current.datetime
-            ),
-
-          datetimeRaw:
-            current.datetime,
-
-          open:
-            Number(current.open),
-
-          high:
-            Number(current.high),
-
-          low:
-            Number(current.low),
-
-          close:
-            Number(current.close)
-
+          datetime: formatIraqTime(current.datetime),
+          datetimeRaw: current.datetime,
+          open: Number(current.open),
+          high: Number(current.high),
+          low: Number(current.low),
+          close: Number(current.close)
         },
 
         previous: {
-
-          datetime:
-            formatIraqTime(
-              previous.datetime
-            ),
-
-          datetimeRaw:
-            previous.datetime,
-
-          open:
-            Number(previous.open),
-
-          high:
-            Number(previous.high),
-
-          low:
-            Number(previous.low),
-
-          close:
-            Number(previous.close)
-
+          datetime: formatIraqTime(previous.datetime),
+          datetimeRaw: previous.datetime,
+          open: Number(previous.open),
+          high: Number(previous.high),
+          low: Number(previous.low),
+          close: Number(previous.close)
         },
 
-        direction:
-          finalDirection,
-
-        // ======================================================
-        // SMC DATA
-        // ======================================================
+        direction: finalDirection,
 
         smc,
-
-        marketStructure:
-          smc?.marketStructure ||
-          null,
-
-        bos:
-          smc?.bos ||
-          [],
-
-        choch:
-          smc?.choch ||
-          [],
-
-        displacement:
-          smc?.displacement ||
-          [],
-
-        liquidity:
-          smc?.liquidity ||
-          [],
-
-        liquiditySweeps:
-          smc?.liquiditySweeps ||
-          [],
-
-        premiumDiscount:
-          smc?.premiumDiscount ||
-          null,
-
-        setup:
-          smc?.setup ||
-          null,
-
-        summary:
-          smc?.summary ||
-          null,
-
-        // ======================================================
-        // FVG + ORDER BLOCK FROM SMC ENGINE
-        // ======================================================
+        marketStructure: smc?.marketStructure || null,
+        bos: smc?.bos || [],
+        choch: smc?.choch || [],
+        displacement: smc?.displacement || [],
+        liquidity: smc?.liquidity || [],
+        liquiditySweeps: smc?.liquiditySweeps || [],
+        premiumDiscount: smc?.premiumDiscount || null,
+        setup: smc?.setup || null,
+        summary: smc?.summary || null,
 
         fvgs,
-
         orderBlocks,
 
-        // ======================================================
-        // NEW:
-        // TRADING INTELLIGENCE
-        // ======================================================
-
         intelligence,
-
         tradingContext,
 
-        // ======================================================
-        // RECENT CANDLES
-        // ======================================================
-
         recentCandles
-
       };
 
     } catch (error) {
-
-      return {
-
-        available: false,
-
-        reason:
-          error?.name ===
-          "AbortError"
-
-            ? "Market API timeout"
-
-            : error?.message ||
-              "Market API error",
-
-        candles: [],
-        fvgs: [],
-        orderBlocks: [],
-        smc: null,
-        intelligence: null,
-        tradingContext: null
-
-      };
+      return emptyMarket(
+        error?.name === "AbortError"
+          ? "Market API timeout"
+          : error?.message || "Market API error"
+      );
     }
   }
 
@@ -1093,62 +472,15 @@ export default async function handler(req, res) {
 
     try {
 
-      const now =
-        new Date();
+      const now = new Date();
 
-      const year =
-        now.getUTCFullYear();
+      const toDateString = (d) =>
+        `${d.getUTCFullYear()}-` +
+        `${String(d.getUTCMonth() + 1).padStart(2, "0")}-` +
+        `${String(d.getUTCDate()).padStart(2, "0")}`;
 
-      const month =
-        String(
-          now.getUTCMonth() + 1
-        ).padStart(
-          2,
-          "0"
-        );
-
-      const day =
-        String(
-          now.getUTCDate()
-        ).padStart(
-          2,
-          "0"
-        );
-
-      const today =
-        `${year}-${month}-${day}`;
-
-      const futureDate =
-        new Date(
-          now.getTime() +
-          7 *
-          24 *
-          60 *
-          60 *
-          1000
-        );
-
-      const futureYear =
-        futureDate.getUTCFullYear();
-
-      const futureMonth =
-        String(
-          futureDate.getUTCMonth() + 1
-        ).padStart(
-          2,
-          "0"
-        );
-
-      const futureDay =
-        String(
-          futureDate.getUTCDate()
-        ).padStart(
-          2,
-          "0"
-        );
-
-      const to =
-        `${futureYear}-${futureMonth}-${futureDay}`;
+      const today = toDateString(now);
+      const to = toDateString(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
 
       const url =
         "https://xoomar.com/api/markets/calendar" +
@@ -1156,221 +488,90 @@ export default async function handler(req, res) {
         `&to=${encodeURIComponent(to)}` +
         "&importance=high";
 
-      const response =
-        await fetchTimeout(
-          url,
-          {
-            headers: {
-              Accept:
-                "application/json"
-            }
-          },
-          6500
-        );
+      const response = await fetchTimeout(
+        url,
+        { headers: { Accept: "application/json" } },
+        6500
+      );
 
       let data = null;
-
-      try {
-
-        data =
-          await response.json();
-
-      } catch {
-
-        data = null;
-
-      }
+      try { data = await response.json(); } catch { data = null; }
 
       if (!response.ok) {
-
         return {
-
           available: false,
-
-          reason:
-            `Xoomar News API HTTP ${response.status}`,
-
+          reason: `Xoomar News API HTTP ${response.status}`,
           events: []
-
         };
       }
 
-      const rawEvents =
-        Array.isArray(data)
-          ? data
-          : Array.isArray(data?.data)
-            ? data.data
-            : [];
+      const rawEvents = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
 
       const importantKeywords = [
-
-        "cpi",
-        "nfp",
-        "fomc",
-        "fed",
-        "ppi",
-        "gdp",
-        "interest rate",
-        "interest",
-        "nonfarm",
-        "inflation",
-        "unemployment",
-        "retail sales",
-        "ism",
-        "employment",
-        "jobs",
-        "payroll"
-
+        "cpi", "nfp", "fomc", "fed", "ppi", "gdp",
+        "interest rate", "interest", "nonfarm", "inflation",
+        "unemployment", "retail sales", "ism", "employment",
+        "jobs", "payroll"
       ];
 
-      const events =
-        rawEvents
+      const events = rawEvents
+        .map((item) => {
+          const rawDate = item.scheduledAt || item.datetime || item.date || null;
 
-          .map((item) => {
+          return {
+            date: formatIraqTime(rawDate),
+            dateRaw: rawDate,
+            country: item.country || item.countryName || "United States",
+            event: item.eventName || item.event || item.name || item.title || "",
+            impact: item.importance || item.impact || "high",
+            actual: item.actual ?? null,
+            estimate: item.estimate ?? item.forecast ?? null,
+            previous: item.previous ?? null,
+            period: item.periodLabel || item.period || null
+          };
+        })
+        .filter((item) => {
+          const country = String(item.country || "").toLowerCase();
+          const eventName = String(item.event || "").toLowerCase();
 
-            const rawDate =
-              item.scheduledAt ||
-              item.datetime ||
-              item.date ||
-              null;
+          const isUS =
+            country.includes("united states") ||
+            country === "us" ||
+            country === "usa";
 
-            return {
-
-              date:
-                formatIraqTime(
-                  rawDate
-                ),
-
-              dateRaw:
-                rawDate,
-
-              country:
-                item.country ||
-                item.countryName ||
-                "United States",
-
-              event:
-                item.eventName ||
-                item.event ||
-                item.name ||
-                item.title ||
-                "",
-
-              impact:
-                item.importance ||
-                item.impact ||
-                "high",
-
-              actual:
-                item.actual ??
-                null,
-
-              estimate:
-                item.estimate ??
-                item.forecast ??
-                null,
-
-              previous:
-                item.previous ??
-                null,
-
-              period:
-                item.periodLabel ||
-                item.period ||
-                null
-
-            };
-          })
-
-          .filter((item) => {
-
-            const country =
-              String(
-                item.country ||
-                ""
-              ).toLowerCase();
-
-            const eventName =
-              String(
-                item.event ||
-                ""
-              ).toLowerCase();
-
-            const isUS =
-              country.includes(
-                "united states"
-              ) ||
-              country === "us" ||
-              country === "usa";
-
-            const isImportant =
-              importantKeywords.some(
-                (keyword) =>
-                  eventName.includes(
-                    keyword
-                  )
-              );
-
-            return (
-              isUS ||
-              isImportant
-            );
-
-          })
-
-          .slice(
-            0,
-            50
+          const isImportant = importantKeywords.some((k) =>
+            eventName.includes(k)
           );
 
+          return isUS || isImportant;
+        })
+        .slice(0, 50);
+
       return {
-
         available: true,
-
-        date:
-          today,
-
-        from:
-          today,
-
+        date: today,
+        from: today,
         to,
-
-        source:
-          "Xoomar",
-
-        provider:
-          "Xoomar Pulse",
-
-        timezone:
-          "Asia/Baghdad",
-
-        timezoneLabel:
-          "کاتی عێراق",
-
-        clock:
-          "12-hour",
-
+        source: "Xoomar",
+        provider: "Xoomar Pulse",
+        timezone: "Asia/Baghdad",
+        timezoneLabel: "کاتی عێراق",
+        clock: "12-hour",
         events
-
       };
 
     } catch (error) {
-
       return {
-
         available: false,
-
         reason:
-          error?.name ===
-          "AbortError"
-
+          error?.name === "AbortError"
             ? "Xoomar News API timeout"
-
-            : error?.message ||
-              "Xoomar News API error",
-
+            : error?.message || "Xoomar News API error",
         events: []
-
       };
     }
   }
@@ -1379,515 +580,247 @@ export default async function handler(req, res) {
   // GET LIVE DATA
   // ==========================================================
 
-  const [
-    marketResult,
-    newsResult
-  ] =
-    await Promise.allSettled([
-
-      getMarket(),
-
-      getNews()
-
-    ]);
+  const [marketResult, newsResult] = await Promise.allSettled([
+    getMarket(),
+    getNews()
+  ]);
 
   const market =
-    marketResult.status ===
-    "fulfilled"
-
+    marketResult.status === "fulfilled"
       ? marketResult.value
-
-      : {
-
-          available: false,
-
-          reason:
-            "Market data error",
-
-          candles: [],
-          fvgs: [],
-          orderBlocks: [],
-          smc: null,
-          intelligence: null,
-          tradingContext: null
-
-        };
+      : emptyMarket("Market data error");
 
   const news =
-    newsResult.status ===
-    "fulfilled"
-
+    newsResult.status === "fulfilled"
       ? newsResult.value
+      : { available: false, reason: "News data error", events: [] };
 
-      : {
-
-          available: false,
-
-          reason:
-            "News data error",
-
-          events: []
-
-        };
+  const iraqTime = getIraqDateTime();
 
   // ==========================================================
-  // CURRENT IRAQ TIME
+  // SYSTEM PROMPT  (AI_CONFIG + KURDISH FORMAT RULES)
   // ==========================================================
 
-  const iraqTime =
-    getIraqDateTime();
+  const FORMAT_RULES = `
 
-  // ==========================================================
-  // BUILD AI CONFIG
-  // ==========================================================
+=== ڕێنمایی زمان و ڕیزبەندی (زۆر گرنگ) ===
 
-  const systemPrompt =
-    AI_CONFIG.buildPrompt();
+زمان:
+- هەمیشە بە کوردی سۆرانی ڕەوان و ئاسان وەڵام بدەرەوە.
+- تەنها ئەم زاراوانە بە ئینگلیزی بهێڵەرەوە: XAU/USD, BOS, CHOCH, ICT, SMC, Order Block, FVG, Liquidity, Premium, Discount, CPI, PPI, NFP, FOMC.
+- هەرگیز پاراگرافی ئینگلیزی مەنووسە.
+- ناوی کلیلەکانی JSON (وەک strength, mitigated, equilibrium, displacement) وەک خۆی مەهێنەرەوە؛ بە کوردی ڕوونیان بکەرەوە.
+- ژمارە و نرخ و بەروار و کات بە ژمارەی ئینگلیزی (0-9) بنووسە، کاتیش بە سیستەمی 12 کاتژمێری (AM / PM) و بە کاتی عێراق.
+
+فۆرمات (هەمیشە بەم ڕیزبەندییە، هەر بەشێک لە دێڕێکی نوێدا):
+
+📊 **بارودۆخی بازاڕ**
+- هێما، تایمفرەیم، نرخی ئێستا، ئاڕاستە
+
+🧠 **شیکاری تەکنیکی**
+- پێکهاتەی بازاڕ:
+- ناوچەی نرخ (Premium / Discount):
+- Order Block:
+- Liquidity:
+
+✅ **پشتڕاستکردنەوە**
+- ئایا مەرجەکان تەواون یان نا، بە کورتی
+
+📰 **هەواڵە ئابوورییەکان**
+- هەر هەواڵێک لە دێڕێکی جیا: بەروار – ناو – کاریگەری
+
+🎯 **ئەنجامی کۆتایی**
+- کڕین / فرۆشتن / چاوەڕوان بە، لەگەڵ هۆکارێکی کورت
+
+ڕێساکان:
+- لەنێوان هەر بەشێک دێڕێکی بەتاڵ بهێڵەرەوە.
+- لیست بەکاربێنە، پاراگرافی درێژ مەنووسە.
+- هیچ نرخ و هەواڵ و ئاستێک دروست مەکە؛ تەنها داتای Live Context بەکاربێنە.
+- لە کۆتاییدا بنووسە: "ئەمە ڕاوێژە و ئامۆژگاری دارایی نییە."
+`;
+
+  const systemPrompt = AI_CONFIG.buildPrompt() + FORMAT_RULES;
 
   // ==========================================================
   // LIVE CONTEXT
   // ==========================================================
 
   const liveContext = {
-
-    generatedAt:
-      iraqTime.formatted,
-
-    generatedAtISO:
-      new Date().toISOString(),
-
-    timezone:
-      "Asia/Baghdad",
-
-    timezoneLabel:
-      "کاتی عێراق",
-
-    clock:
-      "12-hour",
-
-    currentIraqTime:
-      iraqTime,
-
+    generatedAt: iraqTime.formatted,
+    generatedAtISO: new Date().toISOString(),
+    timezone: "Asia/Baghdad",
+    timezoneLabel: "کاتی عێراق",
+    clock: "12-hour",
+    currentIraqTime: iraqTime,
     symbol,
-
     interval,
-
     market,
-
     news,
-
-    // ========================================================
-    // NEW:
-    // Make Trading Intelligence explicitly available to AI.
-    // ========================================================
-
-    tradingIntelligence:
-      market?.tradingContext ||
-      null,
-
+    tradingIntelligence: market?.tradingContext || null,
     dataPolicy: {
-
-      liveDataOnly:
-        true,
-
-      doNotInventPrice:
-        true,
-
-      doNotInventNews:
-        true,
-
-      doNotInventTechnicalLevels:
-        true,
-
-      doNotInventFVG:
-        true,
-
-      doNotInventOrderBlock:
-        true,
-
-      doNotInventLiquidity:
-        true,
-
-      doNotInventBOS:
-        true,
-
-      doNotInventCHOCH:
-        true,
-
-      doNotInventALC:
-        true,
-
-      doNotClaimCertainty:
-        true
-
+      liveDataOnly: true,
+      doNotInventPrice: true,
+      doNotInventNews: true,
+      doNotInventTechnicalLevels: true,
+      doNotInventFVG: true,
+      doNotInventOrderBlock: true,
+      doNotInventLiquidity: true,
+      doNotInventBOS: true,
+      doNotInventCHOCH: true,
+      doNotInventALC: true,
+      doNotClaimCertainty: true
     }
-
   };
 
-  // ==========================================================
-  // GEMINI MODELS
-  // ==========================================================
-
-  const GEMINI_MODELS = [
-
-    "gemini-2.5-flash",
-
-    "gemini-2.5-flash-lite"
-
-  ];
+  const defaultUserMessage = "ئەم Chart ـە بە وردی شیکاربکە.";
 
   // ==========================================================
-  // BUILD GEMINI PARTS
+  // GEMINI
   // ==========================================================
+
+  const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
   function buildGeminiParts() {
-
     const parts = [];
 
     parts.push({
-
-      text:
-        "Live Context:\n\n" +
-        JSON.stringify(
-          liveContext,
-          null,
-          2
-        )
-
+      text: "Live Context:\n\n" + JSON.stringify(liveContext, null, 2)
     });
 
     parts.push({
-
-      text:
-        "\n\nUser Message:\n" +
-        (
-          message ||
-          "ئەم Chart ـە بە وردی شیکاربکە."
-        )
-
+      text: "\n\nUser Message:\n" + (message || defaultUserMessage)
     });
 
     if (image) {
-
-      const match =
-        image.match(
-          /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/
-        );
+      const match = image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
 
       if (match) {
-
         parts.push({
-
           inline_data: {
-
-            mime_type:
-              match[1],
-
-            data:
-              match[2]
-
+            mime_type: match[1],
+            data: match[2]
           }
-
         });
-
       }
     }
 
     return parts;
   }
 
-  // ==========================================================
-  // GEMINI SINGLE ATTEMPT
-  // ==========================================================
-
-  async function callGeminiOnce(
-    apiKey,
-    model,
-    keyIndex
-  ) {
+  async function callGeminiOnce(apiKey, model, keyIndex) {
 
     try {
 
       const url =
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent` +
-        `?key=${encodeURIComponent(
-          apiKey
-        )}`;
+        `?key=${encodeURIComponent(apiKey)}`;
 
-      const response =
-        await fetchTimeout(
-
-          url,
-
-          {
-
-            method:
-              "POST",
-
-            headers: {
-
-              "Content-Type":
-                "application/json"
-
+      const response = await fetchTimeout(
+        url,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemPrompt }]
             },
-
-            body:
-              JSON.stringify({
-
-                system_instruction: {
-
-                  parts: [
-
-                    {
-
-                      text:
-                        systemPrompt
-
-                    }
-
-                  ]
-
-                },
-
-                contents: [
-
-                  {
-
-                    role:
-                      "user",
-
-                    parts:
-                      buildGeminiParts()
-
-                  }
-
-                ],
-
-                generationConfig: {
-
-                  maxOutputTokens:
-                    2200,
-
-                  temperature:
-                    0.2
-
-                }
-
-              })
-
-          },
-
-          ATTEMPT_TIMEOUT
-
-        );
+            contents: [
+              {
+                role: "user",
+                parts: buildGeminiParts()
+              }
+            ],
+            generationConfig: {
+              maxOutputTokens: 2200,
+              temperature: 0.3
+            }
+          })
+        },
+        ATTEMPT_TIMEOUT
+      );
 
       let data = null;
+      try { data = await response.json(); } catch { data = null; }
 
-      try {
+      if (!response.ok) return null;
 
-        data =
-          await response.json();
+      const text = data?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || "")
+        .join("")
+        .trim();
 
-      } catch {
-
-        data = null;
-
-      }
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const text =
-        data
-          ?.candidates?.[0]
-          ?.content?.parts
-          ?.map(
-            (part) =>
-              part.text || ""
-          )
-          .join("")
-          .trim();
-
-      if (!text) {
-        return null;
-      }
+      if (!text) return null;
 
       return {
-
-        provider:
-          "gemini",
-
+        provider: "gemini",
         model,
-
-        key:
-          `GEMINI_API_KEY${
-            keyIndex === 0
-              ? ""
-              : keyIndex
-          }`,
-
-        answer:
-          clean(text)
-
+        key: `GEMINI_API_KEY${keyIndex === 0 ? "" : keyIndex}`,
+        answer: clean(text)
       };
 
     } catch {
-
       return null;
-
     }
   }
 
   // ==========================================================
-  // OPENROUTER SINGLE ATTEMPT
+  // OPENROUTER
   // ==========================================================
 
   async function callOpenRouterOnce() {
 
-    if (!OPENROUTER_API_KEY) {
-      return null;
-    }
+    if (!OPENROUTER_API_KEY) return null;
 
     try {
 
       const userContent = [
-
         "Live Context:",
-
-        JSON.stringify(
-          liveContext,
-          null,
-          2
-        ),
-
+        JSON.stringify(liveContext, null, 2),
         "",
-
         "User Message:",
-
-        (
-          message ||
-          "ئەم Chart ـە بە وردی شیکاربکە."
-        )
-
+        message || defaultUserMessage
       ].join("\n");
 
-      const response =
-        await fetchTimeout(
-
-          "https://openrouter.ai/api/v1/chat/completions",
-
-          {
-
-            method:
-              "POST",
-
-            headers: {
-
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${OPENROUTER_API_KEY}`,
-
-              "HTTP-Referer":
-                "https://shahanfx-backend-9576.vercel.app",
-
-              "X-Title":
-                "ShahanFX AI Pro"
-
-            },
-
-            body:
-              JSON.stringify({
-
-                model:
-                  "openrouter/free",
-
-                messages: [
-
-                  {
-
-                    role:
-                      "system",
-
-                    content:
-                      systemPrompt
-
-                  },
-
-                  {
-
-                    role:
-                      "user",
-
-                    content:
-                      userContent
-
-                  }
-
-                ],
-
-                max_tokens:
-                  2200,
-
-                temperature:
-                  0.2
-
-              })
-
+      const response = await fetchTimeout(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "HTTP-Referer": "https://shahanfx-backend-9576.vercel.app",
+            "X-Title": "ShahanFX AI Pro"
           },
-
-          ATTEMPT_TIMEOUT
-
-        );
+          body: JSON.stringify({
+            model: "openrouter/free",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userContent }
+            ],
+            max_tokens: 2200,
+            temperature: 0.3
+          })
+        },
+        ATTEMPT_TIMEOUT
+      );
 
       let data = null;
+      try { data = await response.json(); } catch { data = null; }
 
-      try {
+      if (!response.ok) return null;
 
-        data =
-          await response.json();
+      const text = data?.choices?.[0]?.message?.content?.trim();
 
-      } catch {
-
-        data = null;
-
-      }
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const text =
-        data
-          ?.choices?.[0]
-          ?.message
-          ?.content
-          ?.trim();
-
-      if (!text) {
-        return null;
-      }
+      if (!text) return null;
 
       return {
-
-        provider:
-          "openrouter",
-
-        model:
-          data?.model ||
-          "openrouter/free",
-
-        answer:
-          clean(text)
-
+        provider: "openrouter",
+        model: data?.model || "openrouter/free",
+        answer: clean(text)
       };
 
     } catch {
-
       return null;
-
     }
   }
 
@@ -1897,125 +830,42 @@ export default async function handler(req, res) {
 
   async function runFailover() {
 
-    const sequence = [
+    const sequence = [0, 1, 2, 3, 4, 0, 1, 2, 3, 4];
 
-      0,
-      1,
-      2,
-      3,
-      4,
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
 
-      0,
-      1,
-      2,
-      3,
-      4
+      if (Date.now() - startedAt > TOTAL_BUDGET_MS) break;
 
-    ];
+      const providerIndex = sequence[attempt];
 
-    for (
-      let attempt = 0;
-      attempt < MAX_ATTEMPTS;
-      attempt++
-    ) {
+      if (providerIndex >= 0 && providerIndex <= 3) {
 
-      const providerIndex =
-        sequence[attempt];
+        const apiKey = GEMINI_KEYS[providerIndex];
 
-      if (
-        providerIndex >= 0 &&
-        providerIndex <= 3
-      ) {
+        if (typeof apiKey === "string" && apiKey.trim()) {
 
-        const apiKey =
-          GEMINI_KEYS[
-            providerIndex
-          ];
+          const result = await callGeminiOnce(apiKey, GEMINI_MODELS[0], providerIndex);
 
-        if (
-          typeof apiKey ===
-            "string" &&
-          apiKey.trim()
-        ) {
+          if (result) return { ...result, attempt: attempt + 1 };
 
-          const result =
-            await callGeminiOnce(
+          const liteResult = await callGeminiOnce(apiKey, GEMINI_MODELS[1], providerIndex);
 
-              apiKey,
-
-              GEMINI_MODELS[0],
-
-              providerIndex
-
-            );
-
-          if (result) {
-
-            return {
-
-              ...result,
-
-              attempt:
-                attempt + 1
-
-            };
-          }
-
-          const liteResult =
-            await callGeminiOnce(
-
-              apiKey,
-
-              GEMINI_MODELS[1],
-
-              providerIndex
-
-            );
-
-          if (liteResult) {
-
-            return {
-
-              ...liteResult,
-
-              attempt:
-                attempt + 1
-
-            };
-          }
+          if (liteResult) return { ...liteResult, attempt: attempt + 1 };
         }
       }
 
-      if (
-        providerIndex === 4
-      ) {
+      if (providerIndex === 4) {
 
-        const result =
-          await callOpenRouterOnce();
+        const result = await callOpenRouterOnce();
 
-        if (result) {
-
-          return {
-
-            ...result,
-
-            attempt:
-              attempt + 1
-
-          };
-        }
+        if (result) return { ...result, attempt: attempt + 1 };
       }
     }
 
     return null;
   }
 
-  // ==========================================================
-  // EXECUTE FAILOVER
-  // ==========================================================
-
-  const aiResult =
-    await runFailover();
+  const aiResult = await runFailover();
 
   // ==========================================================
   // AI FAILURE
@@ -2024,76 +874,27 @@ export default async function handler(req, res) {
   if (!aiResult) {
 
     return res.status(503).json({
-
-      ok:
-        false,
-
-      success:
-        false,
-
-      error:
-        "لە دوو خولی 0→1→2→3→4 هیچ AI ـیەک وەڵامی نەدا.",
-
-      retrySequence:
-        "0→1→2→3→4→0→1→2→3→4",
-
-      attempts:
-        MAX_ATTEMPTS,
-
+      ok: false,
+      success: false,
+      error: "لە دوو خولی 0→1→2→3→4 هیچ AI ـیەک وەڵامی نەدا.",
+      retrySequence: "0→1→2→3→4→0→1→2→3→4",
+      attempts: MAX_ATTEMPTS,
       diagnostics: {
-
-        geminiKeys:
-          GEMINI_KEYS.filter(
-            Boolean
-          ).length,
-
-        openrouter:
-          Boolean(
-            OPENROUTER_API_KEY
-          ),
-
-        market:
-          Boolean(
-            market?.available
-          ),
-
-        news:
-          Boolean(
-            news?.available
-          ),
-
-        tradingIntelligence:
-          Boolean(
-            market?.intelligence?.available
-          )
-
+        geminiKeys: GEMINI_KEYS.filter(Boolean).length,
+        openrouter: Boolean(OPENROUTER_API_KEY),
+        market: Boolean(market?.available),
+        news: Boolean(news?.available),
+        tradingIntelligence: Boolean(market?.intelligence?.available)
       },
-
       liveData: {
-
-        market:
-          market?.available === true,
-
-        news:
-          news?.available === true,
-
-        tradingIntelligence:
-          market?.intelligence?.available === true
-
+        market: market?.available === true,
+        news: news?.available === true,
+        tradingIntelligence: market?.intelligence?.available === true
       },
-
-      timezone:
-        "Asia/Baghdad",
-
-      timezoneLabel:
-        "کاتی عێراق",
-
-      clock:
-        "12-hour",
-
-      currentIraqTime:
-        iraqTime
-
+      timezone: "Asia/Baghdad",
+      timezoneLabel: "کاتی عێراق",
+      clock: "12-hour",
+      currentIraqTime: iraqTime
     });
   }
 
@@ -2102,174 +903,54 @@ export default async function handler(req, res) {
   // ==========================================================
 
   return res.status(200).json({
-
-    ok:
-      true,
-
-    success:
-      true,
-
-    answer:
-      aiResult.answer,
-
-    provider:
-      aiResult.provider,
-
-    model:
-      aiResult.model,
-
-    attempt:
-      aiResult.attempt,
-
-    retrySequence:
-      "0→1→2→3→4→0→1→2→3→4",
-
-    image:
-      Boolean(image),
-
-    liveData:
-      true,
-
-    generatedAt:
-      liveContext.generatedAt,
-
-    timezone:
-      "Asia/Baghdad",
-
-    timezoneLabel:
-      "کاتی عێراق",
-
-    clock:
-      "12-hour",
-
-    currentIraqTime:
-      iraqTime,
+    ok: true,
+    success: true,
+    answer: aiResult.answer,
+    provider: aiResult.provider,
+    model: aiResult.model,
+    attempt: aiResult.attempt,
+    retrySequence: "0→1→2→3→4→0→1→2→3→4",
+    image: Boolean(image),
+    liveData: true,
+    generatedAt: liveContext.generatedAt,
+    timezone: "Asia/Baghdad",
+    timezoneLabel: "کاتی عێراق",
+    clock: "12-hour",
+    currentIraqTime: iraqTime,
 
     market: {
-
-      available:
-        Boolean(
-          market?.available
-        ),
-
+      available: Boolean(market?.available),
       symbol,
-
       interval,
+      direction: market?.direction || "neutral",
+      currentPrice: market?.current?.close ?? null,
+      datetime: market?.current?.datetime ?? null,
+      datetimeRaw: market?.current?.datetimeRaw ?? null,
 
-      direction:
-        market?.direction ||
-        "neutral",
+      smc: market?.smc || null,
+      marketStructure: market?.marketStructure || null,
+      bos: market?.bos || [],
+      choch: market?.choch || [],
+      displacement: market?.displacement || [],
+      liquidity: market?.liquidity || [],
+      liquiditySweeps: market?.liquiditySweeps || [],
+      premiumDiscount: market?.premiumDiscount || null,
+      setup: market?.setup || null,
+      summary: market?.summary || null,
 
-      currentPrice:
-        market?.current
-          ?.close ??
-        null,
+      fvgs: market?.fvgs || [],
+      orderBlocks: market?.orderBlocks || [],
 
-      datetime:
-        market?.current
-          ?.datetime ??
-        null,
-
-      datetimeRaw:
-        market?.current
-          ?.datetimeRaw ??
-        null,
-
-      // ======================================================
-      // SMC DATA
-      // ======================================================
-
-      smc:
-        market?.smc ||
-        null,
-
-      marketStructure:
-        market?.marketStructure ||
-        null,
-
-      bos:
-        market?.bos ||
-        [],
-
-      choch:
-        market?.choch ||
-        [],
-
-      displacement:
-        market?.displacement ||
-        [],
-
-      liquidity:
-        market?.liquidity ||
-        [],
-
-      liquiditySweeps:
-        market?.liquiditySweeps ||
-        [],
-
-      premiumDiscount:
-        market?.premiumDiscount ||
-        null,
-
-      setup:
-        market?.setup ||
-        null,
-
-      summary:
-        market?.summary ||
-        null,
-
-      // ======================================================
-      // FVG + ORDER BLOCK
-      // ======================================================
-
-      fvgs:
-        market?.fvgs ||
-        [],
-
-      orderBlocks:
-        market?.orderBlocks ||
-        [],
-
-      // ======================================================
-      // TRADING INTELLIGENCE
-      // ======================================================
-
-      intelligence:
-        market?.intelligence ||
-        null,
-
-      tradingContext:
-        market?.tradingContext ||
-        null
-
+      intelligence: market?.intelligence || null,
+      tradingContext: market?.tradingContext || null
     },
 
     news: {
-
-      available:
-        Boolean(
-          news?.available
-        ),
-
-      timezone:
-        "Asia/Baghdad",
-
-      timezoneLabel:
-        "کاتی عێراق",
-
-      clock:
-        "12-hour",
-
-      events:
-        Array.isArray(
-          news?.events
-        )
-          ? news.events
-          : []
-
+      available: Boolean(news?.available),
+      timezone: "Asia/Baghdad",
+      timezoneLabel: "کاتی عێراق",
+      clock: "12-hour",
+      events: Array.isArray(news?.events) ? news.events : []
     }
-
   });
-
 }
