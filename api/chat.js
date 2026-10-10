@@ -697,8 +697,11 @@ export default async function handler(req, res) {
               }
             ],
             generationConfig: {
-              maxOutputTokens: 2200,
-              temperature: 0.3
+              maxOutputTokens: 3000,
+              temperature: 0.3,
+              // Gemini 2.5 "thinking" tokens count toward maxOutputTokens
+              // and can leave the visible answer empty or cut off.
+              thinkingConfig: { thinkingBudget: 0 }
             }
           })
         },
